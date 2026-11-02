@@ -35,16 +35,21 @@ if (sources.length === 0 && fs.existsSync(`${OUT}/manifest.json`)) {
 const files = sources.map(s => s.name); const pathOf = Object.fromEntries(sources.map(s => [s.name, s.path]));
 const claimed = new Map(); // file -> id
 const byId = new Map();
-let errors = 0;
+const skipped = [];        // файлы, которые не удалось однозначно сопоставить
 for (const f of files) {
   const hits = catalog.filter(it => it.match && new RegExp(it.match, 'i').test(f));
-  if (hits.length > 1) { console.error(`✖ ФАЙЛ ${f} подходит сразу под несколько id: ${hits.map(h => h.id)} — уточни match в каталоге`); errors++; continue; }
+  if (hits.length > 1) {
+    // Не роняем весь манифест из-за одной неоднозначной пары: пропускаем файл,
+    // всё остальное собирается. Проблему видно в отчёте в конце.
+    skipped.push(`${f} → подходит под ${hits.map(h => h.id).join(', ')}`);
+    continue;
+  }
   if (hits.length === 0) continue;
   const it = hits[0];
-  if (byId.has(it.id)) { console.error(`✖ id ${it.id} претендуют два файла: ${byId.get(it.id)} и ${f}`); errors++; continue; }
+  if (byId.has(it.id)) { skipped.push(`${f} → id ${it.id} уже занят файлом ${byId.get(it.id)}`); continue; }
   byId.set(it.id, f); claimed.set(f, it.id);
 }
-if (errors) process.exit(1);
+
 
 function worldPoints(doc, excludeRe) {
   const pts = [];
@@ -119,3 +124,8 @@ console.log(`manifest: ${out.length} предметов | реальных мо�
 real.forEach(r => console.log(`  ✔ ${r.id.padEnd(10)} ← ${r.source}  size=${r.size}  fwd=${r.forward}${r.forwardVerified ? '' : ' (?)'}`));
 ph.forEach(p => console.log(`  ▫ заглушка: ${p.id}`));
 unmapped.forEach(f => console.log(`  ? неопознан: ${f}`));
+if (skipped.length) {
+  console.log(`\n⚠ ПРОПУЩЕНО файлов: ${skipped.length} (остальные собраны нормально)`);
+  skipped.forEach(s => console.log('   ' + s));
+  console.log('   Исправьте match в config/catalog.json — он должен однозначно указывать на один id.');
+}

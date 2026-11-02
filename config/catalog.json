@@ -123,11 +123,12 @@
    "name": "Бочка",
    "category": "prop",
    "faction": "civil",
-   "match": "barrel",
+   "match": "(^|[/_-])barrel([._-]|$)",
    "placeholder": {
     "builder": "barrel",
     "p": {}
-   }
+   },
+   "note": "только файл, начинающийся со слова barrel (не «подствольник» gp-25)"
   },
   {
    "id": "crate",

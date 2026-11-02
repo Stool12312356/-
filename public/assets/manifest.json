@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-02T14:06:33.862Z",
+ "generated": "2026-11-02T14:15:31.570Z",
  "items": [
   {
    "id": "aks74u",
@@ -300,6 +300,7 @@
    "name": "Бочка",
    "category": "prop",
    "faction": "civil",
+   "note": "только файл, начинающийся со слова barrel (не «подствольник» gp-25)",
    "placeholder": true,
    "placeholderSpec": {
     "builder": "barrel",
