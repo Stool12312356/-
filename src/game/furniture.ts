@@ -15,7 +15,22 @@ const FURN: Record<string, () => THREE.Group> = {
   wardrobe: () => { const g = new THREE.Group(); const b = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.85, 1.1), mat('ward', '#6b4a2e', 0.7)); b.position.y = 0.925; g.add(b); return g; },
   sofa: () => { const g = new THREE.Group(); const seat = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.4, 2.1), mat('sofa', '#7a4a3a', 0.95)); seat.position.y = 0.3; g.add(seat); const back = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.55, 2.1), mat('sofa', '#7a4a3a')); back.position.set(-0.34, 0.62, 0); g.add(back); return g; },
   shelf: () => { const g = new THREE.Group(); const back = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.9, 0.05), mat('wood3', '#7a5028')); back.position.set(0, 0.95, -0.12); g.add(back); for (let i = 0; i < 4; i++) { const sh = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.04, 0.3), mat('wood2', '#9a6a3a')); sh.position.set(0, 0.3 + i * 0.5, 0); g.add(sh); } return g; },
-  tv: () => { const g = new THREE.Group(); const st = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.5), mat('wood3', '#6b4a2e')); st.position.y = 0.06; g.add(st); const tv = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.42, 0.42), mat('tvbody', '#2a2826', 0.6)); tv.position.y = 0.65; g.add(tv); return g; },
+  // Телевизор. Раньше это была тёмная коробка 0.5×0.42 на низкой тумбе — на скриншоте
+  // игрока она читалась как «посторонний чёрный куб», висящий у стены. Теперь это
+  // телевизор узнаваемой формы: панель с экраном, подставка и тумба под ним.
+  tv: () => {
+    const g = new THREE.Group();
+    const cabinet = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.45, 0.42), mat('wood3', '#6b4a2e'));
+    cabinet.position.y = 0.225; g.add(cabinet);
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.52, 0.07), mat('tvbody', '#23211f', 0.5));
+    frame.position.set(0, 0.74, 0); g.add(frame);
+    const screen = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.44, 0.02),
+      mat('tvglass', '#1b2733', 0.25, 0.1, { emissive: new THREE.Color('#12202c'), emissiveIntensity: 0.5 }));
+    screen.position.set(0, 0.74, 0.045); g.add(screen);
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.05, 0.2), mat('tvbody', '#23211f', 0.5));
+    foot.position.set(0, 0.475, 0); g.add(foot);
+    return g;
+  },
   fridge: () => { const g = new THREE.Group(); const f = new THREE.Mesh(new THREE.BoxGeometry(0.65, 1.7, 0.65), mat('fridge', '#d8d8d0', 0.5, 0.15)); f.position.y = 0.85; g.add(f); return g; },
   carpet: () => { const g = new THREE.Group(); const c = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.02, 1.8), mat('carpet', '#7a3a3a', 1)); g.add(c); return g; },
   lamp: () => { const g = new THREE.Group(); const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.4, 6), mat('metal2', '#444', 0.4, 0.6)); rod.position.y = 0.2; g.add(rod); const sh = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.22, 10, 1, true), mat('lamp', '#e8dfc8', 0.9, 0, { side: THREE.DoubleSide })); sh.position.y = -0.02; g.add(sh); const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), mat('bulb', '#fff2c0', 0.4, 0, { emissive: new THREE.Color('#ffe8a0'), emissiveIntensity: 1.8 })); bulb.position.y = -0.08; g.add(bulb); return g; },

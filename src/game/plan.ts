@@ -74,6 +74,8 @@ export interface ApartmentPlan {
  */
 export const PLAN_X = {
   left: -5.75, stairR: -2.75, hallR: -0.75, midR: 2.75, right: 5.75,
+  /** граница санузла и детской (санузел шире коридора: иначе не влезает ванна) */
+  bathR: -0.25,
 } as const;
 export const PLAN_Z = {
   facade: -5.0, /** граница фасадного и заднего ряда */ mid: 1.0, back: 5.0,
@@ -95,7 +97,7 @@ export function apartmentPlan(kind: 'khrushchevka' | 'brezhnevka' = 'khrushchevk
   const zb = PLAN_Z.back + dExtra / 2;           // тыл
   const zm = PLAN_Z.mid;                          // фасадный | задний ряд
   const zHallBack = PLAN_Z.hallBack;              // прихожая | санузел
-  const { left, stairR, hallR, midR, right } = PLAN_X;
+  const { left, stairR, hallR, midR, right, bathR } = PLAN_X;
 
   const rooms: Room[] = [
     // фасадный ряд
@@ -110,9 +112,12 @@ export function apartmentPlan(kind: 'khrushchevka' | 'brezhnevka' = 'khrushchevk
     // задний ряд
     { id: 'kitchen', name: 'Кухня', x0: left, x1: stairR, z0: zm, z1: zb,
       furniture: ['kitchen', 'fridge', 'table', 'chair', 'sink'] },
-    { id: 'bath', name: 'Санузел', x0: stairR, x1: hallR, z0: zHallBack, z1: zb,
+    // Санузел ШИРЕ коридора: ванна 1.7 м физически не влезала в 1.5 м полезной ширины
+    // (между осями стен 2 м минус полвокселя с каждой стороны), и `furnish` её просто
+    // не ставил. Граница санузла и детской сдвинута на 0.75 м в сторону детской.
+    { id: 'bath', name: 'Санузел', x0: stairR, x1: bathR, z0: zHallBack, z1: zb,
       furniture: ['toilet', 'bath', 'sink'] },
-    { id: 'kids', name: 'Детская', x0: hallR, x1: midR, z0: zm, z1: zb,
+    { id: 'kids', name: 'Детская', x0: bathR, x1: midR, z0: zm, z1: zb,
       furniture: ['bed', 'shelf', 'table', 'chair', 'carpet'] },
     { id: 'study', name: 'Кабинет', x0: midR, x1: right, z0: zm, z1: zb,
       furniture: ['desk', 'shelf', 'chair', 'carpet', 'lamp'] },
@@ -141,7 +146,7 @@ export function apartmentPlan(kind: 'khrushchevka' | 'brezhnevka' = 'khrushchevk
     // кухня оставалась отрезанной (это ловит test-walk, а не статический тест).
     vWall(stairR, zm, zHallBack, [[zm + 0.5, zm + 1.0]]),
     // прихожая | санузел — дверь в конце коридора
-    hWall(zHallBack, stairR, hallR, [[stairR + 0.25, stairR + 1.15]]),
+    hWall(zHallBack, stairR, bathR, [[stairR + 1.0, stairR + 2.0]]),
     // БАГ (нашли фото-проходом): кухня | санузел — стены НЕ БЫЛО вовсе. Участок
     // x = stairR от z = zm до zHallBack принадлежит коридору, а санузел тянется до тыла,
     // и с кухни были видны ванна и унитаз. Глухая стена на весь задний ряд.
@@ -151,11 +156,14 @@ export function apartmentPlan(kind: 'khrushchevka' | 'brezhnevka' = 'khrushchevk
     // прихожая | детская (короткий участок за санузлом) и санузел | детская.
     // Раньше отрезок начинался с zHallBack, и между прихожей и детской оставался
     // проём 1 м без двери — «проходная» дыра в стене коридора.
-    vWall(hallR, zm, zb, []),
+    vWall(hallR, zm, zHallBack, []),       // короткий участок: прихожая | санузел-коридор
+    vWall(bathR, zHallBack, zb, []),        // санузел | детская
     // гостиная | детская
-    hWall(zm, hallR, midR, [[hallR + 1.25, hallR + 2.25]]),
+    hWall(zm, hallR, bathR, []),            // прихожая-коридор | детская: глухая
+    hWall(zm, bathR, midR, [[bathR + 0.5, bathR + 1.5]]),     // гостиная | детская
+    hWall(zHallBack, bathR, midR, []),      // гостиная | детская (задний ряд)
     // гостиная | спальня
-    vWall(midR, zf, zm, [[zf + 1.75, zf + 2.75]]),
+    vWall(midR, zf, zm, [[zf + 1.75, zf + 2.75]]),   // ближе к центру: у углов стоит мебель
     // спальня | кабинет
     hWall(zm, midR, right, [[midR + 1.0, midR + 2.0]]),
     // детская | кабинет
@@ -199,47 +207,248 @@ export function roomAt(plan: ApartmentPlan, x: number, z: number): Room | null {
   return null;
 }
 
+/** Габариты мебели по её геометрии из furniture.ts: [по X, по Z] при повороте 0. */
+export const FURN_SIZE: Record<FurnitureKind, [number, number]> = {
+  bed: [1.0, 2.1], table: [0.8, 1.2], chair: [0.45, 0.45], wardrobe: [0.6, 1.1], sofa: [0.95, 2.1],
+  // тумба под телевизор: панель 0.86 м + выступ
+  tv: [0.95, 0.42], fridge: [0.65, 0.65], shelf: [1.25, 0.35], carpet: [2.4, 1.8], lamp: [0.45, 0.45],
+  kitchen: [2.3, 0.6], toilet: [0.4, 0.5], bath: [1.7, 0.75], sink: [0.55, 0.42], desk: [1.4, 0.7],
+};
+
+export interface FurnItem { kind: FurnitureKind; x: number; z: number; rot: number }
+interface Box { x0: number; z0: number; x1: number; z1: number }
+
+/** Прямоугольник предмета на плане с учётом поворота (кратно 90°). */
+function boxOf(kind: FurnitureKind, x: number, z: number, rot: number): Box {
+  const [w0, d0] = FURN_SIZE[kind];
+  const odd = Math.abs(Math.round(rot / (Math.PI / 2)) % 2) === 1;   // поворот на 90° → габариты меняются местами
+  const w = odd ? d0 : w0, d = odd ? w0 : d0;
+  return { x0: x - w / 2, z0: z - d / 2, x1: x + w / 2, z1: z + d / 2 };
+}
+
 /**
- * Расстановка мебели в комнате: возвращает позиции и поворот (радианы) для каждого предмета.
- * Правило простое и предсказуемое: крупные предметы — вдоль стен, стол — в центре.
- * Так планировка читается, и мебель не оказывается в дверном проёме.
+ * Расстановка мебели в комнате.
+ *
+ * Раньше позиции были формулами «угол + смещение», и предметы налезали друг на друга:
+ * диван влезал в стол, кухонный гарнитур — в холодильник, ванна — в мойку, а диван
+ * вообще выходил за стену (на скриншоте игрока это выглядело как «беспорядок»).
+ * Теперь расстановка проверяет ГАБАРИТЫ: каждый предмет ставится к стене или в центр,
+ * но только если он целиком внутри комнаты и не пересекается с уже поставленными.
+ *
+ * plan (необязателен) нужен, чтобы не загораживать дверные проёмы и окна.
  */
-export function furnish(r: Room): { kind: FurnitureKind; x: number; z: number; rot: number }[] {
-  const out: { kind: FurnitureKind; x: number; z: number; rot: number }[] = [];
-  /** держим предмет внутри комнаты (иначе шкаф «прорезает» стену на плане и в игре) */
-  const push = (kind: FurnitureKind, x: number, z: number, rot: number) => {
-    // отступ от стены: стена занимает полвокселя от осевой линии
-    const padX = Math.min(0.55, (r.x1 - r.x0) / 2 - 0.05);
-    const padZ = Math.min(0.55, (r.z1 - r.z0) / 2 - 0.05);
-    out.push({
-      kind, rot,
-      x: Math.min(Math.max(x, r.x0 + padX), r.x1 - padX),
-      z: Math.min(Math.max(z, r.z0 + padZ), r.z1 - padZ),
-    });
+export function furnish(r: Room, plan?: ApartmentPlan): FurnItem[] {
+  const out: FurnItem[] = [];
+  // ВАЖНО: границы комнат в плане — это ОСИ стен. Воксельная стена толщиной 0.5 м
+  // ложится на ось НЕ всегда симметрично: генератор ставит воксель в
+  // floor((ось + размер/2) / 0.5), поэтому при чётном смещении стена занимает
+  // [ось − 0.25, ось + 0.25], а при нечётном — [ось, ось + 0.5]. Из-за этого любой
+  // фиксированный отступ в какой-то части дома «задвигал» мебель в кирпич
+  // (на скриншоте лампы и полки стояли внутри стены). Считаем ровно как генератор.
+  const WALL = 0.5;
+  const wallSpan = (axis: number, half: number): [number, number] => {
+    const idx = Math.floor((axis + half) / WALL);
+    return [idx * WALL - half, (idx + 1) * WALL - half];
   };
-  const cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2;
-  const inner = 0.6;            // отступ от стены
-  const along: 'x' | 'z' = (r.x1 - r.x0) >= (r.z1 - r.z0) ? 'x' : 'z';
+  const base = {
+    x0: wallSpan(r.x0, plan ? plan.w / 2 : 6)[1],
+    x1: wallSpan(r.x1, plan ? plan.w / 2 : 6)[0],
+    z0: wallSpan(r.z0, plan ? plan.d / 2 : 5.25)[1],
+    z1: wallSpan(r.z1, plan ? plan.d / 2 : 5.25)[0],
+  };
+  // страховка: если границы совпали/перевернулись (тонкая нестандартная комната),
+  // отступаем внутрь на полклетки — мебель не должна оказаться в стене
+  const inner: Box = {
+    x0: base.x0 < r.x1 ? base.x0 : r.x0 + WALL / 2,
+    x1: base.x1 > r.x0 ? base.x1 : r.x1 - WALL / 2,
+    z0: base.z0 < r.z1 ? base.z0 : r.z0 + WALL / 2,
+    z1: base.z1 > r.z0 ? base.z1 : r.z1 - WALL / 2,
+  };
+  const inside = (b: Box) => b.x0 >= inner.x0 - 1e-6 && b.x1 <= inner.x1 + 1e-6 &&
+    b.z0 >= inner.z0 - 1e-6 && b.z1 <= inner.z1 + 1e-6;
+  const overlap = (a: Box, b: Box) => {
+    const ox = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0);
+    const oz = Math.min(a.z1, b.z1) - Math.max(a.z0, b.z0);
+    return ox > 0.02 && oz > 0.02;
+  };
+  const fits = (b: Box, ignore: Set<FurnitureKind>) => inside(b) && !out.some(o => {
+    if (ignore.has(o.kind)) return false;
+    return overlap(b, boxOf(o.kind, o.x, o.z, o.rot));
+  });
+  // зоны, которые нельзя занимать: дверные проёмы, ведущие в эту комнату
+  const zones: Box[] = [];
+  if (plan) {
+    for (const ws of plan.walls) {
+      const horiz = Math.abs(ws.z1 - ws.z0) < 1e-6;
+      for (const [a, b] of ws.doors) {
+        const axis = horiz ? ws.z0 : ws.x0;
+        const lo = (horiz ? Math.min(ws.x0, ws.x1) : Math.min(ws.z0, ws.z1)) + a;
+        const hi = (horiz ? Math.min(ws.x0, ws.x1) : Math.min(ws.z0, ws.z1)) + b;
+        const z: Box = horiz
+          ? { x0: lo - 0.15, z0: axis - 0.9, x1: hi + 0.15, z1: axis + 0.9 }
+          : { x0: axis - 0.9, z0: lo - 0.15, x1: axis + 0.9, z1: hi + 0.15 };
+        if (z.x1 > r.x0 && z.x0 < r.x1 && z.z1 > r.z0 && z.z0 < r.z1) zones.push(z);
+      }
+    }
+  }
+  // Дверные зоны проверяем в два уровня:
+  //  * strict — предмет не попадает в «коридор» перед дверью (0.9 м в комнату);
+  //  * loose  — предмет не перекрывает сам проём.
+  // Раньше проверялся только strict, причём с лишним отступом pad по ВСЕМ сторонам:
+  // в гостиной 3.5×6 диван 2.1 м не находил места ни у одной стены (зона двери
+  // «съедала» всю стену), и диван вообще не появлялся. Отступ pad уже учтён в inner,
+  // поэтому здесь он не нужен.
+  const freeOfDoors = (b: Box, strict = true) => !zones.some(z => {
+    const dz = strict ? z : { x0: z.x0 + 0.6, z0: z.z0 + 0.55, x1: z.x1 - 0.6, z1: z.z1 - 0.55 };
+    return overlap(b, dz);
+  });
+
+  /**
+   * Поставить к стене. side: 0 = фасад (−Z), 1 = тыл (+Z), 2 = запад (−X), 3 = восток (+X).
+   * `near` — предпочтительное смещение вдоль стены в метрах от её середины
+   * (вторая вещь пары встаёт напротив первой, а не рядом).
+   */
+  const againstWall = (kind: FurnitureKind, side: number, near = 0): boolean => {
+    const [w0, d0] = FURN_SIZE[kind];
+    const alongX = side < 2;                             // стена тянется вдоль X (фасад/тыл)
+    // ВАЖНО: предмет должен стоять ВДОЛЬ стены длинной стороной. Раньше поворот был
+    // привязан к стороне («боковая стена → 90°») без учёта формы: диван 0.95×2.1 у
+    // фасада вставал поперёк, занимал полкомнаты, и остальная мебель не помещалась.
+    const long = Math.max(w0, d0);
+    const wantLongAlongX = alongX;
+    const rot0 = wantLongAlongX === (w0 >= d0);          // true → rot = 0, false → 90°
+    const rot = wantLongAlongX
+      ? (rot0 ? 0 : Math.PI / 2)
+      : (d0 >= w0 ? 0 : Math.PI / 2);
+    const w = Math.abs(rot) > 0.1 ? d0 : w0, d = Math.abs(rot) > 0.1 ? w0 : d0;
+    void long;
+    const lo = alongX ? inner.x0 : inner.z0;
+    const hi = alongX ? inner.x1 : inner.z1;
+    const fixed = side === 0 ? inner.z0 + d / 2 : side === 1 ? inner.z1 - d / 2
+      : side === 2 ? inner.x0 + w / 2 : inner.x1 - w / 2;
+    const half = (alongX ? w : d) / 2;
+    const span = hi - lo - half * 2;
+    if (span < -1e-6) return false;
+    // кандидаты вдоль стены: сначала желаемое место, потом к краям
+    const mid = (lo + hi) / 2 + near;
+    const cand = [mid, mid + 0.4, mid - 0.4, mid + 0.8, mid - 0.8, lo + half, hi - half];
+    for (let n = 1; n <= 6; n++) cand.push(lo + half + (span * n) / 6, hi - half - (span * n) / 6);
+    // Проход 1 — не загораживаем дверь совсем; проход 2 — можно встать в «коридор»
+    // перед дверью, но не в сам проём.
+    for (const strict of [true, false]) {
+      for (const p of cand) {
+        const clamped = Math.min(Math.max(p, lo + half), hi - half);
+        const x = alongX ? clamped : fixed, z = alongX ? fixed : clamped;
+        const b = boxOf(kind, x, z, rot);
+        if (!fits(b, new Set()) || !freeOfDoors(b, strict)) continue;
+        out.push({ kind, x, z, rot });
+        return true;
+      }
+    }
+    return false;
+  };
+
+  /** Поставить в центр (стол, ковёр, лампа). */
+  const atCenter = (kind: FurnitureKind, dx = 0, dz = 0): boolean => {
+    const cand: [number, number][] = [[dx, dz], [0, 0], [-dx, -dz], [dx, -dz], [-dx, dz], [0, -0.6], [0, 0.6], [0.6, 0], [-0.6, 0]];
+    for (const [ox, oz] of cand) {
+      const x = (r.x0 + r.x1) / 2 + ox, z = (r.z0 + r.z1) / 2 + oz;
+      const b = boxOf(kind, x, z, 0);
+      if (!fits(b, new Set()) || !freeOfDoors(b, false)) continue;
+      out.push({ kind, x, z, rot: 0 });
+      return true;
+    }
+    // Раньше здесь стояло 9 фиксированных точек, и в маленькой комнате (детская 3×4 м
+    // после кровати 2.1 м у стены) стол было некуда поставить — он просто исчезал.
+    // Теперь перебираем сетку с шагом 0.2 м от центра комнаты наружу.
+    const cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2;
+    const rad = Math.max(r.x1 - r.x0, r.z1 - r.z0) / 2;
+    for (let ring = 0.2; ring <= rad; ring += 0.2) {
+      for (let a = 0; a < 16; a++) {
+        const th = (a / 16) * Math.PI * 2;
+        const x = cx + Math.cos(th) * ring, z = cz + Math.sin(th) * ring;
+        const b = boxOf(kind, x, z, 0);
+        if (!fits(b, new Set()) || !freeOfDoors(b, false)) continue;
+        out.push({ kind, x, z, rot: 0 });
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const has = (k: FurnitureKind) => r.furniture.includes(k);
+
+  // 1) ПАРЫ у противоположных стен: диван ↔ телевизор, кровать ↔ шкаф.
+  // Раньше обе вещи «прилипали» к одной стене, и комната выглядела как склад.
+  if (has('sofa')) {
+    const side = againstWall('sofa', 2) ? 2 : againstWall('sofa', 3) ? 3 : againstWall('sofa', 0) ? 0 : 1;
+    if (has('tv')) againstWall('tv', side === 2 ? 3 : side === 3 ? 2 : side === 0 ? 1 : 0);
+  } else if (has('bed')) {
+    const side = againstWall('bed', 2) ? 2 : againstWall('bed', 3) ? 3 : againstWall('bed', 0) ? 0 : 1;
+    if (has('wardrobe')) againstWall('wardrobe', side === 2 ? 3 : side === 3 ? 2 : side === 0 ? 1 : 0);
+  } else if (has('wardrobe')) {
+    againstWall('wardrobe', 3) || againstWall('wardrobe', 1);
+  }
+  // 2) остальная мебель по стенам (в т.ч. вторая вещь пары, если напротив не влезла)
+  for (const kind of ['tv', 'bed', 'desk', 'shelf', 'kitchen', 'fridge', 'bath', 'toilet', 'sink', 'lamp', 'carpet'] as FurnitureKind[]) {
+    if (!has(kind) || out.some(i => i.kind === kind)) continue;
+    for (const side of kind === 'bath' || kind === 'kitchen' ? [0, 1, 2, 3] : [3, 1, 0, 2]) {
+      if (againstWall(kind, side)) break;
+    }
+  }
+  // 3) стол в центре, стул — рядом с ним (стул может «заезжать» под стол)
+  if (has('table')) atCenter('table', 0, 0.2);
+  if (has('chair')) {
+    const t = out.find(i => i.kind === 'table');
+    let placed = false;
+    if (t) {
+      for (const [dx, dz, rot] of [[0, 0.85, Math.PI], [0, -0.85, 0], [0.8, 0, -Math.PI / 2], [-0.8, 0, Math.PI / 2]] as [number, number, number][]) {
+        const b = boxOf('chair', t.x + dx, t.z + dz, rot);
+        if (fits(b, new Set<FurnitureKind>(['table', 'carpet'])) && freeOfDoors(b, false)) {
+          out.push({ kind: 'chair', x: t.x + dx, z: t.z + dz, rot });
+          placed = true;
+          break;
+        }
+      }
+    }
+    if (!placed) atCenter('chair', 0.7, 0.2);
+  }
+  // 3b) ЧЕГО НЕ ВЛЕЗЛО ПО ПРАВИЛАМ — ставим хоть куда, но внутри комнаты.
+  // Иначе предмет молча исчезал: в санузле брежневки ванна занимала всё, и мойка
+  // с унитазом просто не появлялись (а на плане они есть — расходились план и игра).
   for (const kind of r.furniture) {
-    switch (kind) {
-      // вдоль стен
-      case 'sofa': push(kind, r.x0 + inner, cz, Math.PI / 2); break;
-      case 'tv': push(kind, r.x1 - inner, cz, -Math.PI / 2); break;
-      case 'bed': push(kind, r.x0 + 1.1, cz, Math.PI / 2); break;
-      case 'wardrobe': push(kind, r.x1 - inner, r.z0 + 1.0, 0); break;
-      case 'kitchen': push(kind, cx, r.z0 + 0.5, 0); break;
-      case 'fridge': push(kind, r.x1 - 0.55, r.z0 + 0.5, 0); break;
-      case 'toilet': push(kind, r.x0 + 0.55, r.z0 + 0.55, 0); break;
-      case 'bath': push(kind, r.x0 + 0.95, r.z1 - 0.9, 0); break;
-      case 'sink': push(kind, r.x1 - 0.55, r.z1 - 0.55, Math.PI); break;
-      case 'shelf': push(kind, r.x0 + inner, r.z1 - 0.9, Math.PI / 2); break;
-      case 'desk': push(kind, r.x1 - 0.7, cz, -Math.PI / 2); break;
-      // в центре комнаты
-      case 'table': push(kind, cx, cz + 0.25, 0); break;
-      case 'chair': push(kind, cx + (along === 'x' ? 0.8 : 0), cz + (along === 'x' ? 0.25 : 0.8), Math.PI); break;
-      case 'carpet': push(kind, cx, cz - 0.15, 0); break;
-      case 'lamp': push(kind, r.x1 - 0.5, r.z1 - 0.5, 0); break;
+    if (kind === 'carpet') continue;        // ковёр ставится отдельно, последним
+    if (out.some(i => i.kind === kind)) continue;
+    let placed = false;
+    for (let side = 0; side < 4 && !placed; side++) placed = againstWall(kind, side);
+    if (!placed) placed = atCenter(kind);
+    if (!placed) {
+      // последняя попытка: мелкая сетка по комнате, но БЕЗ наложений на мебель.
+      // Раньше здесь проверялись только границы комнаты — из-за этого в детской стол
+      // вставал прямо на кровать (видно на скриншоте), а в санузле — друг на друга.
+      for (let z = inner.z0; z <= inner.z1 && !placed; z += 0.2) {
+        for (let x = inner.x0; x <= inner.x1 && !placed; x += 0.2) {
+          for (const rot of [0, Math.PI / 2]) {
+            const b = boxOf(kind, x, z, rot);
+            if (!fits(b, new Set()) || !freeOfDoors(b, false)) continue;
+            out.push({ kind, x, z, rot }); placed = true; break;
+          }
+        }
+      }
+    }
+  }
+  // 4) ковёр — ПОСЛЕДНИМ: он лежит под мебелью, поэтому проверяем только границы комнаты
+  if (has('carpet')) {
+    const cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2;
+    // ковёр может быть БОЛЬШЕ комнаты (2.4 × 1.8 против детской 3 × 4 м — влезает,
+    // а вот в узком месте нет). Тогда поворачиваем его на 90° и, если всё равно
+    // не влезает, ставим меньший: центр ковра не должен оказаться в стене.
+    for (const rot of [0, Math.PI / 2]) {
+      const b = boxOf('carpet', cx, cz, rot);
+      if (inside(b)) { out.push({ kind: 'carpet', x: cx, z: cz, rot }); break; }
     }
   }
   return out;
 }
+
+const ALL_KINDS = new Set<FurnitureKind>(['bed', 'table', 'chair', 'wardrobe', 'sofa', 'tv', 'fridge', 'shelf', 'carpet', 'lamp', 'kitchen', 'toilet', 'bath', 'sink', 'desk']);

@@ -73,7 +73,7 @@ for (let x = -10; x < model.size[0] + 10; x += 2) for (let z = -10; z < model.si
   const W2 = model.plan.w / 2;
   for (const room of model.plan.rooms) {
     if (room.id === 'stairs') continue;
-    for (const item of furnishRoom(room)) {
+    for (const item of furnishRoom(room, model.plan)) {
       const g = buildFurniture(item.kind);
       if (!g) continue;
       g.position.set(origin.x + item.x, 0.02 + model.floorH, origin.z + item.z);
@@ -325,7 +325,7 @@ for (const r of rooms) {
   // Куда смотреть: на ЦЕНТР МЕБЕЛИ комнаты, а не в угол. Съёмка «из угла в ближний
   // угол» давала стену, а «в противоположный угол» — комнату без гарнитура
   // (на кухне в кадр не попали ни плита, ни холодильник). Смотрим на мебель.
-  const items = furnishRoom(r);
+  const items = furnishRoom(r, model.plan);
   const cxF = items.length ? items.reduce((a, i) => a + i.x, 0) / items.length : (r.x0 + r.x1) / 2;
   const czF = items.length ? items.reduce((a, i) => a + i.z, 0) / items.length : (r.z0 + r.z1) / 2;
   // в узкой комнате шире 1 м от стены не отойти — иначе стена занимает полкадра

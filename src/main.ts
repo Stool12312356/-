@@ -11,7 +11,7 @@ import { loadTextures } from './render/tex';
 import { Bots } from './game/bots';
 import { spawnVoxelHouse, type PlacedBuilding } from './game/structure';
 import { BUILDINGS, SPAWN } from './game/world';
-import { SURFACES, pointBlankRange } from './game/weapons';
+import { SURFACES, pointBlankRange, EXPLOSION, EXPLOSION_SMALL } from './game/weapons';
 import type { PlayerInput, Impact } from './shared/types';
 
 const $ = (id: string) => document.getElementById(id)!;
@@ -112,13 +112,14 @@ function onImpact(i: Impact) {
   effects.impact(i);
   if (i.kind === 'explosive') {
     // РПГ: взрыв в точке попадания, отдельно бьём по ближайшему дому (средний уровень разрушений)
-    effects.explosion(i.pos, 9);
+    effects.explosion(i.pos, EXPLOSION.blast);
     const best = findHouseNear(i.pos, 3);
     if (best) {
-      // РПГ: выбивает ВОКСЕЛЬНЫЙ кратер. Сила 400 при HP бетона 30 — гарантированно
-      // сносит блоки в радиусе; раньше стояло 8, и блоки только темнели (претензия
-      // «РПГ не рушит блоки, иногда они темнеют»).
-      const killed = best.house.damageAt(i.pos, 3.4, 400, { max: 600 });
+      // Кратер ограничен параметрами из weapons.ts (EXPLOSION). Было r = 3.4 и max 600:
+      // один выстрел выгрызал ~240 вокселей плюс запускал обрушение оторванных стен,
+      // и дом складывался за пару выстрелов. Теперь — брешь 1.4 м и не больше
+      // 26 вокселей: стену пробивает, дом не сносит.
+      const killed = best.house.damageAt(i.pos, EXPLOSION.crater, EXPLOSION.strength, { max: EXPLOSION.craterMax });
       if (killed) addFeed(`Выбито ${killed} блоков`);
       if (best.house.collapsed.size) addFeed('СЕКЦИЯ ОБРУШЕНА');
     }
@@ -223,8 +224,12 @@ function blast() {
   const d = lookDir(); const o = camera.position.clone(); let t = 1, hit: THREE.Vector3 | null = null;
   for (; t < 160; t += 0.5) { const p = o.clone().addScaledVector(d, t); if (p.y <= heightAt(p.x, p.z) + 0.2) { hit = p; break; } }
   hit ??= o.clone().addScaledVector(d, 40);
+  // отладочный залп (G): радиус поражения оставляем большим (это «спецэффект» для теста),
+  // но кратер в доме — маленький, чтобы не сносить полкарты одним нажатием
   phys.post({ type: 'explosion', pos: [hit.x, hit.y, hit.z], radius: 18, impulse: 900 });
   effects?.explosion([hit.x, hit.y, hit.z], 18);
+  const bestG = findHouseNear([hit.x, hit.y, hit.z], 3);
+  if (bestG) bestG.house.damageAt([hit.x, hit.y, hit.z], EXPLOSION_SMALL.crater, EXPLOSION_SMALL.strength, { max: EXPLOSION_SMALL.craterMax });
 }
 
 let lastT = performance.now(), fps = 60, eyeY = 1.65, bob = 0;

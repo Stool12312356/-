@@ -158,9 +158,15 @@ for (const kind of ['khrushchevka', 'brezhnevka']) {
   // улицу включаем в область: иначе «дойти до улицы» упирается в границу BFS, а не в стену
   const areaWorld = [-14, model.size[0] + 14, -16, model.size[2] + 16];
   const reach0 = bfsReach(solid, [doorW[0], 0, doorW[1]], 0, undefined, areaWorld, extra);
-  const roomsOk = plan.rooms.map(r => ({
-    r, ok: reach0.reachable((r.x0 + r.x1) / 2 + W, (r.z0 + r.z1) / 2 + D),
-  }));
+  // Проверяем не одну точку в центре комнаты, а ЛЮБУЮ проходимую клетку внутри неё:
+  // центр может быть занят мебелью (стул/стол), и это не значит «в комнату не войти».
+  const anyInRoom = (reach, r) => {
+    for (let z = r.z0 + 0.4; z <= r.z1 - 0.4; z += 0.5)
+      for (let x = r.x0 + 0.4; x <= r.x1 - 0.4; x += 0.5)
+        if (reach.reachable(x + W, z + D)) return true;
+    return false;
+  };
+  const roomsOk = plan.rooms.map(r => ({ r, ok: reach0 ? anyInRoom(reach0, r) : false }));
   const missing = roomsOk.filter(x => !x.ok).map(x => x.r.name);
   check('с улицы можно дойти во все комнаты 1-го этажа', missing.length === 0,
     missing.length ? `недостижимы: ${missing.join(', ')}` : `${plan.rooms.length} комнат`);
@@ -169,7 +175,7 @@ for (const kind of ['khrushchevka', 'brezhnevka']) {
   const landW = worldW([plan.stairs.x0 + 0.8, plan.stairs.z0 + 0.8]);
   const reachTop = bfsReach(solid, [landW[0], 0, landW[1]], floorH, undefined, areaWorld, extra);
   const topRooms = plan.rooms.filter(r => r.id !== 'stairs');
-  const topMissing = topRooms.filter(r => !reachTop.reachable((r.x0 + r.x1) / 2 + W, (r.z0 + r.z1) / 2 + D));
+  const topMissing = reachTop ? topRooms.filter(r => !anyInRoom(reachTop, r)) : topRooms;
   check(`на верхнем этаже (${floorH} м) все комнаты достижимы с площадки`,
     reachTop && topMissing.length === 0,
     reachTop ? `${topRooms.length - topMissing.length}/${topRooms.length} комнат` : 'площадка недостижима');

@@ -4,6 +4,13 @@ import type { AssetLibrary } from '../render/assets';
 import type { PhysicsClient } from '../physics/client';
 import { buildTerrain } from './terrain';
 
+/**
+ * Подпись-табличка над экспонатом.
+ * БАГ (виден на скриншоте из квартиры): у спрайта стоял `depthTest: false`, поэтому
+ * подписи полигона рисовались ПОВЕРХ стен дома — игрок внутри квартиры видел на
+ * кирпичной стене зеленоватые полоски и «обрывки текста». Теперь подписи уважают
+ * глубину: их видно только там, где они реально перед стеной.
+ */
 function label(text: string, real: boolean, scale = 1): THREE.Sprite {
   const c = document.createElement('canvas'); c.width = 512; c.height = 96; const g = c.getContext('2d')!;
   g.fillStyle = 'rgba(10,10,10,.72)'; g.fillRect(0, 0, 512, 96);
@@ -11,7 +18,10 @@ function label(text: string, real: boolean, scale = 1): THREE.Sprite {
   g.font = 'bold 34px sans-serif'; g.fillStyle = '#fff'; g.fillText(text, 24, 42);
   g.font = '24px sans-serif'; g.fillStyle = real ? '#4ade80' : '#fb923c'; g.fillText(real ? 'РЕАЛЬНАЯ МОДЕЛЬ' : 'ЗАГЛУШКА (нет файла)', 24, 78);
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true })); s.scale.set(3 * scale, 0.5625 * scale, 1); s.renderOrder = 10; return s;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: tex, transparent: true, depthTest: true, depthWrite: false,
+    polygonOffset: true, polygonOffsetFactor: -2,
+  })); s.scale.set(3 * scale, 0.5625 * scale, 1); s.renderOrder = 10; return s;
 }
 
 export function buildPolygon(scene: THREE.Scene, lib: AssetLibrary, phys: PhysicsClient) {

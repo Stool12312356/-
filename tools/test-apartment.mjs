@@ -91,7 +91,7 @@ for (const kind of ['khrushchevka', 'brezhnevka']) {
   // 4. мебель строго внутри своей комнаты и не в стене
   let furn = 0, outside = 0, inWall = 0;
   for (const r of plan.rooms) {
-    for (const f of furnish(r)) {
+    for (const f of furnish(r, plan)) {
       furn++;
       if (!inRoom(r, f.x, f.z, 0.2)) outside++;
       if (solidAtFloor(f.x, f.z, 1.0)) inWall++;

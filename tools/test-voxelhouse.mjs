@@ -88,6 +88,22 @@ for (const [kind, sections] of [['khrushchevka', 1], ['khrushchevka', 3], ['brez
   check('30 взрывов укладываются в бюджет', dt < 900, `${dt.toFixed(0)} мс`);
   const sup = h.checkSupport();
   console.log(`  · после 30 взрывов отвалилось по опоре: ${sup}`);
+  // 8. UV: у каждого квада площадь в текстурных координатах должна быть ненулевой.
+  // Именно этот баг давал «обрывки» на стенах: UV считались от центра кубика, все
+  // четыре вершины грани получали одну точку текстуры, и грань вырождалась в тексель.
+  {
+    let quads = 0, flat = 0;
+    for (const c of h['chunkR'].values()) {
+      const uv = c.geo.attributes.uv.array;
+      for (let q = 0; q + 7 < uv.length; q += 8) {
+        quads++;
+        const area = Math.abs((uv[q + 2] - uv[q]) * (uv[q + 5] - uv[q + 1]) - (uv[q + 4] - uv[q]) * (uv[q + 3] - uv[q + 1]));
+        if (area < 1e-4) flat++;
+      }
+    }
+    check('UV граней не выродились (нет «обрывков» текстуры)', quads > 0 && flat === 0,
+      `квадов ${quads}, с нулевой UV ${flat}`);
+  }
   const t1 = performance.now();
   for (let f = 0; f < 60; f++) h.update(1 / 60, performance.now() + f * 16);
   check('60 кадров update дёшевы', performance.now() - t1 < 300, `${(performance.now() - t1).toFixed(0)} мс`);

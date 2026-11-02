@@ -47,7 +47,7 @@ function furnish(model: VoxelHouseModel, scene: THREE.Scene, origin: THREE.Vecto
       const secCenterX = -model.size[0] / 2 + s * secW + secW / 2;
       for (const room of plan.rooms) {
         if (room.id === 'stairs') continue;
-        for (const item of furnishRoom(room)) {
+        for (const item of furnishRoom(room, plan)) {
           const p = new THREE.Vector3(secCenterX + item.x, y, item.z).applyQuaternion(q).add(origin);
           const g = buildFurniture(item.kind);
           if (!g) continue;

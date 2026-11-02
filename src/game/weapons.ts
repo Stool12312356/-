@@ -64,6 +64,33 @@ export interface SurfaceSpec {
   color: string;
 }
 
+/**
+ * ВЗРЫВ (РПГ и прочие взрывные). Один снаряд не должен сносить дом: он пробивает
+ * брешь в стене, но не срезает секцию. Раньше урон считался сферой r = 3.4 м и
+ * силой 400 — это ~200-240 вокселей за выстрел (3.8 % дома), а в связке с
+ * «обрушением оторванного» дом складывался за пару выстрелов.
+ *
+ * Единый источник правды: main.ts и tools/test-rpg.mjs берут параметры отсюда,
+ * поэтому они не могут разойтись.
+ */
+export const EXPLOSION = {
+  /** радиус собственно кратера, м (полтора-два вокселя в глубину + разлёт) */
+  crater: 1.4,
+  /** сколько вокселей максимум выбивает один взрыв (это и есть «лаг» — пересборка чанков) */
+  craterMax: 26,
+  /** сила удара: с запасом больше HP любого вокселя (плита 40), чтобы центр гарантированно выбивало */
+  strength: 120,
+  /** радиус поражения (для существ, импульсов и дыма — НЕ для вокселей) */
+  blast: 9,
+  /** сила по живой силе на краю blast, в единицах hp */
+  damage: 160,
+  /** сколько секторов «осадков» стен не обрушивается: взрыв не должен запускать collapse */
+  /** (порог обрушения секции остаётся 66 % в collapse-логике) */
+} as const;
+
+/** Параметры кратера для ящиков/прочих динамических объектов — дешевле, чем у РПГ. */
+export const EXPLOSION_SMALL = { crater: 1.0, craterMax: 8, strength: 60 } as const;
+
 export const SURFACES: Record<Surface, SurfaceSpec> = {
   concrete: { name: 'бетон', need: 2.2, loss: 1.4, ricochet: 18, dmgMul: 0.6, color: '#b9b5a8' },
   panel: { name: 'панель', need: 1.6, loss: 1.1, ricochet: 15, dmgMul: 0.9, color: '#a9adb2' },
@@ -133,7 +160,7 @@ export const WEAPONS: WeaponSpec[] = [
   W({
     id: 'rpg7', name: 'РПГ-7', model: 'rpg7', ammo: 'ПГ-7В', rpm: 8, auto: false, mag: 1,
     velocity: 120, bulletG: 2600, caliber: 85, moa: 200, recoil: 0.09, penetration: 99, damage: 60,
-    reload: 7.0, zero: 300, weight: 7.0, explosive: { radius: 9, damage: 160 }, kick: 0.2, bc: 0.25
+    reload: 7.0, zero: 300, weight: 7.0, explosive: { radius: EXPLOSION.blast, damage: EXPLOSION.damage }, kick: 0.2, bc: 0.25
   }),
 ];
 

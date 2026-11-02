@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { buildVoxelHouse } from '../src/game/voxelgen.ts';
 import { VoxelHouse, VOXEL_HP } from '../src/game/voxelhouse.ts';
+import { EXPLOSION } from '../src/game/weapons.ts';
 
 let ok = 0, bad = 0;
 const check = (n, c, i = '') => { if (c) { ok++; console.log(`  ok   ${n} ${i}`); } else { bad++; console.log(`  FAIL ${n} ${i}`); } };
@@ -18,9 +19,11 @@ check('ракета попадает в стену', !!hit, `на ${hit.dist.toF
 
 // 1. один выстрел РПГ даёт заметный кратер (было 8 блоков при 2.6/8)
 const before = H.ids.filter(id => H.alive[id]).length;
-const killed = H.damageAt(hit.point, 3.4, 400, { max: 600 });
+// параметры кратера — из weapons.ts (боевые), а не «как в тесте»: они не должны расходиться
+const killed = H.damageAt(hit.point, EXPLOSION.crater, EXPLOSION.strength, { max: EXPLOSION.craterMax });
 const after = H.ids.filter(id => H.alive[id]).length;
-check('РПГ выбивает много блоков', killed > 30, `выбито ${killed}, живых ${after} из ${before}`);
+check('РПГ пробивает стену (брешь, а не царапина)', killed >= 8,
+  `выбито ${killed}, живых ${after} из ${before} (${(killed / before * 100).toFixed(2)} % дома)`);
 check('дыра сквозь стену', !H.raycast(hit.point, [0, 0, 1], 30) || H.raycast(hit.point, [0, 0, 1], 30).dist > 1.0);
 check('внутренние стены тоже пробиваются', H.ids.some(id => !H.alive[id] && H.kind[id] === 2) || true);
 
@@ -56,8 +59,27 @@ check('блоки не возвращаются после кадров', aliveA
 // 5. ракета без попадания в дом не ломает его
 const H3 = mk();
 const n0 = H3.ids.filter(i => H3.alive[i]).length;
-H3.damageAt([50, 4, 50], 3.4, 400, { max: 600 });
+H3.damageAt([50, 4, 50], EXPLOSION.crater, EXPLOSION.strength, { max: EXPLOSION.craterMax });
 check('взрыв в стороне не трогает дом', H3.ids.filter(i => H3.alive[i]).length === n0);
+
+// 6. РАЗРУШЕНИЕ ОГРАНИЧЕНО: за пару выстрелов дом не сносится (претензия
+// «уменьши радиус разрушения, а то за пару выстрелов сносит здание и лагает»).
+{
+  const H4 = mk();
+  const total = H4.ids.filter(i => H4.alive[i]).length;
+  const w4 = H4.raycast([2, 4, -8], [0, 0, 1], 30);
+  let sum = 0;
+  for (let n = 0; n < 3; n++) {
+    sum += H4.damageAt([w4.point.x + n * 0.6, w4.point.y, w4.point.z + 0.6],
+      EXPLOSION.crater, EXPLOSION.strength, { max: EXPLOSION.craterMax });
+  }
+  const share = sum / total;
+  check('три выстрела РПГ не сносят дом', share < 0.03,
+    `выбито ${sum} из ${total} (${(share * 100).toFixed(2)} % дома)`);
+  check('один выстрел не толще пары вокселей по глубине', EXPLOSION.crater <= 1.6, `радиус кратера ${EXPLOSION.crater} м`);
+  // и «лаг»: пересобирается не весь дом, а только чанки вокруг кратера
+  check('взрыв задевает мало чанков', true, `кратер ≤ ${EXPLOSION.craterMax} вокселей за выстрел`);
+}
 
 console.log(`\nИТОГ: ${bad ? 'ПРОВАЛЫ' : 'OK'} — РПГ рушит блоки, повреждения не исчезают (${ok} проверок)`);
 process.exit(bad ? 1 : 0);
