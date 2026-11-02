@@ -101,7 +101,9 @@ export type ToWorker =
   /** луч из камеры: куда упирается перекрестие (для сведения ствола и прицела) */
   | { type: 'ray'; id: number; origin: [number, number, number]; dir: [number, number, number]; max: number }
   /** урон игроку от ботов (бьёт в то же состояние, что взрывы и падения) */
-  | { type: 'hurt'; damage: number };
+  | { type: 'hurt'; damage: number }
+  /** предел здоровья класса (поддержка крепче): hpLimit, текущее HP не лечится вверх */
+  | { type: 'maxHp'; hp: number };
 
 export interface PlayerState {
   pos: [number, number, number]; vel: [number, number, number]; grounded: boolean; stance: 0 | 1 | 2;

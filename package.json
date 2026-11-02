@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "node tools/test-ballistics.mjs && node tools/test-buildings.mjs && node tools/test-destruction.mjs && node tools/test-slide.mjs && node tools/test-viewmodel.mjs && node tools/test-voxelhouse.mjs && node tools/test-entrance.mjs && node tools/test-apartment.mjs && node tools/test-furnish.mjs && node tools/test-props.mjs && node tools/test-special.mjs && node tools/test-barracks-walk.mjs && node tools/test-modes.mjs && node tools/test-botai.mjs && node tools/test-build.mjs && node tools/test-winter.mjs && node tools/test-walk.mjs && node tools/test-rpg.mjs && node tools/test-scope.mjs && node tools/test-normals.mjs && node tools/test-damage-visual.mjs && node tools/preview-scope.mjs && node tools/test-perf.mjs",
+    "test": "node tools/test-ballistics.mjs && node tools/test-buildings.mjs && node tools/test-destruction.mjs && node tools/test-slide.mjs && node tools/test-viewmodel.mjs && node tools/test-voxelhouse.mjs && node tools/test-entrance.mjs && node tools/test-apartment.mjs && node tools/test-furnish.mjs && node tools/test-props.mjs && node tools/test-special.mjs && node tools/test-barracks-walk.mjs && node tools/test-modes.mjs && node tools/test-botai.mjs && node tools/test-classes.mjs && node tools/test-build.mjs && node tools/test-winter.mjs && node tools/test-walk.mjs && node tools/test-rpg.mjs && node tools/test-scope.mjs && node tools/test-normals.mjs && node tools/test-damage-visual.mjs && node tools/preview-scope.mjs && node tools/test-perf.mjs",
     "dev": "node tools/build-manifest.mjs || echo manifest: используются текущие ассеты && vite",
     "build": "tsc -p . && vite build",
     "preview": "vite preview --host 0.0.0.0",
@@ -28,6 +28,7 @@
     "test:barracks": "node tools/test-barracks-walk.mjs",
     "test:modes": "node tools/test-modes.mjs",
     "test:botai": "node tools/test-botai.mjs",
+    "test:classes": "node tools/test-classes.mjs",
     "test:build": "node tools/test-build.mjs",
     "test:winter": "node tools/test-winter.mjs",
     "textures:snow": "node tools/make-snow.mjs",

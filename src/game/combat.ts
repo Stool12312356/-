@@ -74,13 +74,31 @@ export class PlayerCombat {
   private sway = new THREE.Vector2();
   private tmpV = new THREE.Vector3();
 
+  /** множитель перезарядки от класса (разведчик быстрее, поддержка медленнее) */
+  reloadMul = 1;
+
   constructor(lib: AssetLibrary, phys: PhysicsClient, effects: Effects, camera: THREE.PerspectiveCamera) {
     this.lib = lib; this.phys = phys; this.effects = effects; this.camera = camera;
     // стартовый набор: автомат, снайперка, гранатомёт, пистолет
-    for (const [id, res] of [['ak74', 180], ['svd', 40], ['rpg7', 6], ['pm', 48]] as const) {
+    this.setLoadout([['ak74', 180], ['svd', 40], ['rpg7', 6], ['pm', 48]]);
+  }
+
+  /**
+   * Сменить НАБОР ОРУЖИЯ (выбор класса пехоты, ТЗ п.8). Стволы берутся только те,
+   * что есть в weapons.ts: если id неизвестен — он пропускается, а не подменяется.
+   */
+  setLoadout(list: readonly (readonly [string, number])[], reloadMul = 1) {
+    const next: WeaponState[] = [];
+    for (const [id, res] of list) {
       const w = WEAPONS.find(x => x.id === id);
-      if (w) this.inventory.push({ id, mag: w.mag, reserve: res });
+      if (w) next.push({ id, mag: w.mag, reserve: res });
     }
+    if (!next.length) return;
+    this.inventory = next;
+    this.current = 0;
+    this.reloading = 0;
+    this.reloadMul = reloadMul;
+    this.equip(0);
   }
 
   get weapon(): WeaponSpec { return weaponById(this.inventory[this.current].id); }
@@ -145,7 +163,7 @@ export class PlayerCombat {
   reload() {
     const s = this.state, w = this.weapon;
     if (this.reloading > 0 || s.mag >= w.mag || s.reserve <= 0) return;
-    this.reloading = w.reload;
+    this.reloading = w.reload * this.reloadMul;
   }
 
   /**

@@ -23,7 +23,7 @@ const stanceEye = [PLAYER.eyeStand, PLAYER.eyeCrouch, PLAYER.eyeProne];
 const stanceSpeed = [PLAYER.walk, PLAYER.crouchSpeed, PLAYER.proneSpeed];
 let pBody: RAPIER.RigidBody | null = null, pCol: RAPIER.Collider | null = null, cc: RAPIER.KinematicCharacterController;
 let input: PlayerInput = { yaw: 0, pitch: 0, fwd: 0, right: 0, jump: false, sprint: false, crouch: false, prone: false };
-const ps = { feet: [0, 0, 0] as [number, number, number], vel: [0, 0, 0] as [number, number, number], grounded: false, stance: 0 as 0 | 1 | 2, stamina: PLAYER.staminaMax, exhausted: false, hp: PLAYER.hp, sliding: false, hurtAt: 0, spawn: [0, 2, 0] as [number, number, number], airTopY: 0, wasGrounded: true, pushVel: [0, 0, 0] as [number, number, number], slopeDeg: 0, groundNormal: { x: 0, y: 1, z: 0 } as { x: number; y: number; z: number } };
+const ps = { feet: [0, 0, 0] as [number, number, number], vel: [0, 0, 0] as [number, number, number], grounded: false, stance: 0 as 0 | 1 | 2, stamina: PLAYER.staminaMax, exhausted: false, hp: PLAYER.hp, sliding: false, hurtAt: 0, hpLimit: PLAYER.hp, spawn: [0, 2, 0] as [number, number, number], airTopY: 0, wasGrounded: true, pushVel: [0, 0, 0] as [number, number, number], slopeDeg: 0, groundNormal: { x: 0, y: 1, z: 0 } as { x: number; y: number; z: number } };
 
 /** Направление вниз по склону по нормали поверхности (горизонтальная проекция). */
 function downhill(n: { x: number; y: number; z: number }): [number, number] {
@@ -138,9 +138,9 @@ function stepPlayer() {
   ps.wasGrounded = grounded; ps.grounded = grounded;
   // РЕГЕНЕРАЦИЯ ЗДОРОВЬЯ (как в Battlefield): после боя здоровье медленно возвращается.
   // Раньше HP умело только падать, и любой ушиб навсегда выводил игрока из боя.
-  if (ps.hp < PLAYER.hp) {
+  if (ps.hp < ps.hpLimit) {
     if (ps.hurtAt > 0) ps.hurtAt -= DT;
-    else ps.hp = Math.min(PLAYER.hp, ps.hp + PLAYER.hpRegen * DT);
+    else ps.hp = Math.min(ps.hpLimit, ps.hp + PLAYER.hpRegen * DT);
   } else ps.hurtAt = 0;
   // упал за карту / умер -> респавн
   if (ps.feet[1] < -60 || ps.hp <= 0) { spawnPlayer(ps.spawn); }
@@ -329,6 +329,13 @@ function loop() {
     case 'impulse': { const rb = bodies.get(m.id); rb?.applyImpulse({ x: m.imp[0], y: m.imp[1], z: m.imp[2] }, true); break; }
     case 'explosion': explosion(m.pos, m.radius, m.impulse); break;
     case 'hurt': if (m.damage > 0) { ps.hp -= m.damage; ps.hurtAt = PLAYER.hpRegenDelay; } break;
+    case 'maxHp': {
+      // предел здоровья от класса: поддержка крепче, разведчик хрупче.
+      // Текущее HP НЕ поднимаем (иначе смена класса = бесплатное лечение).
+      ps.hpLimit = m.hp;
+      ps.hp = Math.min(ps.hp, ps.hpLimit);
+      break;
+    }
     case 'shoot': tracers.push({ ...m.tracer }); break;
     case 'removePanel': removePanel(m.bodyId, m.panel); break;
     case 'ray': {

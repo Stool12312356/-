@@ -13,6 +13,7 @@ import { Bots } from './game/bots';
 import { Match, type SoldierRef } from './game/match';
 import { buildCapturePoints, spawnFor } from './game/maps';
 import { Squads } from './game/squads';
+import { CLASSES, CLASS_ORDER, loadout, perkOf, type ClassId } from './game/classes';
 import { spawnVoxelHouse, spawnSpecial, type PlacedBuilding } from './game/structure';
 import { BUILDINGS, SPAWN } from './game/world';
 import { SURFACES, pointBlankRange, EXPLOSION, EXPLOSION_SMALL } from './game/weapons';
@@ -64,6 +65,8 @@ let lastHitMarker = 0;
 const audio = new Audio();
 /** Режим «Штурм» (ТЗ п.7): точки захвата, билеты, время. Логика — в game/match.ts */
 let match: Match | null = null;
+/** выбранный класс пехоты (ТЗ п.8) — влияет на набор оружия, HP-множитель и перезарядку */
+let playerClass: ClassId = 'assault';
 /** управление бойцами: мозги ботов + урон (game/squads.ts) */
 let squads: Squads | null = null;
 /** сколько бойцов на сторону в одной волне */
@@ -124,6 +127,8 @@ async function boot() {
   phys.post({ type: 'spawnPlayer', pos: SPAWN });
   const real = lib.all().filter(i => !i.placeholder && !i.procedural).length;
   load.innerHTML = `Готово. Реальных моделей: <b class="ok">${real}</b> · заглушек: <b class="ph">${lib.all().filter(i => i.placeholder).length}</b> · процедурных домов: <b class="ok">${buildings.length}</b>`;
+  buildClassMenu();
+  selectClass(playerClass);
   ($('play') as HTMLButtonElement).disabled = false; ($('regbtn') as HTMLButtonElement).disabled = false;
   buildRegistry(); requestAnimationFrame(frame);
 }
@@ -202,6 +207,36 @@ function updatePointMarkers() {
     const pulse = p.capturing === -1 ? 1 : 0.75 + 0.25 * Math.sin(performance.now() / 140);
     ((m.ring as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = 0.4 + 0.3 * pulse;
   }
+}
+
+/**
+ * МЕНЮ ВЫБОРА КЛАССА (ТЗ п.8). Клик по карточке меняет набор оружия ДО боя,
+ * поэтому можно выбрать «инженера с РПГ» или «разведчика со СВД» осмысленно.
+ */
+function buildClassMenu() {
+  const box = $('classes');
+  if (!box) return;
+  box.innerHTML = '';
+  for (const id of CLASS_ORDER) {
+    const c = CLASSES[id];
+    const el = document.createElement('div');
+    el.className = 'cls' + (id === playerClass ? ' sel' : '');
+    el.innerHTML = `<b>${c.name}</b>${c.role}<br><i>${c.weapons.map(w => w.id.toUpperCase()).join(' · ')}<br>${c.gadgets.map(g => g.name).join(', ')}<br>${c.perk.note}</i>`;
+    el.onclick = () => { selectClass(id); buildClassMenu(); };
+    box.appendChild(el);
+  }
+}
+
+/** Применить класс: набор оружия, множитель перезарядки и (в бою) запас здоровья. */
+function selectClass(id: ClassId) {
+  playerClass = id;
+  const perk = perkOf(id);
+  combat?.setLoadout(loadout(id), perk.reloadMul);
+  if (started && phys.player) {
+    // HP класса: поддержка крепче. Считаем от текущего, чтобы не «лечить» сменой класса
+    phys.post({ type: 'maxHp', hp: Math.round(100 * perk.hpMul) });
+  }
+  addFeed(`Класс: ${CLASSES[id].name}`);
 }
 
 /** Ставит процедурные панельки: хрущёвка и брежневка на своих местах. */
@@ -476,7 +511,8 @@ function frame(now: number) {
     if (combat && scope) { combat.placeViewModel(phys.player?.stance ?? 0); combat.updateScope(scope); }
     sun.position.set(pl.pos.x + 60, 90, pl.pos.z + 40); sun.target.position.copy(pl.pos);
     $('hp').style.width = Math.max(0, p.hp) + '%'; $('hpt').textContent = 'HP ' + Math.max(0, Math.round(p.hp));
-    $('stam').style.width = p.stamina + '%'; $('stance').textContent = ['Стоя', 'Присед', 'Лёжа'][p.stance] + (p.sliding ? ' · СПОЛЗАНИЕ' : '') + (p.grounded ? '' : ' · в воздухе') + (p.slope ? ` · склон ${p.slope.toFixed(0)}°` : '');
+    $('stam').style.width = p.stamina + '%';
+    if ($('stance')) $('stance').title = CLASSES[playerClass].name; $('stance').textContent = ['Стоя', 'Присед', 'Лёжа'][p.stance] + (p.sliding ? ' · СПОЛЗАНИЕ' : '') + (p.grounded ? '' : ' · в воздухе') + (p.slope ? ` · склон ${p.slope.toFixed(0)}°` : '');
     const s = phys.stats;
     const w = combat?.weapon;
     $('info').textContent = `FPS ${fps.toFixed(0)}\nФизика: ${s.stepMs.toFixed(2)} мс/шаг · тел ${s.awake}/${s.total}\nСкорость: ${spd.toFixed(1)} м/с\nPos: ${p.pos.map(v => v.toFixed(1)).join(', ')}` +
