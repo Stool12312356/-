@@ -95,6 +95,8 @@ function spawnBuildings() {
       scene, phys, d.pos, d.rotY, heightAt);
     buildings.push(b);
     houseByBody.set(b.house.bodyId, b);
+    // пыль при разрушении — через систему эффектов (как в референсе)
+    b.house.onDust = (x, y, z, count, big) => effects?.dust([x, y, z], count, big ? 3.2 : 1.2);
     console.log(`дом ${d.kind}: ${b.model.size.map(v => v.toFixed(1)).join('×')} м, вокселей ${b.model.stats.voxels}, подъездов ${b.model.sections}`);
   }
 }

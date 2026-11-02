@@ -17,9 +17,67 @@ import type { PhysicsClient } from '../physics/client';
 import type { Surface } from '../shared/types';
 
 export const PITCH = 0.5;
+
+/**
+ * Геометрия кубика: 6 граней по 4 угла. ПОРЯДОК ОБХОДА ВЫЧИСЛЯЕТСЯ, а не вписывается руками:
+ * раньше таблица была перевёрнута, все треугольники смотрели внутрь, и дом снаружи выглядел
+ * «вывернутым» (видно внутренние стенки, окна — сквозные дыры). Теперь для каждой грани
+ * берём нормаль по обмотке и, если она смотрит против направления грани, разворачиваем.
+ */
+export const VOXEL_FACES: [number, number, number][] = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+const CUBE_CORNERS = [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]];
+// исходные «четвёрки» граней кубика; намотку всё равно проверяем ниже, здесь важен только состав
+const RAW_QUADS = [[1, 5, 6, 2], [0, 3, 7, 4], [3, 2, 6, 7], [0, 4, 5, 1], [4, 7, 6, 5], [0, 1, 2, 3]];
+/** углы грани в порядке против часовой стрелки, если смотреть СНАРУЖИ */
+export const VOXEL_QUADS: number[][] = VOXEL_FACES.map((f, fi) => {
+  const q = RAW_QUADS[fi];
+  const p = q.map(i => CUBE_CORNERS[i]);
+  const e1 = [p[1][0] - p[0][0], p[1][1] - p[0][1], p[1][2] - p[0][2]];
+  const e2 = [p[2][0] - p[0][0], p[2][1] - p[0][1], p[2][2] - p[0][2]];
+  const n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+  const dot = n[0] * f[0] + n[1] * f[1] + n[2] * f[2];
+  // dot ≈ 0 — значит четверка углов не лежит в плоскости грани (ошибка состава), это
+  // должно падать сразу, а не превращаться в «вывернутый дом» на экране
+  if (Math.abs(dot) < 1e-6) throw new Error(`VOXEL_QUADS: грань ${fi} собрана не из тех углов`);
+  return dot < 0 ? [...q].reverse() : q;
+});
 export const CHUNK = 8;
 const CAP = 60000;
-const DEBRIS_CAP = 420;
+const DEBRIS_CAP = 700;
+
+/**
+ * Текстура кладки на кубик (как в референсе browser-battlefield-destruction-game).
+ * Без неё «воксели» читаются как гладкие серые кирпичи и дом выглядит пластиковым.
+ * Текстура генерится кодом один раз: шум + рамка блока + швы кладки.
+ */
+function blockTexture(): THREE.Texture | null {
+  // в тестах (Node) canvas нет — тогда просто без текстуры, логика от этого не меняется
+  if (typeof document === 'undefined') return null;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#d8d8d8';
+  g.fillRect(0, 0, 64, 64);
+  for (let i = 0; i < 500; i++) {
+    const v = 180 + (Math.random() * 60) | 0;
+    g.fillStyle = `rgba(${v},${v},${v},0.35)`;
+    g.fillRect(Math.random() * 64, Math.random() * 64, 2, 2);
+  }
+  g.strokeStyle = 'rgba(60,55,50,0.45)';
+  g.lineWidth = 1.5;
+  g.strokeRect(0.5, 0.5, 63, 63);
+  // швы: две вертикальные панели и горизонтальный стык
+  g.beginPath();
+  g.moveTo(0, 32); g.lineTo(64, 32);
+  g.moveTo(32, 0); g.lineTo(32, 32);
+  g.moveTo(16, 32); g.lineTo(16, 64);
+  g.moveTo(48, 32); g.lineTo(48, 64);
+  g.stroke();
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
 
 /** тип вокселя: 0 бетон(несущая), 1 плита, 2 кирпич, 3 стекло, 4 дерево, 5 ступень */
 export type VoxelKind = 0 | 1 | 2 | 3 | 4 | 5;
@@ -144,11 +202,17 @@ export class VoxelHouse {
       this.tint[id * 3] = v; this.tint[id * 3 + 1] = v; this.tint[id * 3 + 2] = v;
     }
 
+    const tex = blockTexture();
     for (const [k, color] of Object.entries(VOXEL_COLOR)) {
       const kk = +k;
-      this.mats.set(kk, kk === 3
-        ? new THREE.MeshStandardMaterial({ color, roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.4 })
-        : new THREE.MeshStandardMaterial({ color, roughness: 0.92, metalness: 0.02 }));
+      if (kk === 3) {
+        this.mats.set(kk, new THREE.MeshStandardMaterial({ color, roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.4 }));
+      } else if (kk === 4) {
+        this.mats.set(kk, new THREE.MeshStandardMaterial({ color, roughness: 0.95, metalness: 0.0 }));
+      } else {
+        // map + vertexColors=false: оттенок берём цветом материала, текстура даёт рельеф швов
+        this.mats.set(kk, new THREE.MeshStandardMaterial({ color, ...(tex ? { map: tex } : {}), roughness: 0.92, metalness: 0.02 }));
+      }
     }
     this.buildDebris();
     for (const key of this.allChunks()) this.ensureChunk(key);
@@ -191,12 +255,9 @@ export class VoxelHouse {
     this.ensureChunk(key);
   }
 
-  private static FACES: [number, number, number][] = [
-    [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1],
-  ];
-  private static CORNERS = [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]];
-  /** четверки углов по граням: +X, -X, +Y, -Y, +Z, -Z (порядок важен для нормалей) */
-  private static QUAD = [[1, 5, 6, 2], [0, 3, 7, 4], [3, 2, 6, 7], [0, 4, 5, 1], [4, 7, 6, 5], [0, 1, 2, 3]];
+  private static FACES = VOXEL_FACES;
+  private static CORNERS = CUBE_CORNERS;
+  private static QUAD = VOXEL_QUADS;
 
   /** Собирает геометрию чанка: наружные грани живых вокселей, по группам на материал. */
   private ensureChunk(key: string) {
@@ -246,6 +307,9 @@ export class VoxelHouse {
     const geo = new THREE.BufferGeometry();
     const attr = new THREE.Float32BufferAttribute(new Float32Array(pos), 3);
     geo.setAttribute('position', attr);
+    // цвет вершин: нужен для затемнения повреждённых блоков (см. damageMark)
+    const colors = new Float32Array(pos.length).fill(1);
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     const index: number[] = [];
     for (const r of ranges) {
       const quads = r.count / 4;
@@ -264,6 +328,7 @@ export class VoxelHouse {
       gStart += (r.count / 4) * 6;
     }
     // материалы в порядке first-appearance
+    for (const m of this.mats.values()) if (!m.vertexColors) { m.vertexColors = true; m.needsUpdate = true; }
     const matArr = kinds.map(k => this.mats.get(k) ?? this.mats.get(0)!);
     geo.setDrawRange(0, index.length);
     const mesh = new THREE.Mesh(geo, matArr as unknown as THREE.Material);
@@ -376,9 +441,33 @@ export class VoxelHouse {
     if (id < 0 || !this.alive[id]) return false;
     // несущие держат удар крепче: дом не разваливается от одной пули в стену
     this.hp[id] -= dmg;
-    if (this.hp[id] > 0) return false;
+    if (this.hp[id] > 0) {
+      this.damageMark(id);       // воксель темнеет — видно, куда уже попадали
+      return false;
+    }
     this.destroyVoxel(id, new THREE.Vector3(dir[0], dir[1], dir[2]).normalize());
     return true;
+  }
+
+  /**
+   * Затемнение повреждённого вокселя. В референсе это сделано цветом инстанса; у нас
+   * геометрия сшита в чанк, поэтому перекрашиваем вершины (attribute 'color').
+   * Без этого игрок не понимает, что стена «уже на грани» — она ломается внезапно.
+   */
+  private damageMark(id: number) {
+    const key = this.chunkKey(Math.floor(this.ix[id] / CHUNK), Math.floor(this.iy[id] / CHUNK), Math.floor(this.iz[id] / CHUNK));
+    const ch = this.chunkR.get(key);
+    if (!ch) return;
+    const s = ch.slot.get(id);
+    if (!s) return;
+    const f = 0.55 + 0.45 * Math.max(0, this.hp[id] / Math.max(0.001, this.maxHp[id]));
+    const col = ch.geo.getAttribute('color') as THREE.BufferAttribute | undefined;
+    if (!col) return;
+    const arr = col.array as Float32Array;
+    for (let v = s[0]; v < s[0] + s[1]; v++) {
+      arr[v * 3] *= f; arr[v * 3 + 1] *= f; arr[v * 3 + 2] *= f;
+    }
+    col.needsUpdate = true;
   }
 
   private destroyVoxel(id: number, push: THREE.Vector3) {
@@ -389,6 +478,8 @@ export class VoxelHouse {
     this.secLeft.set(s, (this.secLeft.get(s) ?? 1) - 1);
     this.centerOf(id, this.P);
     this.hideVoxel(id);
+    // пыль: каждый 4-й выбитый блок даёт облачко (как в референсе)
+    if (++this.dustCounter % 4 === 0) this.onDust?.(this.P.x, this.P.y, this.P.z, 1, false);
     // осколки: 1–3 кубика на выбитый воксель
     const n = 1 + (Math.random() * 2.4 | 0);
     const v = new THREE.Vector3();
@@ -524,6 +615,8 @@ export class VoxelHouse {
       this.secLeft.set(s, (this.secLeft.get(s) ?? 1) - 1);
     }
     if (fallen) {
+      const c = this.centerOf(this.ids[0] ?? 0, new THREE.Vector3());
+      this.onDust?.(c.x, this.oy + this.ny * PITCH * 0.5, c.z, Math.min(30, fallen), true);
       for (const key of this.allChunks()) this.dirtyR.add(key);   // дёшево: пересборка идёт по бюджету
       this.rebuildPhysics(true);
     }
@@ -550,6 +643,13 @@ export class VoxelHouse {
     return { left: c.left, total: c.total, pct: Math.round((c.left / Math.max(1, c.total)) * 100), collapsed: this.collapsed.has(section) };
   }
 
+  /** Есть ли живой воксель в точке (мировые координаты). */
+  solidAt(x: number, y: number, z: number): boolean {
+    const i = Math.floor((x - this.ox) / PITCH), j = Math.floor((y - this.oy) / PITCH), k = Math.floor((z - this.oz) / PITCH);
+    const id = this.idAt(i, j, k);
+    return id >= 0 && this.alive[id] === 1;
+  }
+
   // ---------- обломки ----------
   private buildDebris() {
     const geo = this.boxGeo;
@@ -563,6 +663,24 @@ export class VoxelHouse {
     this.debrisMesh.instanceColor = new THREE.InstancedBufferAttribute(colors, 3);
     this.scene.add(this.debrisMesh);
   }
+
+  /** Разбудить спящие обломки в радиусе (взрыв снова подбрасывает мусор). */
+  wakeDebris(x: number, y: number, z: number, r: number) {
+    const r2 = r * r;
+    for (let i = 0; i < this.dcount; i++) {
+      if (!this.dsleep[i]) continue;
+      const o = i * 3;
+      const dx = this.dp[o] - x, dy = this.dp[o + 1] - y, dz = this.dp[o + 2] - z;
+      if (dx * dx + dy * dy + dz * dz > r2) continue;
+      this.dsleep[i] = 0;
+      this.dst[i] = 0;
+      this.dv[o] += dx * 0.6; this.dv[o + 1] += 2.5; this.dv[o + 2] += dz * 0.6;
+    }
+  }
+
+  /** Пыль взрыва: вызывается из main.ts, рисуется системой эффектов. */
+  onDust?: (x: number, y: number, z: number, count: number, big: boolean) => void;
+  private dustCounter = 0;
 
   private spawnDebris(p: THREE.Vector3, v: THREE.Vector3, kind: number) {
     const i = this.dnext;
@@ -590,6 +708,13 @@ export class VoxelHouse {
       this.dv[o + 1] -= 22 * dt;
       this.dp[o] += this.dv[o] * dt; this.dp[o + 1] += this.dv[o + 1] * dt; this.dp[o + 2] += this.dv[o + 2] * dt;
       this.dr[o] += this.dw[o] * dt; this.dr[o + 1] += this.dw[o + 1] * dt; this.dr[o + 2] += this.dw[o + 2] * dt;
+      // столкновение с ещё стоящими вокселями: обломки не проваливаются сквозь стены
+      // (в референсе solid(); без этого куски «исчезают» внутри дома)
+      if (this.solidAt(this.dp[o], this.dp[o + 1], this.dp[o + 2])) {
+        this.dp[o] -= this.dv[o] * dt; this.dp[o + 1] -= this.dv[o + 1] * dt; this.dp[o + 2] -= this.dv[o + 2] * dt;
+        this.dv[o] *= -0.3; this.dv[o + 1] *= -0.2; this.dv[o + 2] *= -0.3;
+        this.dw[o] *= 0.6; this.dw[o + 1] *= 0.6; this.dw[o + 2] *= 0.6;
+      }
       const gy = this.heightAt(this.dp[o], this.dp[o + 2]) + this.dsz[i] * 0.5;
       if (this.dp[o + 1] <= gy) {
         this.dp[o + 1] = gy;

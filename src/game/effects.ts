@@ -30,6 +30,9 @@ export class Effects {
   private tracerAge = new Map<number, number>();
 
   private sparkGeo: THREE.BufferGeometry;
+  /** пыль разрушения: облачка, которые живут пару секунд */
+  private puffGeo = new THREE.IcosahedronGeometry(0.5, 1);
+  private dustPuffs: { puff: THREE.Mesh; v: THREE.Vector3; life: number; t: number }[] = [];
   private sparkPos: Float32Array;
   private sparkVel: Float32Array;
   private sparkLife: Float32Array;
@@ -156,6 +159,29 @@ export class Effects {
     }
   }
 
+  /**
+   * Пыль от разрушения (в духе референса): мягкие полупрозрачные пятна, всплывают и
+   * рассеиваются. Раньше при выбивании стены не было вообще никакой пыли — дом «таял».
+   */
+  dust(pos: [number, number, number], count = 6, spread = 1.4) {
+    const n = Math.min(24, count);
+    for (let i = 0; i < n; i++) {
+      const mat = new THREE.MeshBasicMaterial({
+        color: '#c9c3b4', transparent: true, opacity: 0.35 + Math.random() * 0.2, depthWrite: false,
+      });
+      const puff = new THREE.Mesh(this.puffGeo, mat);
+      puff.position.set(
+        pos[0] + (Math.random() - 0.5) * spread,
+        pos[1] + (Math.random() - 0.2) * spread,
+        pos[2] + (Math.random() - 0.5) * spread,
+      );
+      puff.scale.setScalar(0.3 + Math.random() * 0.4);
+      this.scene.add(puff);
+      const v = new THREE.Vector3((Math.random() - 0.5) * 1.6, 0.6 + Math.random() * 1.4, (Math.random() - 0.5) * 1.6);
+      this.dustPuffs.push({ puff, v, life: 1.4 + Math.random() * 1.2, t: 0 });
+    }
+  }
+
   /** Взрыв: облако + ударная волна (упрощённо). */
   explosion(pos: [number, number, number], radius: number) {
     const ball = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), new THREE.MeshBasicMaterial({ color: '#ffb347', transparent: true, opacity: 0.9, depthWrite: false }));
@@ -185,6 +211,22 @@ export class Effects {
   }
 
   update(dt: number) {
+    // пыль: всплывает, раздувается и гаснет
+    for (let i = this.dustPuffs.length - 1; i >= 0; i--) {
+      const d = this.dustPuffs[i];
+      d.t += dt;
+      const k = d.t / d.life;
+      if (k >= 1) {
+        d.puff.removeFromParent();
+        (d.puff.material as THREE.Material).dispose();
+        this.dustPuffs.splice(i, 1);
+        continue;
+      }
+      d.puff.position.addScaledVector(d.v, dt);
+      d.v.multiplyScalar(1 - Math.min(1, dt * 1.6));
+      d.puff.scale.setScalar(0.3 + k * 2.2);
+      (d.puff.material as THREE.MeshBasicMaterial).opacity = 0.45 * (1 - k);
+    }
     if (this.muzzleT > 0) { this.muzzleT -= dt; if (this.muzzleT <= 0) this.muzzle.intensity = 0; else this.muzzle.intensity *= 0.6; }
     // искры: гравитация + затухание
     let any = false;
