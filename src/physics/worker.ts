@@ -23,7 +23,14 @@ const stanceEye = [PLAYER.eyeStand, PLAYER.eyeCrouch, PLAYER.eyeProne];
 const stanceSpeed = [PLAYER.walk, PLAYER.crouchSpeed, PLAYER.proneSpeed];
 let pBody: RAPIER.RigidBody | null = null, pCol: RAPIER.Collider | null = null, cc: RAPIER.KinematicCharacterController;
 let input: PlayerInput = { yaw: 0, pitch: 0, fwd: 0, right: 0, jump: false, sprint: false, crouch: false, prone: false };
-const ps = { feet: [0, 0, 0] as [number, number, number], vel: [0, 0, 0] as [number, number, number], grounded: false, stance: 0 as 0 | 1 | 2, stamina: PLAYER.staminaMax, exhausted: false, hp: PLAYER.hp, sliding: false, spawn: [0, 2, 0] as [number, number, number], airTopY: 0, wasGrounded: true, pushVel: [0, 0, 0] };
+const ps = { feet: [0, 0, 0] as [number, number, number], vel: [0, 0, 0] as [number, number, number], grounded: false, stance: 0 as 0 | 1 | 2, stamina: PLAYER.staminaMax, exhausted: false, hp: PLAYER.hp, sliding: false, spawn: [0, 2, 0] as [number, number, number], airTopY: 0, wasGrounded: true, pushVel: [0, 0, 0] as [number, number, number], slopeDeg: 0, groundNormal: { x: 0, y: 1, z: 0 } as { x: number; y: number; z: number } };
+
+/** Направление вниз по склону по нормали поверхности (горизонтальная проекция). */
+function downhill(n: { x: number; y: number; z: number }): [number, number] {
+  const l = Math.hypot(n.x, n.z);
+  if (l < 1e-4) return [0, 0];
+  return [n.x / l, n.z / l];
+}
 
 function spawnPlayer(pos: [number, number, number]) {
   if (pBody) { world.removeRigidBody(pBody); pBody = null; }
@@ -73,11 +80,43 @@ function stepPlayer() {
   ps.vel[1] += GRAVITY * DT;
   if (ps.grounded && ps.vel[1] < 0) ps.vel[1] = 0; // на земле держит snap-to-ground; постоянный прижим мешал бы подъёму по склонам
   if (input.jump && ps.grounded && st === 0) { ps.vel[1] = PLAYER.jump; ps.grounded = false; }
+  // --- сползание по крутому склону ---
+  // Раньше на земле вертикальная скорость обнулялась каждый кадр, поэтому персонаж
+  // «стоял» на 55° как приклеенный: разогнаться вниз было нечем. Теперь сползание — это
+  // отдельная горизонтальная скорость вдоль склона, она живёт своей жизнью.
+  if (ps.grounded && ps.slopeDeg >= PLAYER.slideFrom) {
+    const [dx, dz] = downhill(ps.groundNormal);
+    const k = Math.sin((ps.slopeDeg * Math.PI) / 180);
+    ps.pushVel[0] += dx * PLAYER.slideAccel * k * DT;
+    ps.pushVel[2] += dz * PLAYER.slideAccel * k * DT;
+    const sp = Math.hypot(ps.pushVel[0], ps.pushVel[2]);
+    if (sp > PLAYER.slideMax) { ps.pushVel[0] *= PLAYER.slideMax / sp; ps.pushVel[2] *= PLAYER.slideMax / sp; }
+    ps.sliding = true;
+  } else {
+    // трение о землю: сползание затухает
+    const damp = Math.exp(-8 * DT);
+    ps.pushVel[0] *= damp; ps.pushVel[2] *= damp;
+    if (Math.abs(ps.pushVel[0]) < 0.02) ps.pushVel[0] = 0;
+    if (Math.abs(ps.pushVel[2]) < 0.02) ps.pushVel[2] = 0;
+    ps.sliding = false;
+  }
   // движение
-  const desired = { x: ps.vel[0] * DT, y: ps.vel[1] * DT, z: ps.vel[2] * DT };
+  const desired = { x: (ps.vel[0] + ps.pushVel[0]) * DT, y: ps.vel[1] * DT, z: (ps.vel[2] + ps.pushVel[2]) * DT };
   cc.computeColliderMovement(pCol, desired);
   const m = cc.computedMovement();
   const grounded = cc.computedGrounded();
+  // Нормаль опоры — отдельным лучом вниз. Столкновения character controller'а пусты,
+  // когда персонаж стоит без движения (это и было причиной «склона 0°»), а луч есть всегда.
+  const prevFeet = pBody.translation();
+  const gRay = new RAPIER.Ray({ x: prevFeet.x, y: prevFeet.y, z: prevFeet.z }, { x: 0, y: -1, z: 0 });
+  const gHit = world.castRayAndGetNormal(gRay, (stanceH[st] / 2) + 0.45, true, undefined, undefined, pCol);
+  if (gHit) {
+    ps.groundNormal = { x: gHit.normal.x, y: gHit.normal.y, z: gHit.normal.z };
+    ps.slopeDeg = Math.acos(Math.max(-1, Math.min(1, gHit.normal.y))) * 180 / Math.PI;
+  } else {
+    ps.groundNormal = { x: 0, y: 1, z: 0 };
+    ps.slopeDeg = 0;
+  }
   const t = pBody.translation();
   const nx = t.x + m.x, ny = t.y + m.y, nz = t.z + m.z;
   pBody.setNextKinematicTranslation({ x: nx, y: ny, z: nz });
@@ -88,7 +127,7 @@ function stepPlayer() {
   if (ps.vel[1] > 0 && m.y < desired.y * 0.5) ps.vel[1] = 0; // удар головой
   const h = stanceH[st];
   ps.feet = [nx, ny - h / 2, nz];
-  ps.sliding = !grounded && ps.wasGrounded === false && ps.vel[1] < -0.5 && cc.numComputedCollisions() > 0 && ps.vel[1] > -6;
+  // (флаг sliding теперь ставится в блоке сползания выше)
   // падение
   if (!grounded) { if (ps.wasGrounded) ps.airTopY = ps.feet[1]; else ps.airTopY = Math.max(ps.airTopY, ps.feet[1]); }
   if (grounded && !ps.wasGrounded) {
@@ -260,7 +299,7 @@ function snapshot() {
   for (const id of dynIds) { const rb = bodies.get(id)!; if (!rb.isSleeping()) awake.push(id); }
   const ids = new Int32Array(awake.length), tf = new Float32Array(awake.length * 7);
   awake.forEach((id, i) => { const rb = bodies.get(id)!; const t = rb.translation(), r = rb.rotation(); ids[i] = id; tf.set([t.x, t.y, t.z, r.x, r.y, r.z, r.w], i * 7); });
-  const player: PlayerState | null = pBody ? { pos: [...ps.feet] as any, vel: [...ps.vel] as any, grounded: ps.grounded, stance: ps.stance, stamina: ps.stamina, hp: ps.hp, sliding: ps.sliding, eye: stanceEye[ps.stance] } : null;
+  const player: PlayerState | null = pBody ? { pos: [...ps.feet] as any, vel: [...ps.vel] as any, grounded: ps.grounded, stance: ps.stance, stamina: ps.stamina, hp: ps.hp, sliding: ps.sliding, eye: stanceEye[ps.stance], slope: ps.slopeDeg } : null;
   const msg: FromWorker = { type: 'snapshot', t: performance.now(), ids, tf, player, awake: awake.length, total: dynIds.size, stepMs };
   (self as any).postMessage(msg, [ids.buffer, tf.buffer]);
 }

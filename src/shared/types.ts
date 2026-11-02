@@ -31,7 +31,10 @@ export interface BodyDesc {
   building?: boolean;
   /** можно ли это пробить пулей сильнее прочего (дерево, стекло) */
   thin?: boolean;
-  /** для зданий: индекс панели для каждой формы (порядок совпадает с shapes) */
+  /**
+   * Для зданий: индекс панели/вокселя для КАЖДОЙ формы (порядок совпадает с shapes).
+   * Нужен, чтобы игра понимала, в какую именно стену попала пуля.
+   */
   panels?: number[];
 }
 /** Материал поверхности: от него зависит, пробьёт ли пуля, срикошетит ли и какой будет звук. */
@@ -95,6 +98,8 @@ export type ToWorker =
 export interface PlayerState {
   pos: [number, number, number]; vel: [number, number, number]; grounded: boolean; stance: 0 | 1 | 2;
   stamina: number; hp: number; sliding: boolean; eye: number;
+  /** угол склона под ногами, градусы (для HUD и отладки) */
+  slope?: number;
 }
 export type FromWorker =
   | { type: 'ready' }

@@ -137,8 +137,12 @@ export class Effects {
       this.sparkColor[idx * 3 + 1] = i.surface === 'metal' || i.surface === 'armor' ? 1 : col.g * 1.2;
       this.sparkColor[idx * 3 + 2] = i.surface === 'metal' || i.surface === 'armor' ? 0.95 : col.b * 1.2;
     }
-    // пробоина только на твёрдых поверхностях
-    if (i.surface !== 'dirt' && i.surface !== 'water') {
+    // Пробоина. Важно: раньше декаль приклеивалась к поверхности ВСЕГДА, и при стрельбе
+    // в стену рядом с прицелом появлялись «мухи» на земле/в воздухе. Теперь:
+    //  - только твёрдые поверхности, не земля/вода и не пробитая насквозь пуля;
+    //  - смещение строго по нормали, чтобы не проваливаться внутрь стены;
+    //  - размер зависит от калибра.
+    if (i.surface !== 'dirt' && i.surface !== 'water' && !i.penetrated) {
       const d = this.decalDummy;
       d.position.set(i.pos[0] + i.normal[0] * 0.012, i.pos[1] + i.normal[1] * 0.012, i.pos[2] + i.normal[2] * 0.012);
       // плоскость пробоины смотрит по нормали

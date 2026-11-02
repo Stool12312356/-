@@ -7,6 +7,26 @@ import type { PhysicsClient } from '../physics/client';
 import type { Effects } from './effects';
 import { WEAPONS, weaponById, type WeaponSpec, BALLISTICS } from './weapons';
 
+/**
+ * Посадка оружия в руках. Значения подобраны так, чтобы:
+ *  - пистолет не занимал пол-экрана (он короткий, ставим ближе к центру и мельче);
+ *  - снайперка не торчала из кадра (длинная, ставим дальше и с наклоном);
+ *  - гранатомёт не закрывал обзор трубой.
+ */
+const VM: Record<string, { scale: number; x: number; y: number; z: number; optics?: number }> = {
+  pm: { scale: 1.15, x: 0.20, y: -0.20, z: -0.34 },
+  ak74: { scale: 0.95, x: 0.17, y: -0.20, z: -0.40 },
+  ak74m: { scale: 0.95, x: 0.17, y: -0.20, z: -0.40 },
+  akm: { scale: 0.95, x: 0.17, y: -0.20, z: -0.40 },
+  rpk: { scale: 0.85, x: 0.18, y: -0.21, z: -0.44 },
+  pkm: { scale: 0.75, x: 0.19, y: -0.22, z: -0.48 },
+  m4a1: { scale: 0.95, x: 0.17, y: -0.20, z: -0.40 },
+  svd: { scale: 0.72, x: 0.17, y: -0.19, z: -0.46, optics: 0.5 },
+  awm_l96: { scale: 0.72, x: 0.17, y: -0.19, z: -0.46 },
+  pgm_ur: { scale: 0.72, x: 0.17, y: -0.19, z: -0.46 },
+  rpg7: { scale: 0.62, x: 0.19, y: -0.24, z: -0.30 },
+};
+
 export interface WeaponState {
   id: string;
   /** патронов в магазине */
@@ -50,7 +70,11 @@ export class PlayerCombat {
   get state(): WeaponState { return this.inventory[this.current]; }
   get isReloading() { return this.reloading > 0; }
 
-  /** Взять оружие в руки: строим вьюмодель из его модели (реальная или заглушка). */
+  /**
+   * Вьюмодель. Раньше модели вставлялись «как есть» в масштабе 1:1 — ПМ (0.16 м)
+   * и СВД (1.2 м) выглядели одинаково огромными, а оптика 1П29 перекрывала пол-экрана.
+   * Теперь всё приводится к одному экранному размеру и общей посадке «в руках».
+   */
   equip(i: number) {
     if (i < 0 || i >= this.inventory.length) return;
     this.current = i; this.reloading = 0;
@@ -60,18 +84,27 @@ export class PlayerCombat {
     if (this.lib.has(w.model)) {
       const inst = this.lib.make(w.model);
       this.viewmodel = inst.object;
-      // оружие в манифесте нормализовано: длина по Z ~1 м, центр в нуле
       const size = inst.item.size ?? [0.1, 0.2, 1];
-      this.muzzleLocal.set(0, 0.02, -(size[2] ?? 1) * 0.5 - 0.05);
-      // прицел, если задан и есть в манифесте — ставим сверху
+      const len = Math.max(size[0], size[2]);
+      // экранный размер: длинное оружие виднеется дальше, пистолет ближе к камере
+      const vm = VM[w.id] ?? { scale: 1, x: 0.16, y: -0.19, z: -0.42 };
+      this.viewmodel.scale.setScalar(vm.scale);
+      this.vmHome = { x: vm.x, y: vm.y, z: vm.z };
+      this.muzzleLocal.set(0, 0.02, -len * 0.5 * vm.scale - 0.06);
+      // прицел: ставим на планку и УМЕНЬШАЕМ — иначе он размером с голову
       if (w.optic && this.lib.has(w.optic)) {
-        const o = this.lib.make(w.optic).object;
-        o.position.set(0, 0.075, 0.02); o.scale.setScalar(1.1);
+        const oi = this.lib.make(w.optic);
+        const os = oi.item.size ?? [0.08, 0.17, 0.2];
+        const o = oi.object;
+        o.scale.setScalar(vm.optics ?? 0.55);
+        o.position.set(0, size[1] * 0.55 + (os[1] * (vm.optics ?? 0.55)) / 2, -0.02);
         this.viewmodel.add(o);
       }
     }
     this.onViewModel?.(this.viewmodel, w);
   }
+  /** посадка вьюмодели в экране: подбирается по оружию (x — вправо, y — вниз, z — от камеры) */
+  vmHome = { x: 0.16, y: -0.19, z: -0.42 };
 
   /** ЛКМ нажата/отпущена */
   trigger(down: boolean) {
@@ -125,10 +158,14 @@ export class PlayerCombat {
     if (w.kick) this.kickViewmodel(w.kick);
   }
 
+  /** Накопленная отдача вьюмодели: гасится в update() — ствол не уезжает навсегда. */
+  vmKickZ = 0;
+  vmKickPitch = 0;
   private kickViewmodel(amount: number) {
-    if (!this.viewmodel) return;
-    this.viewmodel.position.z += amount;
-    this.viewmodel.rotation.x -= amount * 2.2;
+    this.vmKickZ += amount * 0.6;
+    this.vmKickPitch += amount * 2.4;
+    this.vmKickZ = Math.min(this.vmKickZ, 0.10);
+    this.vmKickPitch = Math.min(this.vmKickPitch, 0.5);
   }
 
   update(dt: number) {
@@ -139,6 +176,10 @@ export class PlayerCombat {
     }
     // разброс восстанавливается
     this.spreadAccum = Math.max(0, this.spreadAccum - dt * 42);
+    // отдача вьюмодели плавно возвращается назад (раньше ствол уезжал и не возвращался)
+    const back = Math.min(1, dt * 11);
+    this.vmKickZ += (0 - this.vmKickZ) * back;
+    this.vmKickPitch += (0 - this.vmKickPitch) * back;
     // перезарядка
     if (this.reloading > 0) {
       this.reloading -= dt;

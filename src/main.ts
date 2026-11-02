@@ -7,8 +7,8 @@ import { setupEnvironment } from './render/env';
 import { Effects } from './game/effects';
 import { PlayerCombat } from './game/combat';
 import { Bots } from './game/bots';
-import { buildBuilding, buildBuildingMesh } from './game/buildings';
-import { spawnBuilding, type Building } from './game/damage';
+import { buildBuilding } from './game/buildings';
+import { spawnVoxelBuilding, type PlacedBuilding } from './game/structure';
 import { SURFACES, pointBlankRange } from './game/weapons';
 import type { PlayerInput, Impact } from './shared/types';
 
@@ -40,9 +40,9 @@ const SPAWN: [number, number, number] = [0, 1.0, 100];
 
 // создаются в boot(); временно null, чтобы кадр до загрузки не падал
 let effects: Effects | null = null; let combat: PlayerCombat | null = null; let bots: Bots | null = null;
-const buildings: Building[] = [];
-/** панель → дом (индекс) */
-const panelOwner = new Map<string, Building>();
+const buildings: PlacedBuilding[] = [];
+/** id физического тела дома → сам дом (для маршрутизации попаданий) */
+const houseByBody = new Map<number, PlacedBuilding>();
 let aimMsg = '', aimT = 0;
 let lastHitMarker = 0;
 
@@ -59,7 +59,8 @@ async function boot() {
     viewmodel = obj;
     if (viewmodel) {
       camera.add(viewmodel);
-      viewmodel.position.set(0.16, -0.19, -0.42);
+      const home = cmb.vmHome;
+      viewmodel.position.set(home.x, home.y, home.z);
       viewmodel.rotation.set(0, 0.03, 0);
     }
   };
@@ -76,7 +77,6 @@ async function boot() {
   ($('play') as HTMLButtonElement).disabled = false; ($('regbtn') as HTMLButtonElement).disabled = false;
   buildRegistry(); requestAnimationFrame(frame);
 }
-void buildBuildingMesh;
 
 /** Ставит процедурные панельки: хрущёвка и брежневка на своих местах. */
 function spawnBuildings() {
@@ -87,11 +87,15 @@ function spawnBuildings() {
   ];
   for (const d of defs) {
     const spec = buildBuilding({ kind: d.kind, sections: d.kind === 'khrushchevka' ? 3 : 2 });
-    const b = spawnBuilding(spec, d.kind, scene, phys, d.pos, d.rotY);
+    const b = spawnVoxelBuilding(spec, scene, phys, d.pos, d.rotY);
     buildings.push(b);
-    // карта «дом + панель» для попаданий: id физического тела дома известен
-    panelOwner.set(String(b.physicsId), b);
-    console.log(`дом ${d.kind}: панелей ${spec.panels.length}, несущих по секциям ${spec.loadBearingBySection.map(s => s.length).join('/')}`);
+    houseByBody.set(b.voxels.physicsId, b);
+    // Один тёплый источник на подъезд у входа: подсвечивает двор и первый этаж.
+    // Больше нельзя — точечные источники в three.js недешёвые.
+    const lamp = new THREE.PointLight('#ffd9a0', 12, 26, 2);
+    lamp.position.set(d.pos[0], 6, d.pos[2] + 7);
+    scene.add(lamp);
+    console.log(`дом ${d.kind}: вокселей стен ${spec.voxels.walls}, перекрытий ${spec.voxels.slabs}, мебели ${spec.props.length}`);
   }
 }
 
@@ -101,26 +105,28 @@ function onImpact(i: Impact) {
   if (i.kind === 'explosive') {
     // РПГ: взрыв в точке попадания, отдельно бьём по ближайшему дому (средний уровень разрушений)
     effects.explosion(i.pos, 9);
-    const v = new THREE.Vector3(...i.pos);
-    let bestD = 22, best: Building | null = null;
-    for (const b of buildings) {
-      const d = v.distanceTo(new THREE.Vector3(b.spec.size[0] / 2, 0, 0).add(b.group.position));
-      if (d < bestD) { bestD = d; best = b; }
-    }
+    const best = findHouseNear(i.pos, 3);
     if (best) {
-      const killed = best.blast(i.pos, 8, 950, scene, phys);
-      if (killed) addFeed(`Стена выбита: ${killed} панел.`);
-      if (best.structure.some(s => s.includes('ОБРУШЕНА'))) addFeed('СЕКЦИЯ ОБРУШЕНА');
+      // РПГ: выбивает кусок стены радиусом ~2.6 м (это ~6-10 вокселей)
+      const killed = best.voxels.damageAt(i.pos, 2.6, 3.2, { max: 90 });
+      if (killed) addFeed(`Стена выбита: ${killed} блоков`);
+      const st = best.voxels.structure(0);
+      if (best.voxels.collapsed.size) addFeed('СЕКЦИЯ ОБРУШЕНА');
+      void st;
     }
     aimMsg = 'ПОПАДАНИЕ РПГ'; aimT = 1.6;
     return;
   }
-  // попадание по панели дома
-  if (i.panel >= 0 && i.bodyId >= 0) {
-    const b = panelOwner.get(String(i.bodyId));
+  // попадание по стене дома: воксельный урон в радиусе удара
+  if (i.bodyId >= 0) {
+    // тело дома пересобирается после каждого разрушения (новый id), поэтому
+    // основой служит геометрический поиск, а карта — быстрый путь
+    const b = findHouseNear(i.pos) ?? houseByBody.get(i.bodyId);
     if (b) {
-      const known = b.damagePanel(i.panel, i.damage, scene, phys, new THREE.Vector3(...i.pos));
-      if (known) { lastHitMarker = performance.now(); if (i.damage > 60) addFeed(`Панель пробита (${SURFACES[i.surface].name})`); }
+      // пуля выбивает воксель, если пробила материал; иначе только скол
+      const strength = i.penetrated ? 2.4 : 1.5;
+      const broken = b.voxels.damageAt(i.pos, 0.7, strength, { max: 3 });
+      if (broken) { lastHitMarker = performance.now(); }
     }
   }
   // попадание по боту: ищем ближайшего в радиусе пули
@@ -129,6 +135,25 @@ function onImpact(i: Impact) {
   // подсказка о материале в прицеле
   const s = SURFACES[i.surface];
   aimMsg = `${s.name.toUpperCase()}${i.penetrated ? ' · ПРОБИТО' : ' · ЗАДЕРЖАЛА'}`; aimT = 1.4;
+}
+
+/** Ищет дом рядом с точкой (по габаритам, а не по центру — иначе дальняя стена не находится). */
+function findHouseNear(pos: [number, number, number], extra = 4): PlacedBuilding | null {
+  const v = new THREE.Vector3(...pos);
+  let best: PlacedBuilding | null = null, bd = Infinity;
+  for (const b of buildings) {
+    const half = Math.max(b.spec.size[0], b.spec.size[2]) / 2 + extra;
+    // все дома стоят в известных местах: расстояние до центра минус половина габарита
+    const c = new THREE.Vector3(0, 0, 0);
+    const first = b.spec.walls[0];
+    if (first) { /* центр оцениваем по вокселям первой стены */ }
+    const dx = Math.abs(v.x - b.center.x), dz = Math.abs(v.z - b.center.z);
+    const dy = Math.abs(v.y - (b.spec.size[1] / 2));
+    const d = Math.max(0, Math.max(dx - b.spec.size[0] / 2, dz - b.spec.size[2] / 2)) + Math.max(0, dy - b.spec.size[1] / 2);
+    if (d < half && d < bd) { bd = d; best = b; }
+    void c;
+  }
+  return best;
 }
 
 function addFeed(t: string) {
@@ -219,16 +244,20 @@ function frame(now: number) {
     if (viewmodel) {
       const sprint = inp.sprint && spd > 6;
       const sway = aiming ? 0.25 : 1;
-      const baseX = aiming ? 0 : 0.16, baseY = aiming ? -0.105 : -0.19, baseZ = aiming ? -0.3 : -0.42;
-      viewmodel.position.set(baseX + Math.sin(bob * 0.5) * 0.004 * Math.min(spd, 8) * 0.4 * sway, baseY - Math.abs(Math.sin(bob)) * 0.004 * Math.min(spd, 8) * 0.4 * sway - (p.stance === 2 ? 0.05 : 0), baseZ);
-      viewmodel.rotation.x += ((sprint ? -0.35 : 0) - viewmodel.rotation.x) * Math.min(1, dt * 10);
+      const home = combat?.vmHome ?? { x: 0.17, y: -0.2, z: -0.42 };
+      const kickZ = combat?.vmKickZ ?? 0, kickP = combat?.vmKickPitch ?? 0;
+      // при прицеливании оружие подтягивается к центру экрана
+      const baseX = aiming ? 0 : home.x, baseY = aiming ? home.y + 0.085 : home.y, baseZ = aiming ? home.z + 0.12 : home.z;
+      viewmodel.position.set(
+        baseX + Math.sin(bob * 0.5) * 0.004 * Math.min(spd, 8) * 0.4 * sway,
+        baseY - Math.abs(Math.sin(bob)) * 0.004 * Math.min(spd, 8) * 0.4 * sway - (p.stance === 2 ? 0.05 : 0),
+        baseZ + kickZ);
+      viewmodel.rotation.x += (((sprint ? -0.35 : 0) + kickP) - viewmodel.rotation.x) * Math.min(1, dt * 10);
       viewmodel.rotation.y += ((sprint ? 0.5 : 0.03) - viewmodel.rotation.y) * Math.min(1, dt * 10);
-      // отдача гасится
-      viewmodel.position.z += (0 - viewmodel.position.z - 0) * 0; void 0;
     }
     sun.position.set(pl.pos.x + 60, 90, pl.pos.z + 40); sun.target.position.copy(pl.pos);
     $('hp').style.width = Math.max(0, p.hp) + '%'; $('hpt').textContent = 'HP ' + Math.max(0, Math.round(p.hp));
-    $('stam').style.width = p.stamina + '%'; $('stance').textContent = ['Стоя', 'Присед', 'Лёжа'][p.stance] + (p.sliding ? ' · СКОЛЬЖЕНИЕ' : '') + (p.grounded ? '' : ' · в воздухе');
+    $('stam').style.width = p.stamina + '%'; $('stance').textContent = ['Стоя', 'Присед', 'Лёжа'][p.stance] + (p.sliding ? ' · СПОЛЗАНИЕ' : '') + (p.grounded ? '' : ' · в воздухе') + (p.slope ? ` · склон ${p.slope.toFixed(0)}°` : '');
     const s = phys.stats;
     const w = combat?.weapon;
     $('info').textContent = `FPS ${fps.toFixed(0)}\nФизика: ${s.stepMs.toFixed(2)} мс/шаг · тел ${s.awake}/${s.total}\nСкорость: ${spd.toFixed(1)} м/с\nPos: ${p.pos.map(v => v.toFixed(1)).join(', ')}` +
@@ -236,6 +265,8 @@ function frame(now: number) {
     if (p.hp < lastHp) { const f = $('flash'); f.style.transition = 'none'; f.style.opacity = '0.35'; requestAnimationFrame(() => { f.style.transition = 'opacity .5s'; f.style.opacity = '0'; }); }
     lastHp = p.hp;
   }
+  // разрушаемые дома: пересборка коллайдеров/рендера не чаще 10 раз в секунду
+  for (const b of buildings) { b.voxels.update(now); houseByBody.set(b.voxels.physicsId, b); }
   // эффекты и трассеры
   if (effects) { effects.update(dt); effects.updateTracers(phys.tracers, camera); }
   // прицел-перекрестие: расхождение = разброс
@@ -246,7 +277,27 @@ function frame(now: number) {
     $('hits').style.opacity = String(Math.max(0, 1 - (now - lastHitMarker) / 220));
   }
   if (aimT > 0) { aimT -= dt; $('aim').textContent = aimMsg; $('aim').style.opacity = String(Math.min(1, aimT * 2)); } else $('aim').style.opacity = '0';
-  $('killfeed') && ($('killfeed').textContent = `В живых: ${bots?.alive() ?? 0}`);
+  if ($('killfeed')) $('killfeed').textContent = `В живых: ${bots?.alive() ?? 0}`;
+  // состояние ближайшего дома: сколько колонн осталось (играбельно и понятно)
+  if (buildings.length) {
+    let best: PlacedBuilding | null = null, bd = Infinity;
+    const cp = camera.position;
+    for (const b of buildings) {
+      const dx = Math.abs(cp.x - b.center.x) - b.spec.size[0] / 2;
+      const dz = Math.abs(cp.z - b.center.z) - b.spec.size[2] / 2;
+      const d = Math.max(0, dx) + Math.max(0, dz);
+      if (d < bd) { bd = d; best = b; }
+    }
+    if (best && bd < 60) {
+      const parts = [0, 1, 2].filter(i => best!.spec.sections > i).map(i => {
+        const c = best!.voxels.columns(i);
+        const pct = Math.round((c.left / Math.max(1, c.total)) * 100);
+        return `${c.left}/${c.total}${best!.voxels.collapsed.has(i) ? ' ОБРУШЕН' : ''} (${pct}%)`;
+      });
+      $('house').textContent = `ДОМ: колонны ${parts.join(' · ')}`;
+      $('house').style.opacity = '1';
+    } else if ($('house')) $('house').style.opacity = '0';
+  }
   renderer.render(scene, camera);
 }
 let lastHp = 100; let freecam: { pos: [number, number, number]; yaw: number; pitch: number } | null = null;

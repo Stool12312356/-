@@ -35,6 +35,7 @@ export class PhysicsClient {
   newId() { return this.nextId++; }
   post(m: ToWorker, transfer: Transferable[] = []) { this.worker.postMessage(m, transfer); }
   /** многоколоночный статичный дом: одна физическая сущность, много панелей */
+  /** @param panels индекс панели для каждой формы в desc.shapes */
   addBuilding(desc: Omit<BodyDesc, 'id'>, panels: number[]): number {
     const id = this.nextId++;
     this.post({ type: 'addBodies', bodies: [{ ...desc, id, panels } as BodyDesc] });
