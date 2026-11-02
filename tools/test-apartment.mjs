@@ -116,7 +116,51 @@ for (const kind of ['khrushchevka', 'brezhnevka']) {
   check('перекрытия этажей целые, шахта открыта', slabHoles === 0 && shaftBlocked === 0,
     `этажей ${floorsChecked}, дыр в плитах ${slabHoles}, замуровано в шахте ${shaftBlocked}`);
 
-  // 6. квартиры разделены: между гостиной и спальней есть стена
+  // 6. СМЕЖНЫЕ КОМНАТЫ РАЗДЕЛЕНЫ СТЕНОЙ (найдено фото-проходом M7).
+  // Санузел не имел стены с кухней: с кухни были видны ванна и унитаз. Смотрим ровно
+  // ЦЕНТРЫ вокселей (полувоксельные срезы давали ложные «дыры» у кромки двери).
+  const wallDoorAt = (x, z) => plan.walls.some(ws => {
+    const horiz = Math.abs(ws.z1 - ws.z0) < 1e-6;
+    const onLine = horiz
+      ? Math.abs(z - ws.z0) < 1e-6 && x >= Math.min(ws.x0, ws.x1) - 1e-6 && x <= Math.max(ws.x0, ws.x1) + 1e-6
+      : Math.abs(x - ws.x0) < 1e-6 && z >= Math.min(ws.z0, ws.z1) - 1e-6 && z <= Math.max(ws.z0, ws.z1) + 1e-6;
+    if (!onLine) return false;
+    const t = horiz ? x - Math.min(ws.x0, ws.x1) : z - Math.min(ws.z0, ws.z1);
+    return ws.doors.some(([a, b]) => t >= a - 0.02 && t <= b + 0.02);
+  });
+  const openPairs = [];
+  let pairs = 0;
+  for (let a = 0; a < plan.rooms.length; a++) for (let b = a + 1; b < plan.rooms.length; b++) {
+    const A = plan.rooms[a], B = plan.rooms[b];
+    const vShared = Math.abs(A.x1 - B.x0) < 1e-6;
+    const hShared = Math.abs(A.z1 - B.z0) < 1e-6;
+    let holes = 0, span = 0;
+    if (vShared) {
+      const z0 = Math.max(A.z0, B.z0), z1 = Math.min(A.z1, B.z1);
+      if (z1 - z0 < 0.3) continue;
+      pairs++;
+      // осевые линии стен идут через ЦЕНТРЫ вокселей, поэтому берём строго центры:
+      // от z0+0.5 шагом 0.5. Отсчёт от z0+0.25 попадал на кромки вокселей.
+      for (let z = z0 + 0.5; z <= z1 - 0.5 + 1e-6; z += 0.5) {
+        span++;
+        if (!solidAtFloor(A.x1, z, 1.2) && !wallDoorAt(A.x1, z)) holes++;
+      }
+    } else if (hShared) {
+      const x0 = Math.max(A.x0, B.x0), x1 = Math.min(A.x1, B.x1);
+      if (x1 - x0 < 0.3) continue;
+      pairs++;
+      for (let x = x0 + 0.5; x <= x1 - 0.5 + 1e-6; x += 0.5) {
+        span++;
+        if (!solidAtFloor(x, A.z1, 1.2) && !wallDoorAt(x, A.z1)) holes++;
+      }
+    }
+    void span;
+    if (holes) openPairs.push(`${A.id}|${B.id}(${holes})`);
+  }
+  check('смежные комнаты разделены стенами', openPairs.length === 0,
+    openPairs.length ? `дыры без дверей: ${openPairs.join(', ')}` : `пар смежных ${pairs}, дыр 0`);
+
+  // 7. квартиры разделены: между гостиной и спальней есть стена
   const living = plan.rooms.find(r => r.id === 'living');
   const bedroom = plan.rooms.find(r => r.id === 'bedroom');
   const midX = (living.x1 + bedroom.x0) / 2;

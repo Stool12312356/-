@@ -186,6 +186,27 @@ export function findPath(
     start.gx = best.gx; start.gz = best.gz;
   }
 
+  // Цель тоже может попасть в клетку, которую консервативная проверка капсулы
+  // считает занятой (узкая комната: цель «в центр» рядом со стеной). Без подбора
+  // findPath возвращал null, хотя комната проходима — на этом застревал фото-проход
+  // в санузле. Ищем ближайшую проходимую клетку к цели.
+  if (!ok(goal.gx, goal.gz)) {
+    let best: { gx: number; gz: number } | null = null;
+    let bd = Infinity;
+    for (let r = 1; r <= 8 && !best; r++) {
+      for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) {
+        if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+        const gx = goal.gx + dx, gz = goal.gz + dz;
+        if (gx < gx0 || gx > gx1 || gz < gz0 || gz > gz1) continue;
+        if (!ok(gx, gz)) continue;
+        const d = dx * dx + dz * dz;
+        if (d < bd) { bd = d; best = { gx, gz }; }
+      }
+    }
+    if (!best) return null;
+    goal.gx = best.gx; goal.gz = best.gz;
+  }
+
   const prev = new Int32Array(W * Hh).fill(-1);
   const seen = new Uint8Array(W * Hh);
   const q = [key(start.gx, start.gz)];

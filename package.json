@@ -10,6 +10,8 @@
     "download": "node tools/download-assets.mjs",
     "textures": "node tools/fetch-textures.mjs",
     "plan": "node tools/plan-apartment.mjs",
+    "preview:walk": "node tools/preview-walk.mjs",
+    "preview:walk:b": "node tools/preview-walk.mjs --kind=brezhnevka --out=walk-b",
     "convert": "node tools/convert.mjs && node tools/convert.mjs --low",
     "assets": "node tools/split.mjs && node tools/convert.mjs && node tools/convert.mjs --low && node tools/build-manifest.mjs",
     "test:ballistics": "node tools/test-ballistics.mjs",
