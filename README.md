@@ -21,5 +21,6 @@ npm run build && npm run preview   # статическая сборка в dist
 
 - `docs/SPEC.md` — техническое задание (ТЗ v2.0)
 - `docs/SETUP-WINDOWS.md` — установка на Windows, ошибки npm и PowerShell
+- `docs/ASSETS.md` — как долить все модели и что станет настоящим
 - `docs/UPDATE.md` — как скачать актуальную версию (старый архив устарел)
 - `docs/WHATS-NEXT.md` — что осталось сделать и почему часть шагов за вами
