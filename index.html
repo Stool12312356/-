@@ -93,8 +93,9 @@
 <div id="menu">
   <div class="sub">Советский Союз · 1985</div>
   <h1>КРАСНЫЙ ШТОРМ</h1>
-  <div class="sub">M7.5 · штурм: точки захвата, билеты, звук, разрушаемые дома</div>
+  <div class="sub">M9 · две карты, штурм с точками, боты с ходьбой, разрушаемые дома</div>
   <div id="load">Инициализация…</div>
+  <div id="maps"></div>
   <div id="classes"></div>
   <div>
     <button id="play" disabled>В БОЙ</button>
@@ -114,6 +115,13 @@
     transition: border-color .15s, background .15s; border-radius: 3px; }
   .cls:hover { border-color: #b89a5a; background: #241f16dd; }
   .cls.sel { border-color: #e8483c; background: #2a1a16ee; box-shadow: 0 0 0 1px #e8483c inset; }
+  #maps { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 8px 0 0; }
+  .map { cursor: pointer; border: 1px solid #4a5560; background: #14181ccc; color: #b7c2cc;
+    padding: 6px 10px; font: 11px/1.35 ui-monospace, Consolas, monospace; border-radius: 3px; }
+  .map:hover { border-color: #7f95a8; }
+  .map.sel { border-color: #7fb1e8; color: #e6f0fa; box-shadow: 0 0 0 1px #7fb1e8 inset; }
+  .map b { display: block; color: #e6f0fa; font-size: 12px; }
+  .map i { color: #8a97a3; font-style: normal; }
   .cls b { display: block; color: #f0e6d2; font-size: 13px; margin-bottom: 2px; }
   .cls i { color: #9a8f78; font-style: normal; font-size: 11px; }
 </style>

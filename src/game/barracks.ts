@@ -21,7 +21,7 @@
 import { PITCH } from './voxelhouse.ts';
 import type { ApartmentPlan, Room, WallSeg, WindowSeg } from './plan.ts';
 
-export type SpecialKind = 'barracks' | 'shop';
+export type SpecialKind = 'barracks' | 'shop' | 'workshop' | 'checkpoint';
 
 export interface SpecialPlan {
   kind: SpecialKind;
@@ -127,8 +127,74 @@ export function stairPlan(sp: SpecialPlan): ApartmentPlan {
   return { w: sp.w, d: sp.d, rooms: [], walls: [], windows: [], entrance: sp.entrance, stairs: sp.stairWell! };
 }
 
+/**
+ * ЦЕХ ЗАВОДА (карта «Заводская площадка»): большой одноэтажный пролёт 24 × 14 м с
+ * двумя воротами (север/юг), станками вдоль стен и бытовкой в углу. Внутри высоко —
+ * можно ставить технику, что и нужно по ТЗ для заводской карты.
+ */
+export function workshopPlan(): SpecialPlan {
+  const W = 24.0, D = 14.0, H = 6.0;
+  const x0 = -W / 2, x1 = W / 2, z0 = -D / 2, z1 = D / 2;
+  const bayX = 5.0;           // бытовка | пролёт
+  const bayZ = 2.0;           // бытовка | раздевалка
+  const rooms: Room[] = [
+    // пролёт цеха: станки у стен, между ними проходы
+    { id: 'living', name: 'Пролёт цеха', x0, x1, z0, z1: z1 - 5.0,
+      furniture: ['table', 'table', 'shelf', 'shelf', 'lamp'] },
+    { id: 'study', name: 'Склад у ворот', x0, x1: -bayX - 2.0, z0: z1 - 4.5, z1,
+      furniture: ['shelf', 'shelf', 'table'] },
+    { id: 'bath', name: 'Бытовка', x0: x1 - bayX, x1, z0: z1 - 4.5, z1: z1 - bayZ,
+      furniture: ['table', 'chair', 'wardrobe'] },
+    { id: 'hall', name: 'Раздевалка', x0: x1 - bayX, x1, z0: z1 - bayZ, z1,
+      furniture: ['shelf', 'lamp'] },
+  ];
+  const walls: WallSeg[] = [
+    // пролёт | склад и бытовка (сплошная с двумя проёмами)
+    { x0, z0: z1 - 5.0, x1, z1: z1 - 5.0, doors: [[8.0, 9.5], [19.0, 20.5]] },
+    { x0: -bayX - 2.0, z0: z1 - 5.0, x1: -bayX - 2.0, z1, doors: [[1.0, 2.0]] },
+    { x0: x1 - bayX, z0: z1 - 5.0, x1: x1 - bayX, z1, doors: [[3.0, 4.0]] },
+    { x0: x1 - bayX, z0: z1 - bayZ, x1, z1: z1 - bayZ, doors: [[1.5, 2.5]] },
+  ];
+  return {
+    kind: 'workshop', name: 'Цех', w: W, d: D, floors: 1, floorH: H,
+    rooms, walls,
+    // ворота: широкий проём по центру фасада
+    entrance: { x: 0, z: z0, width: 4.0 },
+    windows: [
+      { x0: -10.0, x1: -7.0, z: z0, side: 'facade' },
+      { x0: 7.0, x1: 10.0, z: z0, side: 'facade' },
+      { x0: -10.0, x1: -7.0, z: z1, side: 'back' },
+      { x0: 7.0, x1: 10.0, z: z1, side: 'back' },
+    ],
+  };
+}
+
+/**
+ * ПРОХОДНАЯ (карта «Заводская площадка»): маленькое здание 8 × 6 м с двумя дверями
+ * навылет — через неё идёт короткий путь к цеху.
+ */
+export function checkpointPlan(): SpecialPlan {
+  const W = 8.0, D = 6.0, H = 3.0;
+  const x0 = -W / 2, x1 = W / 2, z0 = -D / 2, z1 = D / 2;
+  const rooms: Room[] = [
+    { id: 'hall', name: 'Проходная', x0, x1, z0, z1, furniture: ['table', 'chair', 'shelf', 'lamp'] },
+  ];
+  return {
+    kind: 'checkpoint', name: 'Проходная', w: W, d: D, floors: 1, floorH: H,
+    rooms, walls: [],
+    entrance: { x: 0, z: z0, width: 1.5 },
+    windows: [
+      { x0: -3.0, x1: -2.0, z: z0, side: 'facade' },
+      { x0: 2.0, x1: 3.0, z: z0, side: 'facade' },
+    ],
+  };
+}
+
 export function specialPlan(kind: SpecialKind): SpecialPlan {
-  return kind === 'barracks' ? barracksPlan() : shopPlan();
+  if (kind === 'barracks') return barracksPlan();
+  if (kind === 'shop') return shopPlan();
+  if (kind === 'workshop') return workshopPlan();
+  return checkpointPlan();
 }
 
 /**

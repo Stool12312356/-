@@ -11,12 +11,12 @@ import { loadTextures } from './render/tex';
 import { Audio, listenerPos } from './game/audio';
 import { Bots } from './game/bots';
 import { Match, type SoldierRef } from './game/match';
-import { buildCapturePoints, spawnFor } from './game/maps';
+import { buildCapturePoints, spawnFor, MAPS } from './game/maps';
 import { Squads } from './game/squads';
 import { CLASSES, CLASS_ORDER, loadout, perkOf, type ClassId } from './game/classes';
 import { Gadgets, gadgetForKey, type GadgetId } from './game/gadgets';
 import { spawnVoxelHouse, spawnSpecial, type PlacedBuilding } from './game/structure';
-import { BUILDINGS, SPAWN } from './game/world';
+import { BUILDINGS, SPAWN, CURRENT_MAP } from './game/world';
 import { SURFACES, pointBlankRange, EXPLOSION, EXPLOSION_SMALL } from './game/weapons';
 import type { PlayerInput, Impact } from './shared/types';
 
@@ -138,7 +138,7 @@ async function boot() {
   cmb.equip(0);
   const bt = bots = new Bots(scene, lib, phys);
   // РЕЖИМ «ШТУРМ» (ТЗ п.7): точки захвата + волны бойцов обеих сторон.
-  match = new Match(buildCapturePoints('spalny'));
+  match = new Match(buildCapturePoints(CURRENT_MAP.id));
   buildPointMarkers();
   spawnWave();
   squads = new Squads(bt, match, phys, fx);
@@ -153,9 +153,10 @@ async function boot() {
     match?.casualty(b.side ? 1 : 0);
   };
   phys.onImpact(onImpact);
-  phys.post({ type: 'spawnPlayer', pos: SPAWN });
+  phys.post({ type: 'spawnPlayer', pos: CURRENT_MAP.playerSpawn ?? SPAWN });
   const real = lib.all().filter(i => !i.placeholder && !i.procedural).length;
   load.innerHTML = `Готово. Реальных моделей: <b class="ok">${real}</b> · заглушек: <b class="ph">${lib.all().filter(i => i.placeholder).length}</b> · процедурных домов: <b class="ok">${buildings.length}</b>`;
+  buildMapMenu();
   buildClassMenu();
   selectClass(playerClass);
   ($('play') as HTMLButtonElement).disabled = false; ($('regbtn') as HTMLButtonElement).disabled = false;
@@ -169,7 +170,7 @@ async function boot() {
  */
 function spawnWave() {
   if (!bots || !match) return;
-  const my = spawnFor(0), foe = spawnFor(1);
+  const my = spawnFor(0, CURRENT_MAP.id), foe = spawnFor(1, CURRENT_MAP.id);
   for (let i = 0; i < WAVE; i++) {
     const a = (i / WAVE) * Math.PI * 2;
     bots.spawn('soldier_ussr', [my[0] + Math.cos(a) * 4, 0.05, my[2] + Math.sin(a) * 4], 0, 0);
@@ -184,7 +185,7 @@ function reinforcements(dt: number) {
   waveT += dt;
   if (waveT < 6) return;
   waveT = 0;
-  const my = spawnFor(0), foe = spawnFor(1);
+  const my = spawnFor(0, CURRENT_MAP.id), foe = spawnFor(1, CURRENT_MAP.id);
   while (bots.aliveBy(0) < WAVE) {
     const i = bots.aliveBy(0);
     bots.spawn('soldier_ussr', [my[0] + Math.cos(i) * 4, 0.05, my[2] + Math.sin(i) * 4], 0, 0);
@@ -269,15 +270,35 @@ function selectClass(id: ClassId) {
   addFeed(`Класс: ${CLASSES[id].name}`);
 }
 
+/**
+ * МЕНЮ КАРТ (ТЗ п.9). Карта задаётся параметром ?map= и собирается при загрузке,
+ * поэтому переключение — перезагрузка страницы: иначе надо сносить всю физику,
+ * ботов и дома, а это на 40k вокселей дороже секунды загрузки.
+ * Пока идёт матч, кнопки неактивны — чтобы не потерять прогресс случайно.
+ */
+function buildMapMenu() {
+  const box = $('maps');
+  if (!box) return;
+  box.innerHTML = '';
+  for (const m of MAPS) {
+    const el = document.createElement('div');
+    el.className = 'map' + (m.id === CURRENT_MAP.id ? ' sel' : '');
+    el.innerHTML = `<b>${m.name}</b><i>${m.subtitle}</i><br><i>точек: ${m.points.length} · домов: ${m.houses.length + m.specials.length}</i>`;
+    el.onclick = () => {
+      if (started) { addFeed('Карта меняется до боя'); return; }
+      const u = new URL(location.href);
+      u.searchParams.set('map', m.id);
+      location.href = u.toString();
+    };
+    box.appendChild(el);
+  }
+}
+
 /** Ставит процедурные панельки: хрущёвка и брежневка на своих местах. */
 function spawnBuildings() {
-  const defs: { kind: 'khrushchevka' | 'brezhnevka'; pos: [number, number, number]; rotY: number }[] = [
-    { kind: 'khrushchevka', pos: [-72, 0, -86], rotY: 0 },
-    { kind: 'brezhnevka', pos: [-20, 0, -105], rotY: 0 },
-    { kind: 'khrushchevka', pos: [30, 0, -112], rotY: Math.PI },
-  ];
-  for (const d of defs) {
-    const b = spawnVoxelHouse({ kind: d.kind, sections: d.kind === 'khrushchevka' ? 3 : 2 },
+  // Расстановка — ИЗ КАРТЫ (maps.ts): у каждой карты свои дома и особые здания.
+  for (const d of CURRENT_MAP.houses) {
+    const b = spawnVoxelHouse({ kind: d.kind, sections: d.sections },
       scene, phys, d.pos, d.rotY, heightAt);
     buildings.push(b);
     houseByBody.set(b.house.bodyId, b);
@@ -296,13 +317,9 @@ function spawnBuildings() {
     console.log(`дом ${d.kind}: ${b.model.size.map(v => v.toFixed(1)).join('×')} м, вокселей ${b.model.stats.voxels}, подъездов ${b.model.sections}`);
   }
 
-  // КАЗАРМА И ВОЕНТОРГ (п.5): стоят на площадке перед домами, лицом к спавну.
-  const specials: { kind: 'barracks' | 'shop'; pos: [number, number, number]; rotY: number }[] = [
-    { kind: 'barracks', pos: [-58, 0, -40], rotY: 0 },
-    { kind: 'shop', pos: [-34, 0, -47], rotY: Math.PI / 8 },
-  ];
-  for (const d of specials) {
-    const b = spawnSpecial(d.kind, 2, scene, phys, d.pos, d.rotY, heightAt);
+  // ОСОБЫЕ ЗДАНИЯ КАРТЫ: казарма, военторг, цеха, проходная.
+  for (const d of CURRENT_MAP.specials) {
+    const b = spawnSpecial(d.kind, d.sections, scene, phys, d.pos, d.rotY, heightAt);
     buildings.push(b);
     houseByBody.set(b.house.bodyId, b);
     b.house.onDust = (x, y, z, count, big) => effects?.dust([x, y, z], count, big ? 3.2 : 1.2);

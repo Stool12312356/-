@@ -5,6 +5,7 @@
 // уже с дороги. Теперь точка спавна ВЫЧИСЛЯЕТСЯ из плана первого дома (прямо перед его
 // дверью), а тест tools/test-walk.mjs проверяет, что она стоит там, где надо.
 import { buildVoxelHouse } from './voxelgen.ts';
+import { getMap, type MapDef } from './maps.ts';
 
 export interface BuildingDef {
   kind: 'khrushchevka' | 'brezhnevka';
@@ -14,11 +15,23 @@ export interface BuildingDef {
   sections: number;
 }
 
-export const BUILDINGS: BuildingDef[] = [
-  { kind: 'khrushchevka', pos: [-72, 0, -86], rotY: 0, sections: 3 },
-  { kind: 'brezhnevka', pos: [-20, 0, -105], rotY: 0, sections: 2 },
-  { kind: 'khrushchevka', pos: [30, 0, -112], rotY: Math.PI, sections: 3 },
-];
+/**
+ * Дома ТЕКУЩЕЙ карты. Раньше список был захардкожен, и вторая карта (завод) не могла
+ * иметь свою застройку. Теперь карта задаётся в maps.ts, а тут — её дома.
+ * Смена карты (параметр ?map=) пересобирает мир.
+ */
+// ВАЖНО: world.ts гоняется и в тестах под Node — там нет location, поэтому адрес
+// читаем только если он есть, иначе берём первую карту.
+const QUERY = typeof location !== 'undefined' ? location.search : '';
+export let CURRENT_MAP: MapDef = getMap(new URLSearchParams(QUERY).get('map') ?? undefined);
+export let BUILDINGS: BuildingDef[] = CURRENT_MAP.houses;
+
+/** Переключить карту: обновляет CURRENT_MAP и список домов (до сборки мира). */
+export function setMap(id: string) {
+  CURRENT_MAP = getMap(id);
+  BUILDINGS = CURRENT_MAP.houses;
+  return CURRENT_MAP;
+}
 
 /** Расстояние от спавна до двери первого дома, м. */
 export const SPAWN_AWAY = 4.5;
