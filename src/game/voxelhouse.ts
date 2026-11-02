@@ -212,9 +212,11 @@ export class VoxelHouse {
 
     // Реальные текстуры из public/textures (см. src/render/tex.ts). Если текстура не
     // загрузилась — материал остаётся однотонным, игра не падает.
-    const tBrick = tex('brick'), tStucco = tex('stucco'), tWood = tex('wood');
+    const tBrick = tex('brick'), tStone = tex('stone'), tWood = tex('wood'), tStucco = tex('ground');
     const generated = blockTexture();      // запасная процедурная кладка
-    const MAP: Record<number, THREE.Texture | null> = { 0: tStucco, 1: tStucco, 2: tBrick, 4: tWood, 5: tStucco };
+    // 0 бетон (несущая) — штукатурка, 1 плита — штукатурка, 2 кирпич — кирпич/бут,
+    // 4 дерево, 5 ступени — бетон
+    const MAP: Record<number, THREE.Texture | null> = { 0: tStucco, 1: tStucco, 2: tStone ?? tBrick, 4: tWood, 5: tStucco };
     for (const [k, color] of Object.entries(VOXEL_COLOR)) {
       const kk = +k;
       if (kk === 3) {
@@ -275,7 +277,7 @@ export class VoxelHouse {
   private static CORNERS = CUBE_CORNERS;
   private static QUAD = VOXEL_QUADS;
   /** UV-координаты углов грани: (0,0) (1,0) (1,1) (0,1) в порядке quads */
-  private static QUAD_UV = [[0, 0], [1, 0], [1, 1], [0, 1]];
+  private static QUAD_UV = [0, 0, 1, 0, 1, 1, 0, 1];
 
   /** Собирает геометрию чанка: наружные грани живых вокселей, по группам на материал. */
   private ensureChunk(key: string) {
@@ -299,11 +301,10 @@ export class VoxelHouse {
             if (nid >= 0 && this.alive[nid]) continue;          // грань внутри — не нужна
             // UV: каждая грань кубика получает полный тайл текстуры (0..1), иначе карта
             // «растягивается» на весь чанк и выглядит мыльной.
-            const quadUV = VoxelHouse.QUAD_UV;
             for (let qi = 0; qi < 4; qi++) {
               const c = VoxelHouse.CORNERS[VoxelHouse.QUAD[f][qi]];
               a.verts.push(cxp + c[0] * h, cyp + c[1] * h, czp + c[2] * h);
-              a.uvs.push(quadUV[qi * 2], quadUV[qi * 2 + 1]);
+              a.uvs.push(VoxelHouse.QUAD_UV[qi * 2], VoxelHouse.QUAD_UV[qi * 2 + 1]);
             }
             quads++;
           }

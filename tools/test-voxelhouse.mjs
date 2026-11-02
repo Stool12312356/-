@@ -1,5 +1,7 @@
 // Тест воксельного дома без браузера: генерация, разрушение, опора, физика, ФПС-бюджет.
 import * as THREE from 'three';
+import { buildStaircase } from '../src/game/staircase.ts';
+import { PLAYER } from '../src/shared/constants.ts';
 import { buildVoxelHouse } from '../src/game/voxelgen.ts';
 import { VoxelHouse, CHUNK } from '../src/game/voxelhouse.ts';
 
@@ -37,19 +39,28 @@ for (const [kind, sections] of [['khrushchevka', 1], ['khrushchevka', 3], ['brez
   const ys = bodiesAll.map(b => b.shapes[0].verts[1]).filter(v => v !== undefined);
   check('коллизия есть на всех этажах', Math.max(...ys) > H * 0.7, `верх ${Math.max(...ys).toFixed(1)} м при H=${H.toFixed(1)}`);
 
-  // 3. подъезд: у земли в фасаде есть проём (можно войти), а не сплошная стена
-  const c = model.stats.entrance;
+  // 3. подъезд: в фасаде есть проём под входную дверь (луч с улицы проходит внутрь).
+  // Дверь берём из плана: раньше проверка искала её по «центру секции» и падала после
+  // перекомпоновки планировки (клетка уехала к краю дома).
+  // для многосекционного дома вход в КАЖДУЮ секцию, берём первую
+  // центр ПЕРВОЙ секции, а не всего дома: при 3 секциях центр дома попадает на стык
+  const c = [model.plan.entrance.x + model.size[0] / model.sections / 2, 0,
+    model.plan.entrance.z + model.size[2] / 2];
   const doorCells = [];
-  for (let j = 0; j < 4; j++) for (let di = -1; di <= 1; di++) {
-    const hit = h.raycast([c[0] + di * 0.5, 1.0, -1.2], [0, 0, 1], 6);
-    doorCells.push(!hit || hit.dist > 4);
+  for (const dx of [-0.5, 0, 0.5]) {
+    const hit = h.raycast([c[0] + dx, 1.1, c[2] - 1.2], [0, 0, 1], 8);
+    doorCells.push(!hit || hit.dist > 2.2);
   }
-  check('вход в подъезд сквозной', doorCells.filter(Boolean).length >= 2, `${doorCells.filter(Boolean).length}/3 лучей прошли внутрь`);
+  // «прошли внутрь» = луч пролетел весь подъезд и упёрся в стену прихожей (2.4 м+),
+  // а не в створ двери. Проверяем, что преграды в проёме НЕТ на первых 2.2 м.
+  check('вход в подъезд сквозной', doorCells.filter(Boolean).length >= 2,
+    `${doorCells.filter(Boolean).length}/3 лучей прошли внутрь`);
 
-  // 4. лестница: внутри шахты есть воксели на промежуточной высоте (ступени), а не только перекрытия
-  const stairY = H / model.floors * 0.5;
-  const steps = h.ids.filter(id => h.alive[id] && h.kind[id] === 5 && h.centerOf(id).y > stairY).length;
-  check('лестница есть', steps > 10, `ступеней ${steps}`);
+  // 4. лестница теперь отдельная геометрия (src/game/staircase.ts): в вокселях её нет,
+  // поэтому проверяем саму лестницу, а не воксели типа 5.
+  const stair = buildStaircase(model.plan, model.floors, model.floorH, new THREE.Vector3(model.size[0] / 2, 0, model.size[2] / 2));
+  check('лестница есть и проходимая', stair.steps > 6 && stair.rise < PLAYER.stepHeight,
+    `${stair.steps} ступеней на марш, подступ ${stair.rise.toFixed(3)} м (шаг игрока ${PLAYER.stepHeight})`);
 
   // 5. воксельное разрушение: один выстрел РПГ выбивает кусок, но НЕ стену целиком
   const wall = h.raycast([model.size[0] / 2, 3.0, -6], [0, 0, 1], 20);

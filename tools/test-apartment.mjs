@@ -13,10 +13,13 @@ for (const kind of ['khrushchevka', 'brezhnevka']) {
   const m = buildVoxelHouse({ kind, sections: 1 });
   const { nx, ny, nz, cells } = m.spec;
   const at = (i, j, k) => (i < 0 || j < 0 || k < 0 || i >= nx || j >= ny || k >= nz) ? -1 : cells[(j * nz + k) * nx + i];
-  // метры плана → индексы сетки (секция начинается с i=0, дом 1 секция)
-  const I = (x) => Math.round((x + plan.w / 2) / PITCH);
-  const K = (z) => Math.round((z + nz * PITCH / 2) / PITCH);
-  const solidAtFloor = (x, z, h = 1.0) => at(I(x), Math.round(h / PITCH), K(z)) >= 0;
+  // метры плана → индексы сетки. План задан по осевым линиям стен (они проходят через
+  // ЦЕНТРЫ вокселей), поэтому индекс = floor(координата / PITCH) в мировых координатах,
+  // где дом стоит от 0 до size. Раньше здесь был round от центра плана — тест «съезжал»
+  // на полвокселя и давал ложные FAIL.
+  const I = (x) => Math.floor((x + plan.w / 2) / PITCH);
+  const K = (z) => Math.floor((z + plan.d / 2) / PITCH);
+  const solidAtFloor = (x, z, h = 1.0) => at(I(x), Math.floor(h / PITCH), K(z)) >= 0;
   console.log(`\n${kind}: ${m.size.map(v => v.toFixed(1)).join('×')} м, комнат ${plan.rooms.length}, стен ${plan.walls.length}`);
 
   // 1. стены на месте: в середине каждого отрезка (вне дверей) есть воксели от пола до потолка
@@ -28,7 +31,8 @@ for (const kind of ['khrushchevka', 'brezhnevka']) {
       if (ws.doors.some(([a, b]) => t >= a - 0.3 && t <= b + 0.3)) continue;
       const x = horiz ? Math.min(ws.x0, ws.x1) + t : ws.x0;
       const z = horiz ? ws.z0 : Math.min(ws.z0, ws.z1) + t;
-      const column = [0.5, 1.0, 1.5, 2.0, 2.4].every(h => solidAtFloor(x, z, h));
+      // стена идёт от пола (j0 = 0) до перекрытия: проверяем 0.25 … 2.25 м
+      const column = [0.25, 0.75, 1.25, 1.75, 2.25].every(h => solidAtFloor(x, z, h));
       if (column) wallOk++; else wallBad++;
     }
   }
@@ -96,13 +100,29 @@ for (const kind of ['khrushchevka', 'brezhnevka']) {
   check('мебель внутри комнат', outside === 0, `предметов ${furn}, вне комнаты ${outside}`);
   check('мебель не стоит в стене', inWall === 0, `в стене ${inWall}`);
 
-  // 5. квартиры разделены: между гостиной и спальней есть стена
+  // 5. перекрытия этажей целые: вне лестничной шахты плита есть в каждой клетке пола,
+  // а над шахтой — пусто (иначе лестница «замурована» либо в полу дыры)
+  let slabHoles = 0, shaftBlocked = 0, floorsChecked = 0;
+  for (let f = 1; f < m.floors; f++) {
+    const j = Math.round((f * m.floorH) / PITCH) - 1;      // плита = верхний воксель этажа
+    floorsChecked++;
+    for (let i = 0; i < m.spec.nx; i++) for (let k = 0; k < m.spec.nz; k++) {
+      const inShaft = i > I(plan.stairs.x0) && i < I(plan.stairs.x1) && k > K(plan.stairs.z0) && k < K(plan.stairs.z1);
+      const solid = at(i, j, k) >= 0;
+      if (inShaft && solid) shaftBlocked++;
+      if (!inShaft && !solid) slabHoles++;
+    }
+  }
+  check('перекрытия этажей целые, шахта открыта', slabHoles === 0 && shaftBlocked === 0,
+    `этажей ${floorsChecked}, дыр в плитах ${slabHoles}, замуровано в шахте ${shaftBlocked}`);
+
+  // 6. квартиры разделены: между гостиной и спальней есть стена
   const living = plan.rooms.find(r => r.id === 'living');
   const bedroom = plan.rooms.find(r => r.id === 'bedroom');
   const midX = (living.x1 + bedroom.x0) / 2;
+  // глубину берём ВНЕ дверного проёма (дверь в спальню — на z ≈ −3.2…−2.2)
   check('между гостиной и спальней есть перегородка',
-    solidAtFloor(midX - 1.2, -3.0, 1.2) || solidAtFloor(midX, -3.0, 1.2) || solidAtFloor(midX + 0.5, -3.0, 1.2),
-    'на глубине фасада');
+    solidAtFloor(midX, -1.2, 1.2) && solidAtFloor(midX, -4.4, 1.2), `стена x=${midX}`);
 }
 
 console.log(`\nИТОГ: ${bad ? 'ПРОВАЛЫ' : 'OK'} — планировка по плану: стены, двери, комнаты проходимы (${ok} проверок)`);

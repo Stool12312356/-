@@ -3,13 +3,19 @@
 import fs from 'fs';
 import zlib from 'zlib';
 import { buildVoxelHouse } from '../src/game/voxelgen.ts';
+import { buildStaircase } from '../src/game/staircase.ts';
 import { PITCH } from '../src/game/voxelhouse.ts';
 
-const m = buildVoxelHouse({ kind: process.argv[2] === 'brezhnevka' ? 'brezhnevka' : 'khrushchevka', sections: 2 });
+const KIND = process.argv[2] === 'brezhnevka' ? 'brezhnevka' : 'khrushchevka';
+const SECTIONS = process.argv[2] === 'brezhnevka' ? 1 : (process.argv.includes('--sections=1') ? 1 : 2);
+const m = buildVoxelHouse({ kind: KIND, sections: SECTIONS });
 const { nx, ny, nz, cells } = m.spec;
 // РАЗРЕЗ: если задан --clip=N, воксели с i >= N не рисуем (видно шахту и лестницу)
 const clipArg = process.argv.find(a => a.startsWith('--clip='));
 const CLIP = clipArg ? Number(clipArg.split('=')[1]) : Infinity;
+// --cut=K: срез по глубине (видны комнаты и лестница внутри)
+const cutArg = process.argv.find(a => a.startsWith('--cut='));
+const CUT_K = cutArg ? Number(cutArg.split('=')[1]) : null;
 const at = (i, j, k) => (i < 0 || j < 0 || k < 0 || i >= nx || j >= ny || k >= nz) ? -1 : cells[(j * nz + k) * nx + i];
 
 function png(w, h, rgb) {
@@ -32,6 +38,8 @@ const quad = [[1,5,6,2],[0,3,7,4],[3,2,6,7],[0,4,5,1],[4,7,6,5],[0,1,2,3]];
 for (let j = 0; j < ny; j++) for (let k = 0; k < nz; k++) for (let i = 0; i < nx; i++) {
   const c = at(i, j, k); if (c < 0) continue;
   if (i >= CLIP) continue;
+  // разрез по глубине: убираем переднюю половину дома — видно комнаты, стены, двери
+  if (CUT_K !== null && k < CUT_K) continue;   // срезаем переднюю (фасадную) половину
   const cx = (i + 0.5) * PITCH, cy = (j + 0.5) * PITCH, cz = (k + 0.5) * PITCH;
   for (let f = 0; f < 6; f++) {
     const [di, dj, dk] = DIRS[f];
@@ -39,6 +47,22 @@ for (let j = 0; j < ny; j++) for (let k = 0; k < nz; k++) for (let i = 0; i < nx
     const q = quad[f].map(ci => { const p = corners[ci]; return [cx + p[0] * H, cy + p[1] * H, cz + p[2] * H]; });
     tris.push({ p: q, c: COLOR[c], n: DIRS[f] });
   }
+}
+// лестница: отдельная геометрия (в вокселях её больше нет) — добавляем её треугольники
+{
+  const st = buildStaircase(m.plan, m.floors, m.floorH, { x: m.size[0] / 2, y: 0, z: m.size[2] / 2 });
+  const v = st.verts, idx = st.idx;
+  const SC = [186, 180, 168];
+  for (let t = 0; t < idx.length; t += 3) {
+    const p3 = [0, 1, 2].map(n => [v[idx[t + n] * 3], v[idx[t + n] * 3 + 1], v[idx[t + n] * 3 + 2]]);
+    const e1 = p3[1].map((x, i) => x - p3[0][i]), e2 = p3[2].map((x, i) => x - p3[0][i]);
+    const n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+    const nl = Math.hypot(...n) || 1;
+    // рендер ждёт квад (4 точки): треугольник отдаём как квад с повтором последней точки —
+    // вторая половина вырождается и отбрасывается по площади
+    tris.push({ p: [p3[0], p3[1], p3[2], p3[2]], c: SC, n: n.map(x => x / nl) });
+  }
+  console.log('лестница:', st.steps, 'ступеней на марш, подступ', st.rise.toFixed(3), 'м');
 }
 console.log('дом', m.size.map(v => v.toFixed(1)).join('×'), 'вокселей', m.stats.voxels, 'граней', tris.length);
 
@@ -76,6 +100,24 @@ function render(eye, atPt, W = 1000) {
   }
   return { W, H: Hh, px };
 }
+// земля: в игре пол — это террейн, а не воксели (иначе на «фото» изнутри видно небо;
+// ровно на это я и наткнулся — пол в превью надо рисовать отдельно)
+{
+  // ВАЖНО: рендерер отбрасывает треугольник, если хоть одна вершина за камерой,
+  // поэтому большой квад земли «исчезал». Режем землю на тайлы по 2 м.
+  const g = m.size[0] / 2 + 60, z0 = m.size[2] / 2 + 60;
+  const T = 2;
+  for (let x = -g; x < m.size[0] + g; x += T) {
+    for (let z = -z0; z < m.size[2] + z0; z += T) {
+      const inside = x > -1 && x < m.size[0] + 1 && z > -1 && z < m.size[2] + 1;
+      tris.push({
+        p: [[x, 0, z], [x + T, 0, z], [x + T, 0, z + T], [x, 0, z + T]],
+        c: inside ? [104, 101, 94] : [116, 118, 108], n: [0, 1, 0],
+      });
+    }
+  }
+}
+
 fs.mkdirSync('tools/_render', { recursive: true });
 const cx = m.size[0]/2, cz = m.size[2]/2;
 const views = {
@@ -83,10 +125,18 @@ const views = {
   entrance: [[cx, 1.6, -9], [cx, 2.2, 0]],
   close: [[cx, m.size[1]*0.9, -m.size[2]*1.2], [cx, m.size[1]*0.7, cz]],
   // изнутри подъезда: видно шахту и лестницу (а не «сразу квартиру»)
-  inside: [[m.stats.entrance[0], 1.7, 0.6], [m.stats.entrance[0], 1.2, m.size[2] * 0.45]],
+  // изнутри подъезда: вид на лестницу снизу (проверяем, что она есть и вход не замурован)
+  inside: [[m.plan.entrance.x + m.size[0] / 2, 1.65, m.plan.entrance.z + m.size[2] / 2 + 1.0],
+           [m.plan.stairs.x0 + m.size[0] / 2 + 0.6, 1.4, m.plan.stairs.z1 + m.size[2] / 2 - 1.0]],
+  // вид из прихожей в коридор: видно двери в комнаты
+  hall: [[-1.75 + m.size[0] / 2, 1.6, -4.0 + m.size[2] / 2], [0.5 + m.size[0] / 2, 1.4, 3.0 + m.size[2] / 2]],
+  // из коридора в гостиную через дверь
+  living: [[-1.0 + m.size[0] / 2, 1.6, -2.9 + m.size[2] / 2], [3.5 + m.size[0] / 2, 1.3, -3.0 + m.size[2] / 2]],
   // срез: смотрим в разрез дома, чтобы видеть перекрытия, шахту и марши
   cut: [[-14, m.size[1] * 0.55, m.size[2] * 0.6], [cx, m.size[1] * 0.4, cz]],
   section: [[-m.size[0] * 0.05, m.size[1] * 0.45, -1.2], [cx, m.size[1] * 0.34, cz]],
+  // разрез по глубине: сверху-сбоку видно планировку (комнаты, двери, лестницу)
+  plan3d: [[cx - 1, 16, -16], [cx, 1.0, cz + 2]],
 };
 for (const [name, [eye, atPt]] of Object.entries(views)) {
   const r = render(eye, atPt, name === 'entrance' ? 900 : 1000);

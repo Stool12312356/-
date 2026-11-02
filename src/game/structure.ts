@@ -2,12 +2,13 @@
 // Моделей зданий нет намеренно — нужен интерьер и РАЗРУШАЕМОСТЬ, монолитный GLB этого не даёт.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import type { PhysicsClient } from '../physics/client';
-import { buildVoxelHouse, type VoxelHouseModel, type VoxelHouseOpts } from './voxelgen';
-import { VoxelHouse } from './voxelhouse';
-import { buildFurniture } from './furniture';
-import { furnish as furnishRoom } from './plan';
-import { PITCH } from './voxelhouse';
+import type { PhysicsClient } from '../physics/client.ts';
+import { buildStaircase, type Staircase } from './staircase.ts';
+import { buildVoxelHouse, type VoxelHouseModel, type VoxelHouseOpts } from './voxelgen.ts';
+import { VoxelHouse } from './voxelhouse.ts';
+import { buildFurniture } from './furniture.ts';
+import { furnish as furnishRoom } from './plan.ts';
+import { PITCH } from './voxelhouse.ts';
 
 export interface PlacedBuilding {
   house: VoxelHouse;
@@ -16,6 +17,8 @@ export interface PlacedBuilding {
   center: THREE.Vector3;
   /** габариты (для поиска «в какой дом попали») */
   size: [number, number, number];
+  /** лестница подъезда (проходимая, не воксельная) */
+  stair: Staircase;
 }
 
 /** Мебель внутри дома: ставится по квартирам, сливается по материалам в один меш на материал. */
@@ -29,10 +32,15 @@ function furnish(model: VoxelHouseModel, scene: THREE.Scene, origin: THREE.Vecto
   const W = plan.w, D = plan.d;
   const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotY);
   const buckets = new Map<string, { geo: THREE.BufferGeometry[]; mat: THREE.Material }>();
-  const floorH = (model.size[1]) / (model.floors + 1);
+  // БАГ: высота этажа считалась как size.y/(floors+1) = 15.5/6 ≈ 2.58 м, а полы на самом
+  // деле через 3.0 м (model.floorH). Мебель на верхних этажах «висела» в воздухе / тонула
+  // в плите. Берём высоту этажа из модели, а пол — уровень плиты (f * floorH).
+  const floorH = model.floorH;
   const secW = W;
   for (let s = 0; s < model.sections; s++) {
     for (let f = 0; f < model.floors; f++) {
+      // пол этажа f — это ПЛИТА, то есть верхняя плоскость вокселя (f*floorH); мебель
+      // ставим на неё с зазором 2 см
       const y = 0.02 + f * floorH;
       const secCenterX = -model.size[0] / 2 + s * secW + secW / 2;
       for (const room of plan.rooms) {
@@ -64,6 +72,8 @@ function furnish(model: VoxelHouseModel, scene: THREE.Scene, origin: THREE.Vecto
     if (!geo.length) continue;
     const merged = mergeGeometries(geo, false) ?? geo[0];
     const mesh = new THREE.Mesh(merged, mat);
+    // имя — чтобы тесты и отладка могли отличить мебель от чанков дома
+    mesh.name = 'furniture';
     mesh.castShadow = mesh.receiveShadow = true;
     scene.add(mesh);
   }
@@ -112,6 +122,26 @@ export function spawnVoxelHouse(
 
   const house = new VoxelHouse(grid, scene, phys);
   if (heightAt) house.setHeightFn(heightAt);
+
+  // ---- настоящая лестница в подъезде (см. staircase.ts) ----
+  // Воксельная «змейка» была непроходимой: ступень 0.5 м при autostep 0.4 м.
+  const stair = buildStaircase(model.plan, model.floors, model.floorH, offset);
+  if (rotY !== 0) {
+    stair.mesh.rotation.y = rotY;
+    // физика: те же вершины, повёрнутые вокруг центра дома
+    const q2 = q, v = new THREE.Vector3();
+    for (let i = 0; i < stair.verts.length; i += 3) {
+      v.set(stair.verts[i] - offset.x, stair.verts[i + 1] - offset.y, stair.verts[i + 2] - offset.z).applyQuaternion(q2);
+      stair.verts[i] = v.x + offset.x; stair.verts[i + 1] = v.y + offset.y; stair.verts[i + 2] = v.z + offset.z;
+    }
+  }
+  scene.add(stair.mesh);
+  phys.add({
+    kind: 'static',
+    shapes: [{ t: 'trimesh', verts: stair.verts, idx: stair.idx }],
+    pos: [0, 0, 0], quat: [0, 0, 0, 1], surface: 'concrete',
+  } as never);
+
   furnish(model, scene, offset, rotY);
 
   // свет у подъезда: один источник на дом (точечные источники дорогие)
@@ -119,5 +149,5 @@ export function spawnVoxelHouse(
   lamp.position.copy(offset).add(new THREE.Vector3(0, 3.2, model.size[2] / 2 + 2.5).applyQuaternion(q));
   scene.add(lamp);
 
-  return { house, model, center: new THREE.Vector3(offset.x, model.size[1] / 2, offset.z), size: model.size };
+  return { house, model, stair, center: new THREE.Vector3(offset.x, model.size[1] / 2, offset.z), size: model.size };
 }

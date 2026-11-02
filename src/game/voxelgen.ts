@@ -31,12 +31,14 @@ export interface VoxelHouseModel {
   center: [number, number, number];
   floors: number;
   sections: number;
+  /** высота этажа, м (нужна лестнице и тестам проходимости) */
+  floorH: number;
   stats: { voxels: number; byKind: Record<number, number>; entrance: [number, number, number] };
 }
 
 const TYPES = {
-  khrushchevka: { floors: 5, floorH: 2.8, depth: 11.0, name: 'Хрущёвка' },
-  brezhnevka: { floors: 9, floorH: 2.9, depth: 11.6, name: 'Брежневка' },
+  khrushchevka: { floors: 5, floorH: 3.0, name: 'Хрущёвка' },
+  brezhnevka: { floors: 9, floorH: 3.0, name: 'Брежневка' },
 } as const;
 
 /** Секция: 3 пролёта по 3.0 м + простенки 0.6 м. */
@@ -51,7 +53,10 @@ export function buildVoxelHouse(opts: VoxelHouseOpts): VoxelHouseModel {
   const plan = apartmentPlan(opts.kind);
   const floors = opts.floors ?? T.floors;
   const sections = opts.sections ?? 2;
-  const floorH = T.floorH;
+  // БАГ (найден тестом): высота этажа 2.8 м не кратна шагу сетки 0.5, поэтому полы
+  // этажей получались на 2.5 и на 3.0 м по очереди — «этажи волнистые», а лестница
+  // (её высота = floorH) не совпадала с полом. Теперь высота этажа кратна сетке.
+  const floorH = Math.round(T.floorH / PITCH) * PITCH;
   // глубина дома = глубина плана: иначе внутренние стены плана попадают в наружную стену
   const depth = plan.d;
   const W = plan.w * sections, H = floors * floorH;
@@ -79,14 +84,22 @@ export function buildVoxelHouse(opts: VoxelHouseOpts): VoxelHouseModel {
     byKind[kind] = (byKind[kind] ?? 0) + 1;
   };
 
-  const secW = Math.round(plan.w / PITCH);              // 10.0 / 0.5 = 20 вокселей
-  const wallRows = 1;                                    // толщина стены 0.5 м
+  const secW = Math.round(plan.w / PITCH);              // 12.0 / 0.5 = 24 вокселя
+  /** центр вокселя по X (в координатах плана) */
+  const xCenter = (i: number) => (i + 0.5) * PITCH - (nx * PITCH) / 2;
+  /** центр вокселя по Z (в координатах плана) */
+  const zCenter = (k: number) => (k + 0.5) * PITCH - (nz * PITCH) / 2;
 
   for (let s = 0; s < sections; s++) {
     const s0 = s * secW;                                 // начало секции по i
-    // метры плана → индексы сетки (центр секции = центр плана)
-    const PI = (x: number) => s0 + Math.round((x + plan.w / 2) / PITCH);
-    const PK = (z: number) => Math.round((z + nz * PITCH / 2) / PITCH);
+    // метры плана → индексы сетки. План задан по ОСЕВЫМ линиям стен (они проходят через
+    // ЦЕНТРЫ вокселей), поэтому floor, а не round: round «съезжал» на полвокселя.
+    // Смещение секции: центр секции s в мировых координатах = nx*PITCH/2 +
+    // (s - (sections-1)/2) * plan.w. Раньше здесь была ошибка знака, из-за которой
+    // в многосекционном доме вход и окна резались только в ПЕРВОЙ секции.
+    const secOffset = (s - (sections - 1) / 2) * plan.w;
+    const PI = (x: number) => s0 + Math.floor((x + secOffset + (nx * PITCH) / 2) / PITCH);
+    const PK = (z: number) => Math.floor((z + (nz * PITCH) / 2) / PITCH);
     // ---- стены по периметру + межсекционная ----
     for (let f = 0; f < floors; f++) {
       // ВАЖНО: этажи считаем через floor одной формулы. Раньше низ этажа округлялся
@@ -97,37 +110,34 @@ export function buildVoxelHouse(opts: VoxelHouseOpts): VoxelHouseModel {
       for (let j = j0; j <= j1; j++) {
         for (let i = s0; i < s0 + secW; i++) {
           // фасад/тыл
-          for (const k of [0, nz - 1]) {
+          for (const k of [PK(plan.entrance.z), nz - 1]) {
             // проём под окно: 2.05/0.85 м → примерно воксели 2..4 (снизу 0.85 = 1.7 вокс)
             const localJ = j - j0;
             const winLo = Math.round(0.85 / PITCH), winHi = Math.round(2.05 / PITCH) - 1;
             const isWindowRow = localJ >= winLo && localJ <= winHi;
-            // окно в каждом пролёте: 2 вокселя шириной по центру пролёта
-            const local = (i * PITCH) - s0 * PITCH;
-            const bayI = Math.floor(local / BAY);
-            const inBay = Math.round((local - bayI * BAY) / PITCH);
-            // Окно в каждом пролёте: 2 вокселя (1 м) по центру пролёта. Раньше проём
-            // считался от начала секции и «окна» уезжали между пролётами.
-            const bayCenter = Math.round(BAY / PITCH / 2);
-            const isWindowCol = inBay >= bayCenter - 1 && inBay <= bayCenter;
-            const isEntrance = f === 0 && k === 0 && bayI === 1; // у подъезда окна нет
-            if (isWindowRow && isWindowCol && !isEntrance) { add(i, j, k, 3, s, 1); continue; } // стекло
+            // ОКНА ТОЛЬКО ТАМ, ГДЕ ИХ ЗАДАЛ ПЛАН (plan.windows). Раньше окно ставилось
+            // «в каждом пролёте фасада» и появлялось в санузле и лестничной клетке.
+            const isFacade = k === PK(plan.entrance.z);
+            const xc = xCenter(i) - secOffset;       // X в координатах секции
+            const inWindow = isWindowRow && plan.windows.some(w =>
+              (isFacade ? w.side === 'facade' : w.side === 'back') &&
+              PK(w.z) === k && xc >= w.x0 - 0.01 && xc <= w.x1 + 0.01);
+            // подъездная дверь — проём на первом этаже, ровно по ширине из плана
+            const isDoorCell = f === 0 && isFacade &&
+              Math.abs(xc - plan.entrance.x) <= plan.entrance.width / 2 + 0.01;
+            if (isDoorCell && j < Math.round(2.4 / PITCH)) continue;   // проём двери
+            if (inWindow) { add(i, j, k, 3, s, 1); continue; }         // стекло
             add(i, j, k, 0, s, 1);
           }
         }
-        // торцы
-        if (s === 0) for (let k = 1; k < nz - 1; k++) {
-          const localJ = j - j0;
-          const isWin = localJ >= Math.round(0.85 / PITCH) && localJ <= Math.round(2.05 / PITCH) - 1
-            && k > Math.round(nz * 0.3) && k < Math.round(nz * 0.7);
-          add(0, j, k, isWin ? 3 : 0, s, 1);
-        }
-        if (s === sections - 1) for (let k = 1; k < nz - 1; k++) {
-          const localJ = j - j0;
-          const isWin = localJ >= Math.round(0.85 / PITCH) && localJ <= Math.round(2.05 / PITCH) - 1
-            && k > Math.round(nz * 0.3) && k < Math.round(nz * 0.7);
-          add(nx - 1, j, k, isWin ? 3 : 0, s, 1);
-        }
+        // торцы: окно только в задней половине (там жилые комнаты), в клетке у фасада — нет
+        const localJt = j - j0;
+        const winRowT = localJt >= Math.round(0.85 / PITCH) && localJt <= Math.round(2.05 / PITCH) - 1;
+        const kWin0 = Math.round(nz * 0.55), kWin1 = Math.round(nz * 0.8);
+        if (s === 0) for (let k = 1; k < nz - 1; k++)
+          add(0, j, k, winRowT && k > kWin0 && k < kWin1 ? 3 : 0, s, 1);
+        if (s === sections - 1) for (let k = 1; k < nz - 1; k++)
+          add(nx - 1, j, k, winRowT && k > kWin0 && k < kWin1 ? 3 : 0, s, 1);
         // межсекционная кирпичная стена (не несущая: её можно пробить, дом стоит)
         if (s > 0) add(s0, j, Math.round(nz / 2), 2, s, 0);
       }
@@ -140,12 +150,20 @@ export function buildVoxelHouse(opts: VoxelHouseOpts): VoxelHouseModel {
       const jDoorTop = j0 + Math.round(2.0 / PITCH) - 1;
       for (const wseg of plan.walls) {
         const horiz = Math.abs(wseg.z1 - wseg.z0) < 1e-6;
-        const len = horiz ? Math.abs(wseg.x1 - wseg.x0) : Math.abs(wseg.z1 - wseg.z0);
-        for (let t = 0; t < len; t += PITCH * 0.5) {
-          const inDoor = wseg.doors.some(([a, b]) => t >= a - PITCH * 0.75 && t <= b + PITCH * 0.75);
-          const wx = horiz ? Math.min(wseg.x0, wseg.x1) + t : wseg.x0;
-          const wz = horiz ? wseg.z0 : Math.min(wseg.z0, wseg.z1) + t;
-          const i = PI(wx), k = PK(wz);
+        const a = horiz ? Math.min(wseg.x0, wseg.x1) : Math.min(wseg.z0, wseg.z1);
+        const b = horiz ? Math.max(wseg.x0, wseg.x1) : Math.max(wseg.z0, wseg.z1);
+        const n = Math.round((b - a) / PITCH);
+        for (let t = 0; t <= n; t++) {
+          const coord = a + t * PITCH;                     // ровно центры вокселей
+          const off = coord - a;                            // смещение вдоль стены
+          const inDoor = wseg.doors.some(([d0, d1]) => off >= d0 - 0.01 && off <= d1 + 0.01);
+          const i = horiz ? PI(coord) : PI(wseg.x0);
+          const k = horiz ? PK(wseg.z0) : PK(coord);
+          // БАГ (видно на фото фасада): внутренние перегородки доходили до наружной
+          // стены и ПЕРЕЗАПИСЫВАЛИ её кирпичом — на фасаде появлялись коричневые полосы.
+          // Внутренние стены ставим только во внутреннем объёме секции.
+          const inner = k > 0 && k < nz - 1 && (i % secW) > 0 && (i % secW) < secW - 1;
+          if (!inner) continue;
           for (let j = j0; j < jf; j++) {
             if (inDoor && j <= jDoorTop) continue;      // проём двери
             add(i, j, k, 2, s, 0);                       // кирпичная перегородка (не несущая)
@@ -156,6 +174,9 @@ export function buildVoxelHouse(opts: VoxelHouseOpts): VoxelHouseModel {
       // ---- перекрытие (пол следующего этажа) ----
       // Лестничный проём НЕ заделываем: шахта задана планом (plan.stairs), иначе
       // перекрытие замуровывает лестницу (из-за этого раньше «не было лестницы на этажи»).
+      // ВАЖНО: plan.stairs задан «вплотную к стенам», а стена занимает целый воксель.
+      // Поэтому внутренний объём клетки = границы ±1 воксель. Без этого шахта съедала
+      // стену между клеткой и прихожей (получался проход шириной 6 м и «нет стены»).
       const si0p = PI(plan.stairs.x0) + 1, si1p = PI(plan.stairs.x1) - 1;
       const sk0p = PK(plan.stairs.z0) + 1, sk1p = PK(plan.stairs.z1) - 1;
       for (let i = s0; i < s0 + secW; i++) for (let k = 0; k < nz; k++) {
@@ -167,47 +188,32 @@ export function buildVoxelHouse(opts: VoxelHouseOpts): VoxelHouseModel {
     // ---- ЛЕСТНИЧНАЯ КЛЕТКА по плану: шахта ровно внутри стен прихожей ----
     // Раньше шахта стояла «где получилось» и прорезала стены квартиры — получалось,
     // что между квартирами нет стены. Теперь границы берём из плана (plan.stairs).
-    const si0 = PI(plan.stairs.x0), si1 = PI(plan.stairs.x1);
-    const sk0 = PK(plan.stairs.z0), sk1 = PK(plan.stairs.z1);
-    // внутренний объём (без стен клетки — их рисуют стены плана)
-    const sIn0 = si0 + 1, sIn1 = si1 - 1, sK0 = sk0 + 1, sK1 = sk1 - 1;
+    // plan.stairs задан по ВНУТРЕННЕМУ объёму клетки (между стенами), поэтому
+    // дополнительных отступов не нужно — иначе шахта съедала стены квартиры.
+    const sIn0 = PI(plan.stairs.x0) + 1, sIn1 = PI(plan.stairs.x1) - 1;
+    const sK0 = PK(plan.stairs.z0) + 1, sK1 = PK(plan.stairs.z1) - 1;
     for (let f = 0; f < floors; f++) {
       const j0 = Math.floor((f * floorH) / PITCH);
-      // площадка на уровне пола: перекрытие под квартирой остаётся, шахта — над ним
-      for (let j = j0 + 1; j <= Math.floor(((f + 1) * floorH) / PITCH) - 2; j++)
+      // ВАЖНО: на первом этаже оставляем слой j = 0 — это ПОЛ подъезда. Если начать
+      // вырезать с него, под ногами открывается дырка и видно небо (было на фото).
+      const jFrom = f === 0 ? 1 : j0;
+      // всё, что выше пола этого этажа и ниже перекрытия следующего, — пусто
+      for (let j = jFrom; j <= Math.floor(((f + 1) * floorH) / PITCH) - 1; j++)
         for (let i = sIn0; i <= sIn1; i++) for (let k = sK0; k <= sK1; k++) empty(i, j, k);
     }
 
-    // ---- лестница: марши внутри клетки, ступени по 0.25 м ----
-    for (let f = 0; f < floors; f++) {
-      const baseJ = Math.floor((f * floorH) / PITCH);
-      const steps = Math.round(floorH / 0.25);          // 11 ступеней
-      const even = f % 2 === 0;
-      const laneX = even ? sIn0 + 1 : sIn1 - 1;         // два марша: туда и обратно
-      for (let st = 0; st < steps; st++) {
-        const jj = baseJ + Math.round(((st + 1) * floorH) / steps / PITCH);
-        if (jj >= ny - 2) break;
-        // ступени идут вдоль Z от фасада к тылу клетки
-        const kk = sK0 + Math.round((st / steps) * (sK1 - sK0));
-        for (let j2 = baseJ + 1; j2 <= jj; j2++) add(laneX, j2, kk, 5, s, 0);
-      }
-      // площадка между маршами на уровне следующего этажа
-      const jTop = Math.floor(((f + 1) * floorH) / PITCH) - 2;
-      for (let i = sIn0; i <= sIn1; i++) for (let k = sK1 - 1; k <= sK1; k++) add(i, jTop, k, 5, s, 0);
-    }
-
-    // ---- вход в подъезд: проём в фасаде точно по ширине клетки ----
+    // ---- крыльцо и козырёк над входом (видно на фото: вход «в стене», без крыльца) ----
     {
-      const jDoor = Math.round(2.1 / PITCH);
-      for (let i = si0 + 1; i <= si1 - 1; i++) for (let j = 0; j < jDoor; j++) empty(i, j, 0);
-      // козырёк над входом
-      for (let i = si0 - 1; i <= si1 + 1; i++) for (let k = 0; k <= 1; k++) {
+      const iDoor0 = PI(plan.entrance.x - plan.entrance.width / 2);
+      const iDoor1 = PI(plan.entrance.x + plan.entrance.width / 2);
+      const jDoorTop = Math.round(2.4 / PITCH);
+      // козырёк — плита над дверью, на 1 воксель вперёд от фасада
+      for (let i = iDoor0 - 1; i <= iDoor1 + 1; i++) {
         if (i < 0 || i >= nx) continue;
-        add(i, jDoor + 1, k, 1, s, 0);
+        add(i, jDoorTop, 0, 1, s, 0);
       }
     }
 
-    // ---- дверь из клетки в прихожую (в стене hallFront уже есть проём по плану) ----
   }
 
   // ---- крыша ----
@@ -226,7 +232,7 @@ export function buildVoxelHouse(opts: VoxelHouseOpts): VoxelHouseModel {
     plan,
     size: [nx * PITCH, ny * PITCH, nz * PITCH],
     center: [nx * PITCH / 2, ny * PITCH / 2, nz * PITCH / 2],
-    floors, sections,
+    floors, sections, floorH,
     stats: { voxels, byKind, entrance: [(Math.floor(secW / 2) + 0.5) * PITCH, 0, 0.5 * PITCH] },
   };
 }

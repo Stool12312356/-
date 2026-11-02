@@ -4,6 +4,10 @@
 import fs from 'fs';
 import zlib from 'zlib';
 import { apartmentPlan, furnish } from '../src/game/plan.ts';
+import { staircaseInfo } from '../src/game/staircase.ts';
+
+/** высота этажа та же, что в voxelgen (кратна 0.5) */
+const FLOOR_H = 3.0;
 
 const plan = apartmentPlan(process.argv[2] === 'brezhnevka' ? 'brezhnevka' : 'khrushchevka');
 const SCALE = 68;                        // пикселей на метр
@@ -97,6 +101,35 @@ function furniture(kind, cx, cz, rot) {
 }
 for (const r of plan.rooms) for (const f of furnish(r)) furniture(f.kind, f.x, f.z, f.rot);
 
+// ЛЕСТНИЦА: марши и площадки рисуем по тем же размерам, что строит src/game/staircase.ts,
+// иначе на плане клетка пустая, а в игре там лестница (план обязан совпадать с домом).
+{
+  const st = staircaseInfo(plan, FLOOR_H);
+  const INSET = 0.15, LANDING = st.landing;
+  const x0 = plan.stairs.x0 + INSET, x1 = plan.stairs.x1 - INSET;
+  const zF = plan.stairs.z0 + INSET, zB = plan.stairs.z1 - INSET;
+  const mid = (x0 + x1) / 2;
+  const STEP = [190, 182, 168], PLAT = [150, 148, 140];
+  const band = (xa, xb, za, zb, col) => {
+    for (let x = xa; x <= xb; x += 0.03) for (let z = za; z <= zb; z += 0.03) set(Math.round(X(x)), Math.round(Y(z)), col);
+  };
+  // марш 0 (левая половина, от фасада вглубь) и марш 1 (правая, от тыла к фасаду)
+  const zf0 = zF + LANDING, zb1 = zB - LANDING;
+  for (let i = 0; i < st.steps; i++) {
+    const za = zf0 + i * st.tread, zb = za + st.tread;
+    const c = i % 2 ? STEP : [170, 164, 152];
+    band(x0, mid - 0.02, za, zb, c);              // марш 0
+    const za2 = zb1 - (i + 1) * st.tread, zb2 = za2 + st.tread;
+    band(mid + 0.02, x1, za2, zb2, c);            // марш 1
+  }
+  band(x0, x1, zF, zf0, PLAT);                    // фасадная площадка (вход/выход)
+  band(x0, x1, zb1, zB, PLAT);                    // площадка разворота
+  // стрелка подъёма
+  line(X(x0 + 0.25), Y(zf0 + 0.2), X(x0 + 0.25), Y(zb1 - 0.2), [250, 210, 120], 2);
+  line(X(x0 + 0.25), Y(zb1 - 0.2), X(mid + 0.25), Y(zb1 - 0.2), [250, 210, 120], 2);
+  line(X(mid + 0.25), Y(zb1 - 0.2), X(mid + 0.25), Y(zf0 + 0.3), [250, 210, 120], 2);
+}
+
 // подписи комнат: пиксельные буквы 3×5 (кириллица в PNG не нужна — подписи в README)
 const GLYPH = {
   A: ['010', '101', '111', '101', '101'], B: ['110', '101', '110', '101', '110'],
@@ -122,11 +155,13 @@ const text = (str, x, y, col = [235, 238, 240], sc = 3) => {
 };
 const LABEL = {
   living: ['LIVING', [200, 220, 255]], bedroom: ['BEDROOM', [220, 200, 255]],
-  kids: ['KIDS', [200, 255, 220]], kitchen: ['KITCHEN', [255, 230, 170]],
-  bath: ['BATH', [180, 230, 255]], hall: ['HALL', [200, 255, 200]], entry: ['ENTRY', [255, 200, 160]],
+  kids: ['KIDS', [200, 255, 220]], study: ['STUDY', [235, 225, 200]],
+  kitchen: ['KITCHEN', [255, 230, 170]],
+  bath: ['BATH', [180, 230, 255]], hall: ['HALL', [200, 255, 200]],
+  stairs: ['STAIRS', [225, 225, 225]],
 };
 for (const r of plan.rooms) {
-  const [name, col] = LABEL[r.id];
+  const [name, col] = LABEL[r.id] ?? [r.id.toUpperCase(), [220, 220, 220]];
   const cx = X((r.x0 + r.x1) / 2) - name.length * 4;
   const cy = Y((r.z0 + r.z1) / 2) - 4;
   text(name, cx, cy, col, 2);

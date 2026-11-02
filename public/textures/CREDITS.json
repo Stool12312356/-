@@ -1,5 +1,5 @@
 {
-  "note": "Текстуры скачаны из свободных источников и уменьшены до 512px. Список — для атрибуции.",
+  "note": "Текстуры скачаны из свободных источников (CC0/MIT) и уменьшены до 512px. Список — для атрибуции.",
   "textures": [
     {
       "name": "brick",
@@ -26,16 +26,16 @@
       "license": "Khronos glTF-Sample-Assets (CC0)"
     },
     {
-      "name": "brick_normal",
-      "file": "brick_normal.jpg",
-      "source": "KhronosGroup/glTF-Sample-Assets/Models/TrafficCone/glTF/asphalt_02_rough_1k.jpg",
-      "license": "Khronos glTF-Sample-Assets (CC0)"
+      "name": "stone",
+      "file": "stone.jpg",
+      "source": "playcanvas/engine/examples/assets/textures/bricks076a/color.webp",
+      "license": "PlayCanvas engine examples (MIT)"
     },
     {
-      "name": "stucco",
-      "file": "stucco.jpg",
-      "source": "mrdoob/three.js/examples/textures/brick_bump.jpg",
-      "license": "three.js examples (MIT)"
+      "name": "ground",
+      "file": "ground.jpg",
+      "source": "playcanvas/engine/examples/assets/textures/ground092c/color.webp",
+      "license": "PlayCanvas engine examples (MIT)"
     }
   ]
 }

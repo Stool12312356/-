@@ -10,6 +10,7 @@ import { Scope } from './game/scope';
 import { loadTextures } from './render/tex';
 import { Bots } from './game/bots';
 import { spawnVoxelHouse, type PlacedBuilding } from './game/structure';
+import { BUILDINGS, SPAWN } from './game/world';
 import { SURFACES, pointBlankRange } from './game/weapons';
 import type { PlayerInput, Impact } from './shared/types';
 
@@ -34,10 +35,13 @@ function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.asp
 addEventListener('resize', resize); resize();
 
 const lib = new AssetLibrary(); const phys = new PhysicsClient();
+// yaw = 0 смотрит в −Z, а дом стоит «севернее» спавна — значит смотрим прямо на подъезд
 let started = false, yaw = 0, pitch = 0;
 const keys = new Set<string>(); let toggledCrouch = false, toggledProne = false;
 let viewmodel: THREE.Object3D | null = null;
-const SPAWN: [number, number, number] = [0, 1.0, 100];
+// Спавн и расстановка домов — в src/game/world.ts: точка появления вычисляется из плана
+// первого дома (прямо перед подъездом). Раньше спавн был [0, 1, 100] — 190 м от здания.
+
 
 // создаются в boot(); временно null, чтобы кадр до загрузки не падал
 let effects: Effects | null = null; let combat: PlayerCombat | null = null; let bots: Bots | null = null;
