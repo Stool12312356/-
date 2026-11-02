@@ -1,0 +1,37 @@
+{
+  "name": "user",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "predev": "node tools/build-manifest.mjs",
+    "dev": "vite",
+    "prebuild": "node tools/build-manifest.mjs",
+    "build": "tsc -p . && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "download": "bash tools/download-assets.sh",
+    "convert": "node tools/convert.mjs && TEXMAX=128 OUT=public/assets/game-low node tools/convert.mjs",
+    "assets": "npm run convert && node tools/build-manifest.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@gltf-transform/cli": "^4.5.1",
+    "@gltf-transform/core": "^4.5.1",
+    "@gltf-transform/extensions": "^4.5.1",
+    "@gltf-transform/functions": "^4.5.1",
+    "@types/three": "^0.187.0",
+    "draco3dgltf": "^1.5.9",
+    "meshoptimizer": "^1.3.0",
+    "sharp": "^0.35.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.21.0",
+    "three": "^0.187.0"
+  },
+  "type": "module"
+}

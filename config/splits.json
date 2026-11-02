@@ -1,0 +1,39 @@
+{
+  "_readme": "Разделение паков на отдельные модели. Ключ — файл в assets/models, значение — { id_части: [имена узлов] }. Результат: assets/_split/<id>.glb (оригинальное качество), дальше обрабатывается как обычный файл.",
+  "ak-74_pack_game_asset.glb": {
+    "ak74_wood":      ["AK-74_wooden_stock.001","AK-74_bak_mag30.001","AK-74_grip.002","AK-74_wooden_furniture.001","AK-74_body.005"],
+    "ak74m":          ["AK-74_stock.003","AK-74_polymer_mag30.004","AK-74_phandguard.003","AK-74__grip.003","AK-74_body.004"],
+    "ak74m_1p29":     ["AK-74_stock.002","AK-74_polymer_mag30.003","AK-74_phandguard.002","AK-74__grip.002","AK-74_body.003","side_rail.002","1P29.003"],
+    "ak74_wood_rail": ["AK-74_wooden_stock","AK-74_bak_mag30","AK-74_grip.001","AK-74_wooden_furniture","AK-74_body","side_rail"],
+    "ak74_beryl":     ["wz96C_Telescope_stock.001","AK-74_polymer_mag30.005","AK-74_grip.003","AK-74_phandguard.004","AK-74_body.006","side_rail.003","SideMount_picantiny.001","Cylinder.001"],
+    "ak74_tactical":  ["stock_2.001","AK-74_bak_mag30.002","tactical_grip","rails2.001","AK-74_body.007","side_rail.004","SideMount_picantiny.002","Cylinder.002"],
+    "att_1p29":       ["1P29.004"],
+    "att_side_rail":  ["side_rail.005"],
+    "att_pica_optic": ["SideMount_picantiny.003","Cylinder.003"]
+  },
+  "abandoned_soviet_garages_pack_game-ready.glb": {
+    "garage_a": ["garage","Dveri","bolts","krusha"],
+    "garage_b": ["garage_1"],
+    "garage_c": ["garage_3"],
+    "garage_d": ["garage_4"]
+  },
+  "low_poly_winter_tree_pack.glb": {
+    "wtree_a": ["Winter_Trees_Branches.005","Winter_Trees_Planes.005","Winter_Trees_Branches.016"],
+    "wtree_b": ["Winter_Trees_Branches.006","Winter_Trees_Planes.004","Winter_Trees_Branches.015"],
+    "wtree_c": ["Winter_Trees_Branches.007","Winter_Trees_Branches.011","Winter_Trees_Planes.007"],
+    "wtree_d": ["Winter_Trees_Planes","Winter_Trees_Branches.009"],
+    "wtree_e": ["Winter_Trees_Planes.001","Winter_Trees_Branches.010"],
+    "wtree_f": ["Winter_Trees_Branches.012","Winter_Trees_Planes.008"],
+    "wtree_g": ["Winter_Trees_Planes.003","Winter_Trees_Branches.014"],
+    "wtree_h": ["Winter_Trees_Planes.006","Winter_Trees_Branches.017"],
+    "wtree_i": ["Winter_Trees_Branches.013","Winter_Trees_Planes.009"],
+    "wshrub_a": ["Winter_Trees_Branches"],
+    "wshrub_b": ["Winter_Trees_Branches.001"],
+    "wshrub_c": ["Winter_Trees_Branches.002"],
+    "whedge_a": ["Winter_Trees_Branches.003"],
+    "whedge_b": ["Winter_Trees_Branches.004"],
+    "wforest":  ["Winter_Trees_Branches.008","Winter_Trees_Planes.002"],
+    "snow_ground": ["Snow"],
+    "snow_melting": ["Snow_Melting"]
+  }
+}

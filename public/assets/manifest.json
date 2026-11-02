@@ -1,0 +1,1041 @@
+{
+ "generated": "2026-11-02T10:34:02.769Z",
+ "items": [
+  {
+   "id": "akm",
+   "name": "АКМ",
+   "category": "weapon",
+   "faction": "ussr",
+   "placeholder": false,
+   "source": "akmn.glb",
+   "file": "assets/game/akmn.glb",
+   "collider": "assets/colliders/akm.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.989545,
+    "rotY": 3.141592653589793,
+    "offset": [
+     -0.0073,
+     -0.0092,
+     -0.0924
+    ]
+   },
+   "size": [
+    0.074,
+    0.256,
+    0.88
+   ],
+   "tris": 45726,
+   "animations": []
+  },
+  {
+   "id": "ak74",
+   "name": "АК-74",
+   "category": "weapon",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "rifle",
+    "p": {
+     "len": 0.94,
+     "mag": "curved",
+     "stock": "plum"
+    }
+   }
+  },
+  {
+   "id": "aks74u",
+   "name": "АКС-74У",
+   "category": "weapon",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "rifle",
+    "p": {
+     "len": 0.73,
+     "mag": "curved",
+     "stock": "folded"
+    }
+   }
+  },
+  {
+   "id": "svd",
+   "name": "СВД",
+   "category": "weapon",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "rifle",
+    "p": {
+     "len": 1.22,
+     "mag": "straight",
+     "stock": "skeleton",
+     "scope": true
+    }
+   }
+  },
+  {
+   "id": "pkm",
+   "name": "ПКМ",
+   "category": "weapon",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "mg",
+    "p": {
+     "len": 1.16,
+     "belt": true
+    }
+   }
+  },
+  {
+   "id": "rpk",
+   "name": "РПК",
+   "category": "weapon",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "mg",
+    "p": {
+     "len": 1.04,
+     "belt": false
+    }
+   }
+  },
+  {
+   "id": "rpg7",
+   "name": "РПГ-7",
+   "category": "weapon",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "launcher",
+    "p": {
+     "len": 0.95,
+     "warhead": true
+    }
+   }
+  },
+  {
+   "id": "spg9",
+   "name": "СПГ-9",
+   "category": "weapon",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "launcher",
+    "p": {
+     "len": 2.1,
+     "warhead": true,
+     "tripod": true
+    }
+   }
+  },
+  {
+   "id": "pm",
+   "name": "ПМ",
+   "category": "weapon",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "pistol",
+    "p": {}
+   }
+  },
+  {
+   "id": "rgd5",
+   "name": "РГД-5",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "grenade",
+    "p": {
+     "shape": "egg"
+    }
+   }
+  },
+  {
+   "id": "f1",
+   "name": "Ф-1",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "grenade",
+    "p": {
+     "shape": "ribbed"
+    }
+   }
+  },
+  {
+   "id": "c4",
+   "name": "C4",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "brick",
+    "p": {}
+   }
+  },
+  {
+   "id": "mon50",
+   "name": "МОН-50",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "claymore",
+    "p": {}
+   }
+  },
+  {
+   "id": "tm62",
+   "name": "ТМ-62",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "mine",
+    "p": {}
+   }
+  },
+  {
+   "id": "gp25",
+   "name": "ГП-25",
+   "category": "weapon",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "launcher",
+    "p": {
+     "len": 0.32,
+     "warhead": false
+    }
+   }
+  },
+  {
+   "id": "medkit",
+   "name": "Аптечка",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "crate",
+    "p": {
+     "color": "#e8e8e8",
+     "cross": true,
+     "size": [
+      0.32,
+      0.2,
+      0.2
+     ]
+    }
+   }
+  },
+  {
+   "id": "ammobox",
+   "name": "Ящик боеприпасов",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "crate",
+    "p": {
+     "color": "#4a5a30",
+     "size": [
+      0.5,
+      0.3,
+      0.28
+     ]
+    }
+   }
+  },
+  {
+   "id": "wrench",
+   "name": "Ремкомплект",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "crate",
+    "p": {
+     "color": "#8a6a20",
+     "size": [
+      0.4,
+      0.1,
+      0.1
+     ]
+    }
+   }
+  },
+  {
+   "id": "mortar82",
+   "name": "Миномёт 82 мм",
+   "category": "weapon",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "launcher",
+    "p": {
+     "len": 1.2,
+     "warhead": false,
+     "tripod": true
+    }
+   }
+  },
+  {
+   "id": "drone",
+   "name": "Дрон-разведчик",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "drone",
+    "p": {}
+   }
+  },
+  {
+   "id": "m4a1",
+   "name": "M4 + руки (FPS-аниматоры Draw/Fire/Reload)",
+   "category": "weapon",
+   "faction": "nato",
+   "note": "американская винтовка с рукавами; анимации относятся ТОЛЬКО к этой модели",
+   "placeholder": false,
+   "source": "m4_-_fps_weapon_animations_pack_v.1.glb",
+   "file": "assets/game/m4_-_fps_weapon_animations_pack_v.1.glb",
+   "collider": "assets/colliders/m4a1.json",
+   "forward": "-x",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": -1.5707963267948966,
+    "offset": [
+     0.1272,
+     -1.3271,
+     0
+    ]
+   },
+   "size": [
+    1.01,
+    0.422,
+    1.885
+   ],
+   "tris": 14814,
+   "animations": [
+    "Draw",
+    "Reload",
+    "Fire",
+    "Reload_Empty",
+    "Holster"
+   ]
+  },
+  {
+   "id": "awm_l96",
+   "name": "Снайперская винтовка (AWM/L96-тип)",
+   "category": "weapon",
+   "faction": "nato",
+   "note": "НЕ СВД",
+   "placeholder": false,
+   "source": "sniper.glb",
+   "file": "assets/game/sniper.glb",
+   "collider": "assets/colliders/awm_l96.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.007445,
+    "rotY": 3.141592653589793,
+    "offset": [
+     -0.0109,
+     -0.0584,
+     0.3234
+    ]
+   },
+   "size": [
+    0.083,
+    0.24,
+    1.25
+   ],
+   "tris": 13087,
+   "animations": []
+  },
+  {
+   "id": "pgm_ur",
+   "name": "PGM Ultima Ratio",
+   "category": "weapon",
+   "faction": "nato",
+   "note": "НЕ СВД",
+   "placeholder": false,
+   "source": "pgm_ultima_ratio__game-ready_sniper_rifle.glb",
+   "file": "assets/game/pgm_ultima_ratio__game-ready_sniper_rifle.glb",
+   "collider": "assets/colliders/pgm_ur.json",
+   "forward": "-x",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.240918,
+    "rotY": -1.5707963267948966,
+    "offset": [
+     -0.029,
+     -0.0125,
+     -0.0045
+    ]
+   },
+   "size": [
+    0.194,
+    0.337,
+    1.2
+   ],
+   "tris": 23899,
+   "animations": []
+  },
+  {
+   "id": "t90a",
+   "name": "Т-90А",
+   "category": "vehicle",
+   "faction": "ussr",
+   "mass": 46500,
+   "hp": 1500,
+   "locomotion": "tracked",
+   "placeholder": false,
+   "source": "t-90a.glb",
+   "file": "assets/game/t-90a.glb",
+   "collider": "assets/colliders/t90a.json",
+   "forward": "+x",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1.002905,
+    "rotY": 1.5707963267948966,
+    "offset": [
+     0.0454,
+     0,
+     0.7937
+    ]
+   },
+   "size": [
+    3.735,
+    2.793,
+    9.7
+   ],
+   "tris": 18101,
+   "animations": []
+  },
+  {
+   "id": "bmp2",
+   "name": "БМП-2",
+   "category": "vehicle",
+   "faction": "ussr",
+   "mass": 14300,
+   "hp": 900,
+   "locomotion": "tracked",
+   "placeholder": false,
+   "source": "bmp-2.glb",
+   "file": "assets/game/bmp-2.glb",
+   "collider": "assets/colliders/bmp2.json",
+   "forward": "+x",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.999778,
+    "rotY": 1.5707963267948966,
+    "offset": [
+     0.003,
+     -0.0162,
+     0.5712
+    ]
+   },
+   "size": [
+    3.369,
+    3.689,
+    6.75
+   ],
+   "tris": 11738,
+   "animations": []
+  },
+  {
+   "id": "mi24",
+   "name": "Ми-24",
+   "category": "aircraft",
+   "faction": "ussr",
+   "mass": 8500,
+   "hp": 900,
+   "locomotion": "heli",
+   "placeholder": false,
+   "source": "hind_attack_helicopter.glb",
+   "file": "assets/game/hind_attack_helicopter.glb",
+   "collider": "assets/colliders/mi24.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.01,
+    "rotY": 3.141592653589793,
+    "offset": [
+     0.0048,
+     0.0518,
+     -2.3592
+    ]
+   },
+   "size": [
+    7.931,
+    4.198,
+    18.682
+   ],
+   "tris": 35315,
+   "animations": []
+  },
+  {
+   "id": "m1a2",
+   "name": "M1A2 Abrams",
+   "category": "vehicle",
+   "faction": "nato",
+   "mass": 62000,
+   "hp": 1600,
+   "locomotion": "tracked",
+   "placeholder": false,
+   "source": "m1a2_sep_v2.glb",
+   "file": "assets/game/m1a2_sep_v2.glb",
+   "collider": "assets/colliders/m1a2.json",
+   "forward": "+x",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.997669,
+    "rotY": 1.5707963267948966,
+    "offset": [
+     -0.0361,
+     -0.0093,
+     0.674
+    ]
+   },
+   "size": [
+    4.222,
+    4.569,
+    9.8
+   ],
+   "tris": 17272,
+   "animations": []
+  },
+  {
+   "id": "m2",
+   "name": "M2 Bradley",
+   "category": "vehicle",
+   "faction": "nato",
+   "mass": 30000,
+   "hp": 950,
+   "locomotion": "tracked",
+   "placeholder": false,
+   "source": "m2_bradley.glb",
+   "file": "assets/game/m2_bradley.glb",
+   "collider": "assets/colliders/m2.json",
+   "forward": "+x",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1.000076,
+    "rotY": 1.5707963267948966,
+    "offset": [
+     -0.0259,
+     0.0171,
+     0.2958
+    ]
+   },
+   "size": [
+    3.337,
+    5.589,
+    6.6
+   ],
+   "tris": 18592,
+   "animations": []
+  },
+  {
+   "id": "mh6",
+   "name": "MH-6 Little Bird",
+   "category": "aircraft",
+   "faction": "nato",
+   "mass": 700,
+   "hp": 400,
+   "locomotion": "heli",
+   "placeholder": false,
+   "source": "mh-6_little_bird_low_poly.glb",
+   "file": "assets/game/mh-6_little_bird_low_poly.glb",
+   "collider": "assets/colliders/mh6.json",
+   "forward": "yaw -43°",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 3.3,
+    "rotY": -0.7504915783575616,
+    "offset": [
+     -0.138,
+     1.531,
+     -0.0006
+    ]
+   },
+   "size": [
+    7.721,
+    3.071,
+    9.189
+   ],
+   "tris": 9776,
+   "animations": []
+  },
+  {
+   "id": "btr80",
+   "name": "БТР-80",
+   "category": "vehicle",
+   "faction": "ussr",
+   "mass": 13600,
+   "hp": 800,
+   "locomotion": "wheeled",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "wheeled",
+    "p": {
+     "wheels": 8,
+     "len": 7.65,
+     "w": 2.9,
+     "h": 2.4,
+     "body": "apc"
+    }
+   }
+  },
+  {
+   "id": "brdm2",
+   "name": "БРДМ-2",
+   "category": "vehicle",
+   "faction": "ussr",
+   "mass": 7000,
+   "hp": 500,
+   "locomotion": "wheeled",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "wheeled",
+    "p": {
+     "wheels": 4,
+     "len": 5.75,
+     "w": 2.35,
+     "h": 2.3,
+     "body": "apc"
+    }
+   }
+  },
+  {
+   "id": "zsu234",
+   "name": "ЗСУ-23-4 «Шилка»",
+   "category": "vehicle",
+   "faction": "ussr",
+   "mass": 19000,
+   "hp": 600,
+   "locomotion": "tracked",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "tracked",
+    "p": {
+     "len": 6.5,
+     "w": 3.1,
+     "h": 2.2,
+     "turret": "quad"
+    }
+   }
+  },
+  {
+   "id": "uaz469",
+   "name": "УАЗ-469",
+   "category": "vehicle",
+   "faction": "ussr",
+   "mass": 1700,
+   "hp": 300,
+   "locomotion": "wheeled",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "wheeled",
+    "p": {
+     "wheels": 4,
+     "len": 4,
+     "w": 1.8,
+     "h": 2,
+     "body": "jeep"
+    }
+   }
+  },
+  {
+   "id": "gaz66",
+   "name": "ГАЗ-66",
+   "category": "vehicle",
+   "faction": "ussr",
+   "mass": 3400,
+   "hp": 350,
+   "locomotion": "wheeled",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "wheeled",
+    "p": {
+     "wheels": 4,
+     "len": 5.8,
+     "w": 2.3,
+     "h": 2.5,
+     "body": "truck"
+    }
+   }
+  },
+  {
+   "id": "ural4320",
+   "name": "Урал-4320",
+   "category": "vehicle",
+   "faction": "ussr",
+   "mass": 8000,
+   "hp": 400,
+   "locomotion": "wheeled",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "wheeled",
+    "p": {
+     "wheels": 6,
+     "len": 7.3,
+     "w": 2.5,
+     "h": 2.9,
+     "body": "truck"
+    }
+   }
+  },
+  {
+   "id": "ural_moto",
+   "name": "Мотоцикл Урал",
+   "category": "vehicle",
+   "faction": "ussr",
+   "mass": 350,
+   "hp": 120,
+   "locomotion": "bike",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "bike",
+    "p": {}
+   }
+  },
+  {
+   "id": "mi8",
+   "name": "Ми-8",
+   "category": "aircraft",
+   "faction": "ussr",
+   "mass": 7000,
+   "hp": 800,
+   "locomotion": "heli",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "heli",
+    "p": {
+     "len": 18.2,
+     "rotor": 21.3
+    }
+   }
+  },
+  {
+   "id": "su25",
+   "name": "Су-25 «Грач»",
+   "category": "aircraft",
+   "faction": "ussr",
+   "mass": 14000,
+   "hp": 700,
+   "locomotion": "plane",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "jet",
+    "p": {}
+   }
+  },
+  {
+   "id": "boat",
+   "name": "Катер",
+   "category": "boat",
+   "faction": "ussr",
+   "mass": 3000,
+   "hp": 300,
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "boat",
+    "p": {
+     "len": 8,
+     "w": 2.6
+    }
+   }
+  },
+  {
+   "id": "inflatable",
+   "name": "Надувная лодка",
+   "category": "boat",
+   "faction": "ussr",
+   "mass": 250,
+   "hp": 80,
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "boat",
+    "p": {
+     "len": 3.6,
+     "w": 1.6,
+     "round": true
+    }
+   }
+  },
+  {
+   "id": "vaz2101",
+   "name": "ВАЗ-2101",
+   "category": "civilian",
+   "faction": "civil",
+   "mass": 950,
+   "hp": 200,
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "wheeled",
+    "p": {
+     "wheels": 4,
+     "len": 4.07,
+     "w": 1.6,
+     "h": 1.4,
+     "body": "sedan"
+    }
+   }
+  },
+  {
+   "id": "volga24",
+   "name": "ГАЗ-24 «Волга»",
+   "category": "civilian",
+   "faction": "civil",
+   "mass": 1420,
+   "hp": 220,
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "wheeled",
+    "p": {
+     "wheels": 4,
+     "len": 4.73,
+     "w": 1.8,
+     "h": 1.5,
+     "body": "sedan"
+    }
+   }
+  },
+  {
+   "id": "liaz",
+   "name": "ЛиАЗ",
+   "category": "civilian",
+   "faction": "civil",
+   "mass": 9500,
+   "hp": 300,
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "wheeled",
+    "p": {
+     "wheels": 4,
+     "len": 10.5,
+     "w": 2.5,
+     "h": 3,
+     "body": "bus"
+    }
+   }
+  },
+  {
+   "id": "tram",
+   "name": "Трамвай",
+   "category": "civilian",
+   "faction": "civil",
+   "mass": 18000,
+   "hp": 400,
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "wheeled",
+    "p": {
+     "wheels": 4,
+     "len": 14,
+     "w": 2.5,
+     "h": 3.3,
+     "body": "bus"
+    }
+   }
+  },
+  {
+   "id": "kamaz",
+   "name": "КамАЗ",
+   "category": "civilian",
+   "faction": "civil",
+   "mass": 9000,
+   "hp": 400,
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "wheeled",
+    "p": {
+     "wheels": 6,
+     "len": 7.8,
+     "w": 2.5,
+     "h": 3.3,
+     "body": "truck"
+    }
+   }
+  },
+  {
+   "id": "soldier_ussr",
+   "name": "Советский солдат",
+   "category": "character",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "humanoid",
+    "p": {
+     "color": "#5a6a3a"
+    }
+   }
+  },
+  {
+   "id": "soldier_opfor",
+   "name": "Противник",
+   "category": "character",
+   "faction": "opfor",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "humanoid",
+    "p": {
+     "color": "#6a5a48"
+    }
+   }
+  },
+  {
+   "id": "khrushchevka",
+   "name": "Хрущёвка (5 эт.)",
+   "category": "building",
+   "faction": "civil",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "panel",
+    "p": {
+     "floors": 5,
+     "sections": 4,
+     "secW": 8,
+     "depth": 11
+    }
+   }
+  },
+  {
+   "id": "brezhnevka",
+   "name": "Брежневка (9 эт.)",
+   "category": "building",
+   "faction": "civil",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "panel",
+    "p": {
+     "floors": 9,
+     "sections": 3,
+     "secW": 10,
+     "depth": 13
+    }
+   }
+  },
+  {
+   "id": "garage",
+   "name": "Гараж",
+   "category": "building",
+   "faction": "civil",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "garage",
+    "p": {}
+   }
+  },
+  {
+   "id": "kiosk",
+   "name": "Киоск",
+   "category": "building",
+   "faction": "civil",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "kiosk",
+    "p": {}
+   }
+  },
+  {
+   "id": "busstop",
+   "name": "Остановка",
+   "category": "building",
+   "faction": "civil",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "busstop",
+    "p": {}
+   }
+  },
+  {
+   "id": "lenin",
+   "name": "Памятник Ленину",
+   "category": "building",
+   "faction": "civil",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "monument",
+    "p": {}
+   }
+  },
+  {
+   "id": "swing",
+   "name": "Качели",
+   "category": "prop",
+   "faction": "civil",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "swing",
+    "p": {}
+   }
+  },
+  {
+   "id": "tree_birch",
+   "name": "Берёза",
+   "category": "prop",
+   "faction": "civil",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "tree",
+    "p": {
+     "type": "birch"
+    }
+   }
+  },
+  {
+   "id": "tree_spruce",
+   "name": "Ель",
+   "category": "prop",
+   "faction": "civil",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "tree",
+    "p": {
+     "type": "spruce"
+    }
+   }
+  },
+  {
+   "id": "barrel",
+   "name": "Бочка",
+   "category": "prop",
+   "faction": "civil",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "barrel",
+    "p": {}
+   }
+  },
+  {
+   "id": "crate",
+   "name": "Деревянный ящик",
+   "category": "prop",
+   "faction": "civil",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "crate",
+    "p": {
+     "color": "#8a6a3a",
+     "size": [
+      0.9,
+      0.9,
+      0.9
+     ]
+    }
+   }
+  }
+ ],
+ "unmappedFiles": []
+}
