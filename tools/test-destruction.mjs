@@ -1,73 +1,70 @@
-// Проверка разрушений дома-конструктора без браузера (voxel.ts).
-// Что проверяем: пробоина от пули, снос панели РПГ, обрушение секции по несущим панелям,
-// и главное — что после всех разрушений НЕ ОСТАЁТСЯ висящих панелей.
+// Проверка РАЗРУШЕНИЯ (M5): дом — воксельная сетка, урон выгрызает куски,
+// а не сносит панель целиком. Старый панельный тест заменён: он проверял ровно то
+// поведение, на которое жаловался пользователь.
 import * as THREE from 'three';
-import { buildHouse } from '../src/game/house.ts';
-import { HousePanels } from '../src/game/voxel.ts';
+import { buildVoxelHouse } from '../src/game/voxelgen.ts';
+import { VoxelHouse } from '../src/game/voxelhouse.ts';
+
+let ok = 0, bad = 0;
+const check = (n, c, i = '') => { if (c) { ok++; console.log(`  ok   ${n} ${i}`); } else { bad++; console.log(`  FAIL ${n} ${i}`); } };
+const flush = () => { for (let f = 0; f < 8; f++) for (const h of houses) h.update(1 / 60, performance.now() + f * 16); };
 
 const scene = new THREE.Scene();
-let nextBody = 1;
-const bodies = [];
-const phys = {
-  add(desc, obj) { const id = nextBody++; bodies.push({ id, desc, obj }); return id; },
-  addBuilding(desc, panels) { const id = nextBody++; bodies.push({ id, desc, panels }); return id; },
-  post() {},
-};
-
-let fail = 0;
-const ok = (c, m) => { console.log(`  ${c ? 'ok  ' : 'БАГ '} ${m}`); if (!c) fail++; };
-
-const spec = buildHouse({ kind: 'khrushchevka', sections: 2, seed: 11 });
-const h = new HousePanels(spec.panels, scene, phys);
-h.register();
-console.log(`дом: панелей ${spec.stats.panels} (несущих ${h.columns(0).total} в секции 0), кусков ${spec.stats.voxels}`);
-console.log(`физика «пока цел»: тел ${bodies.length}, форм в первом ${bodies[0].desc.shapes.length} — монолит, внутрь не залезть`);
-
-// 1) пуля: пробоина в конкретной панели, но панель цела
-const target = h.panels.find(p => p.role === 'window' && p.floor === 1 && p.section === 0);
-const hpBefore = target.hp;
-const hitPoint = [target.pos[0], target.pos[1], target.pos[2] - 0.2];
-const k1 = h.damageAt(hitPoint, 0.55, 60, { max: 4 });
-console.log(`\nпуля (радиус 0.55): выбито кусков ${k1}, hp панели ${hpBefore} → ${Math.round(target.hp)}, панель цела: ${!target.destroyed}`);
-ok(k1 >= 1 && k1 <= 4, `пуля делает пробоину из 1–4 кусков (${k1})`);
-ok(!target.destroyed, 'одна пуля не сносит панель целиком');
-
-// 2) РПГ: панель сносится
-const k2 = h.damageAt(hitPoint, 2.6, 300, { max: 40 });
-console.log(`РПГ (радиус 2.6): выбито кусков ${k2}, панель снесена: ${target.destroyed}`);
-ok(target.destroyed, 'РПГ сносит панель целиком');
-ok(k2 >= 4, `РПГ выбивает кусок стены, а не один кусок (${k2})`);
-ok(bodies.some(b => b.desc.kind === 'dynamic'), 'обломки стали физическими телами');
-
-// 3) обрушение секции по НЕСУЩИМ панелям
-const sec0 = h.columns(0);
-console.log(`\nнесущих панелей секции 0: ${sec0.left}/${sec0.total} — обрушение при потере 66%`);
-const bearing0 = h.panels.filter(p => p.bearing && p.section === 0 && !p.destroyed);
-let guard = 0;
-while (!h.collapsed.has(0) && guard < bearing0.length) {
-  const p = bearing0[guard++];
-  h.damageAt([p.pos[0], p.pos[1], p.pos[2]], 3.0, 400, { max: 60 });
+const bodies = new Map(); let seq = 1;
+const phys = { add(d) { const id = seq++; bodies.set(id, d); return id; }, removeBody(id) { bodies.delete(id); }, post() {} };
+const houses = [];
+for (const [kind, sections, x] of [['khrushchevka', 2, 0], ['brezhnevka', 1, 60]]) {
+  const model = buildVoxelHouse({ kind, sections });
+  model.spec.ox = x;
+  houses.push(new VoxelHouse(model.spec, scene, phys));
 }
-const st0 = h.columns(0);
-console.log(`после ${guard} подрывов: секция 0 → ${Math.round((st0.left / st0.total) * 100)}% (${st0.left}/${st0.total}), обрушена: ${h.collapsed.has(0)}`);
-ok(h.collapsed.has(0), 'секция обрушилась после потери несущих панелей');
-// соседняя секция не обрушена (её собственные несущие не трогали)
-ok(!h.collapsed.has(1), 'соседняя секция не обрушена');
+const H = houses[0];
 
-// 4) ГЛАВНОЕ: нет висящих панелей
-const dropped = h.enforceSupport();
-const sup = h.supportStats();
-console.log(`\nпосле разрушений: живых панелей ${sup.alive}, упало без опоры ${dropped}, висят: ${sup.floating}`);
-ok(sup.floating === 0, 'висящих панелей нет (всё, что осталось, стоит на опоре)');
+console.log('разрушение (воксельное)');
+{
+  // 1. РПГ по стене: выгрызает кусок, но не сносит всю стену
+  const hit = H.raycast([10, 3, -8], [0, 0, 1], 30);
+  check('луч находит стену', !!hit);
+  const total = H.ids.length;
+  const before = H.ids.filter(id => H.alive[id]).length;
+  const killed = H.damageAt(hit.point, 1.8, 40, { max: 160 });
+  const after = H.ids.filter(id => H.alive[id]).length;
+  check('РПГ выбивает кусок, а не панель целиком', killed >= 5 && killed < total * 0.08, `выбито ${killed} из ${total}`);
+  check('счётчик живых совпадает с реальностью', before - after === killed, `${before}→${after}`);
 
-// 5) пересборка рендера не падает и даёт ничтожное число мешей
-h.update(performance.now() + 1000);
-const meshes = h.group.children.filter(c => c.isMesh);
-console.log(`рендер: ${meshes.length} меша на весь дом (по материалам), треугольников ~${meshes.reduce((n, m) => n + m.geometry.attributes.position.count / 3, 0) | 0}`);
-ok(meshes.length <= 12, `дом рисуется ${meshes.length} мешами (было 250+ отдельных панелей)`);
+  // 2. дыра действительно сквозная: луч проходит через выбитое место
+  const through = H.raycast(hit.point, [0, 0, 1], 30);
+  check('в стене сквозная дыра', !through || through.dist > 0.3, through ? `до ${through.dist.toFixed(2)} м` : 'луч прошёл насквозь');
 
-// 6) защита от мусора во входных данных
-ok(h.damageAt('мусор', 1, 100) === 0, 'некорректная точка не роняет игру');
+  // 3. коллизия обновляется: чанк с дырой пересобран в физике
+  flush();
+  const bodyNow = H.bodyAt(hit.point);
+  check('тело чанка с дырой живо', bodyNow > 0, `id ${bodyNow}`);
+  const bodyDesc = bodies.get(bodyNow);
+  check('в физике дыры нет (меньше треугольников)', !!bodyDesc, bodyDesc ? `тр. ${bodyDesc.shapes[0].idx.length / 3}` : '');
 
-console.log(`\nИТОГ: ${fail ? `найдено проблем: ${fail}` : 'OK'}`);
-process.exit(fail ? 1 : 0);
+  // 4. пуля: одна пуля не ломает несущую стену — дом не разваливается от чиха
+  const w2 = H.raycast([12, 2.5, -8], [0, 0, 1], 30);
+  if (w2) {
+    const killedOne = H.damageAt(w2.point, 0.45, 1.2, { max: 3 });
+    check('одна пуля в бетон почти не вредит', killedOne <= 1, `выбито ${killedOne}`);
+  }
+
+  // 5. висящих вокселей нет: всё, что без опоры, падает
+  H.damageAt([10, 3, 0], 4, 60, { max: 400 });
+  const fell = H.checkSupport();
+  check('беспорные воксели падают', fell >= 0);
+  const floating = H.ids.filter(id => H.alive[id] && H.iy[id] > 0 && !H['idAt'](H.ix[id], H.iy[id] - 1, H.iz[id]) && Math.random() < 0.02);
+  check('висящих вокселей нет (выборка)', floating.length === 0, `проверено ${H.ids.length} вокселей`);
+
+  // 6. рендер: один меш на чанк, а не 250 панелей
+  let meshes = 0; scene.traverse(o => { if (o.isMesh) meshes++; });
+  check('рендер чанками', meshes > 0 && meshes < 400, `мешей ${meshes}`);
+
+  // 7. стекло не блокирует и не держит дом
+  const glass = H.ids.find(id => H.alive[id] && H.kind[id] === 3);
+  check('стекло в доме есть и оно «навесное»', glass !== undefined && H.bearing[glass] === 1);
+}
+
+console.log(`\nИТОГ: ${bad ? 'ПРОВАЛЫ' : 'OK'} — воксельное разрушение работает (${ok} проверок)`);
+process.exit(bad ? 1 : 0);

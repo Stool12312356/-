@@ -53,6 +53,30 @@ export class AssetLibrary {
     } else {
       const gltf = this.gltfs.get(id)!;
       const inner = skClone(gltf.scene) as THREE.Group;
+      // Некоторые модели содержат «лишние» детали — например у ПМ в паке отдельно
+      // лежат запасной и пустой магазины. В руках они выглядели как «магазин висит рядом».
+      // Список исключений задаётся в config/catalog.json → exclude (регэкспы по именам узлов).
+      const ex = this.excludeBy(gltf.scene, item.id);
+      if (ex.length) {
+        // Детали в паках склеены по МАТЕРИАЛУ, отдельного узла «магазин» в рантайме нет.
+        // Поэтому собираем материал(ы) узлов, которые надо убрать, и прячем их на всём оружии.
+        // (Дополнительно к этому tools/build-manifest.mjs при пересборке геометрии убирает
+        // эти узлы из GLB — тогда исключение сработает уже по геометрии.)
+        const mats = new Set<THREE.Material>();
+        inner.traverse(o => {
+          if (!ex.some(re => re.test(o.name))) return;
+          const m = o as THREE.Mesh;
+          const mat = m.material as THREE.Material | THREE.Material[] | undefined;
+          if (Array.isArray(mat)) mat.forEach(x => mats.add(x)); else if (mat) mats.add(mat);
+        });
+        if (mats.size) inner.traverse(o => {
+          const m = o as THREE.Mesh;
+          if (!m.isMesh) return;
+          const mat = m.material as THREE.Material | THREE.Material[] | undefined;
+          const list = Array.isArray(mat) ? mat : mat ? [mat] : [];
+          if (list.length && list.every(x => mats.has(x))) o.visible = false;
+        });
+      }
       const n = item.normalize!;
       const wrap = new THREE.Group();
       wrap.add(inner);
@@ -65,6 +89,15 @@ export class AssetLibrary {
     }
     root.traverse(o => { if ((o as THREE.Mesh).isMesh) { o.castShadow = o.receiveShadow = true; } });
     return { object: root, item };
+  }
+
+  /** Правила исключения деталей конкретной модели (config/catalog.json → exclude). */
+  private excludeCache = new Map<string, RegExp[]>();
+  excludeBy(_scene: THREE.Object3D, id: string): RegExp[] {
+    if (this.excludeCache.has(id)) return this.excludeCache.get(id)!;
+    const out = (this.manifest.exclude?.[id] ?? []).map(r => new RegExp(r, 'i'));
+    this.excludeCache.set(id, out);
+    return out;
   }
 
   /** Физический коллайдер: для моделей — convex hull из геометрии (tools/build-manifest), для заглушек — bbox. */

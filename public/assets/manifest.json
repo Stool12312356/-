@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-02T14:34:05.820Z",
+ "generated": "2026-11-02T16:14:21.311Z",
  "items": [
   {
    "id": "aks74u",
@@ -744,6 +744,7 @@
    "name": "ПМ",
    "category": "weapon",
    "faction": "ussr",
+   "viewmodel": "rig",
    "placeholder": false,
    "source": "low-poly_pm_makarov.glb",
    "file": "assets/game/low-poly_pm_makarov.glb",
@@ -751,20 +752,20 @@
    "forward": "+x",
    "forwardVerified": true,
    "normalize": {
-    "scale": 0.086512,
+    "scale": 0.088118,
     "rotY": 1.5707963267948966,
     "offset": [
      0.001,
-     0.0237,
-     0.0073
+     0.0241,
+     0.0059
     ]
    },
    "size": [
-    0.026,
-    0.124,
+    0.027,
+    0.126,
     0.16
    ],
-   "tris": 3518,
+   "tris": 2294,
    "animations": []
   },
   {
@@ -2310,5 +2311,11 @@
    "procedural": "panel9"
   }
  ],
+ "exclude": {
+  "pm": [
+   "^918 mag empty_1$",
+   "^918 mag_2$"
+  ]
+ },
  "unmappedFiles": []
 }

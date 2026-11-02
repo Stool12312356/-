@@ -84,3 +84,6 @@ assets/_split/
 # Облегчённые текстуры для слабых ПК — собираются из models, не нужны в git
 public/assets/game-low/
 google_drive/
+
+# облегчённые версии моделей (без лишних деталей) — генерируются из assets/models
+assets/_vm/*

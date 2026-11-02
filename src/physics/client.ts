@@ -62,6 +62,8 @@ export class PhysicsClient {
     this.post({ type: 'shoot', tracer: { prev: [...t.pos], life: t.life ?? 3, ...t } as Tracer });
   }
   removePanel(bodyId: number, panel: number) { this.post({ type: 'removePanel', bodyId, panel }); }
+  /** Убрать тело целиком (чанк дома при пересборке после разрушений). */
+  removeBody(id: number) { this.post({ type: 'removeBody', id }); }
   private onSnap(m: Extract<FromWorker, { type: 'snapshot' }>) {
     this.prev = this.cur; this.cur = new Map(); this.tPrev = this.tCur; this.tCur = performance.now();
     for (let i = 0; i < m.ids.length; i++) this.cur.set(m.ids[i], m.tf.subarray(i * 7, i * 7 + 7));

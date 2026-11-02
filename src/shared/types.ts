@@ -9,7 +9,11 @@ export interface ManifestItem {
   normalize?: { scale: number; rotY: number; offset: [number, number, number] };
   size?: [number, number, number]; tris?: number; animations?: string[];
 }
-export interface Manifest { generated: string; items: ManifestItem[]; unmappedFiles: string[]; }
+export interface Manifest {
+  generated: string; items: ManifestItem[]; unmappedFiles: string[];
+  /** исключённые детали моделей: id → регэкспы имён узлов (у ПМ лишний магазин) */
+  exclude?: Record<string, string[]>;
+}
 
 export type Shape =
   | { t: 'box'; he: [number, number, number]; pos?: [number, number, number]; rotY?: number }

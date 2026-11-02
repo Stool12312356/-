@@ -16,6 +16,7 @@ import type { PhysicsClient } from '../physics/client';
 import type { Effects } from './effects';
 import { WEAPONS, weaponById, type WeaponSpec, BALLISTICS } from './weapons';
 import VM_CFG from '../../config/viewmodel.json';
+import { Scope, reticleFor } from './scope';
 
 export interface VmPose {
   scale: number; x: number; y: number; z: number; rotY: number;
@@ -68,8 +69,6 @@ export class PlayerCombat {
   /** верх и задняя точка вьюмодели (для прицеливания) */
   private vmTop = 0.1;
   private vmRear = 0.2;
-  /** на сколько поднять оружие при ADS, чтобы центр прицела лёг на перекрестие */
-  private opticLift = 0;
   /** 0..1 — насколько вьюмодель подтянута к прицелу (сглаживается) */
   private adsT = 0;
   private sway = new THREE.Vector2();
@@ -90,7 +89,9 @@ export class PlayerCombat {
   /** текущий FOV: 75 в покое, 45 при прицеливании, у СВД с оптикой — 22 */
   get fov() {
     const w = this.weapon;
-    const adsFov = VM[w.id]?.ads?.fov ?? (w.optic ? 22 : 45);
+    // Прицеливание = сетка на экране, оружие скрыто. Сильного зума нет (кроме СВД):
+    // иначе мир «прыгает» и кажется, что прицел уезжает.
+    const adsFov = w.optic ? 26 : 55;
     return 75 + (adsFov - 75) * this.adsT;
   }
 
@@ -119,54 +120,17 @@ export class PlayerCombat {
     // Прицел: заново, а не обрезками из пака. Модели-обрезки (att_1p29) стоят в мировых
     // координатах пака, при прикручивании к оружию уезжали вперёд ствола — на скриншоте
     // «оптика висит в воздухе перед СВД». Собираем из примитивов: труба + линза + кольца.
-    if (w.optic) {
-      const optic = this.buildOptic(w, vm);
-      this.viewmodel.add(optic);
-      // центр трубы — это и есть линия прицеливания
-      this.opticLift = optic.position.y + 0.0;
-    }
+    // Оптику НЕ прикручиваем к оружию: при прицеливании стрелок смотрит в сетку (scope.ts),
+    // и модель ствола скрывается. Раньше обрезок прицела из пака уезжал и закрывал пол-экрана.
     // линия прицеливания считается от ГАБАРИТА модели: у ПМ верх 5 см, у СВД — 14 см.
     // Отсюда автоматически правильная высота «ADS» для любого ствола, без подгонки вручную.
     this.viewmodel.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(this.viewmodel);
     const scale = this.viewmodel.scale.x || 1;
     // локальные габариты вьюмодели (масштаб уже учтён)
-    this.vmTop = box.max.y / 1; this.vmRear = box.max.z / 1;
-    this.opticLift = 0;
+    this.vmTop = box.max.y; this.vmRear = box.max.z;
     void scale;
     this.onViewModel?.(this.viewmodel, w);
-  }
-
-  /** Оптика из примитивов: в масштабе оружия, на планке сверху. Высота подобрана под глаза игрока. */
-  private buildOptic(w: WeaponSpec, vm: VmPose) {
-    const g = new THREE.Group();
-    g.name = 'optic';
-    const body = new THREE.MeshStandardMaterial({ color: '#23262a', roughness: 0.55, metalness: 0.5 });
-    const glassMat = new THREE.MeshStandardMaterial({ color: '#2a4a5a', roughness: 0.1, metalness: 0.2, emissive: new THREE.Color('#123a4a'), emissiveIntensity: 0.5 });
-    const R = 0.022, L = 0.16;
-    const tube = new THREE.Mesh(new THREE.CylinderGeometry(R, R, L, 14), body);
-    tube.rotation.x = Math.PI / 2;                       // труба вдоль ствола
-    g.add(tube);
-    // объектив и окуляр — чуть шире
-    for (const [z, r, mat] of [[-L / 2 - 0.012, R * 1.55, body], [L / 2 + 0.012, R * 1.4, body]] as const) {
-      const bell = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 0.85, 0.03, 14), mat);
-      bell.rotation.x = Math.PI / 2; bell.position.z = z; g.add(bell);
-    }
-    const lensF = new THREE.Mesh(new THREE.CircleGeometry(R * 1.35, 16), glassMat);
-    lensF.position.z = -L / 2 - 0.028; g.add(lensF);
-    const lensR = new THREE.Mesh(new THREE.CircleGeometry(R * 1.2, 16), glassMat);
-    lensR.position.z = L / 2 + 0.028; lensR.rotation.y = Math.PI; g.add(lensR);
-    // кольца крепления на планку
-    for (const z of [-0.045, 0.045]) {
-      const ring = new THREE.Mesh(new THREE.BoxGeometry(R * 2.6, 0.022, 0.022), body);
-      ring.position.set(0, -R - 0.008, z); g.add(ring);
-    }
-    const sc = vm.optics ?? 1;
-    g.scale.setScalar(sc);
-    // Высота: от РЕАЛЬНОГО верха модели (vmTop), а не от каталога — у каждого ствола он свой.
-    g.position.set(vm.opticMount?.x ?? 0, this.vmTop + R * sc * 0.5, vm.opticMount?.z ?? -0.10);
-    g.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.castShadow = false; m.receiveShadow = false; } });
-    return g;
   }
 
   /** ЛКМ нажата/отпущена */
@@ -286,17 +250,24 @@ export class PlayerCombat {
     const vm = this.viewmodel;
     if (!vm) return;
     const home = this.vmHome, ads = this.adsT;
-    // ADS: центр прицела на оси взгляда. Верх модели = линия прицельных приспособлений.
-    const adsY = -this.vmTop - this.opticLift;
-    // задняя точка не должна оказаться за камерой: держим 20 см перед глазом
-    const adsZ = -(this.vmRear + 0.20);
+    // При прицеливании (ПКМ) оружие СКРЫВАЕТСЯ и показывается сетка (см. scope.ts) —
+    // так прицел не может «уехать», как было с моделью 1П29. Здесь только плавное
+    // опускание ствола вниз, чтобы переход не был рывком.
+    vm.visible = ads < 0.28;
     vm.position.set(
       home.x * (1 - ads) + this.sway.x,
-      home.y * (1 - ads) + adsY * ads + this.sway.y - (stance === 2 ? 0.05 : 0) + this.vmKickZ * 0.3,
-      home.z * (1 - ads) + adsZ * ads + this.vmKickZ,
+      home.y * (1 - ads) + this.sway.y - (stance === 2 ? 0.05 : 0) + this.vmKickZ * 0.3 - ads * 0.12,
+      home.z * (1 - ads) + this.vmKickZ,
     );
-    // в покое — лёгкий доворот внутрь (2°), при ADS — строго по оси
-    vm.rotation.set(this.vmKickPitch * (1 - ads * 0.7), (1 - ads) * (0.035 + this.vmRotY) + ads * this.vmRotY, 0);
+    vm.rotation.set(this.vmKickPitch * (1 - ads * 0.7) - ads * 0.25, (1 - ads) * (0.035 + this.vmRotY) + ads * this.vmRotY, 0);
+  }
+
+  /** Показать/скрыть сетку прицела; вызывает main.ts каждый кадр. */
+  updateScope(scope: Scope) {
+    const w = this.weapon;
+    // у СВД/винтовок — оптический круг, у остальных — обычное перекрестие
+    const kind = reticleFor(w.id, !!w.optic);
+    scope.show(kind, this.adsT);
   }
 
   /** Подсказка в HUD: «30 / 180 · АК-74 · АВТО». */

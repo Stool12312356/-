@@ -168,6 +168,7 @@ for (const id of only) {
   if (!item || item.placeholder || !item.file) { console.warn(`нет модели: ${id}`); continue; }
   const cfg = VM[id];
   if (!cfg) { console.warn(`нет посадки в viewmodel.json: ${id}`); continue; }
+  // в игре загружается собранный файл из public/assets/game — по нему и проверяем
   const file = item.file.replace('assets/', 'public/assets/');
   const doc = await io.read(file);
   // исключённые детали (у ПМ в модели лежит отдельный запасной магазин) — как в игре

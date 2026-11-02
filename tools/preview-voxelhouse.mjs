@@ -1,0 +1,95 @@
+// tools/preview-voxelhouse.mjs — оффлайн-рендер ВОКСЕЛЬНОГО дома (без браузера).
+// Рисует наружные грани живых вокселей: так видно подъезд, окна, проломы.
+import fs from 'fs';
+import zlib from 'zlib';
+import { buildVoxelHouse } from '../src/game/voxelgen.ts';
+import { PITCH } from '../src/game/voxelhouse.ts';
+
+const m = buildVoxelHouse({ kind: process.argv[2] === 'brezhnevka' ? 'brezhnevka' : 'khrushchevka', sections: 2 });
+const { nx, ny, nz, cells } = m.spec;
+// РАЗРЕЗ: если задан --clip=N, воксели с i >= N не рисуем (видно шахту и лестницу)
+const clipArg = process.argv.find(a => a.startsWith('--clip='));
+const CLIP = clipArg ? Number(clipArg.split('=')[1]) : Infinity;
+const at = (i, j, k) => (i < 0 || j < 0 || k < 0 || i >= nx || j >= ny || k >= nz) ? -1 : cells[(j * nz + k) * nx + i];
+
+function png(w, h, rgb) {
+  const crcTable = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
+  const crc = b => { let c = 0xffffffff; for (const x of b) c = crcTable[(c ^ x) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+  const ch = (t, d) => { const l = Buffer.alloc(4); l.writeUInt32BE(d.length); const td = Buffer.concat([Buffer.from(t), d]); const cr = Buffer.alloc(4); cr.writeUInt32BE(crc(td)); return Buffer.concat([l, td, cr]); };
+  const ih = Buffer.alloc(13); ih.writeUInt32BE(w, 0); ih.writeUInt32BE(h, 4); ih[8] = 8; ih[9] = 2;
+  const raw = Buffer.alloc((w * 3 + 1) * h);
+  for (let y = 0; y < h; y++) { raw[y * (w * 3 + 1)] = 0; rgb.copy(raw, y * (w * 3 + 1) + 1, y * w * 3, (y + 1) * w * 3); }
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), ch('IHDR', ih), ch('IDAT', zlib.deflateSync(raw)), ch('IEND', Buffer.alloc(0))]);
+}
+
+const COLOR = { 0: [207, 202, 189], 1: [179, 174, 162], 2: [156, 106, 80], 3: [143, 182, 204], 4: [122, 75, 40], 5: [173, 167, 155] };
+// собираем наружные грани
+const tris = [];
+const H = PITCH / 2;
+const DIRS = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+const corners = [[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]];
+const quad = [[1,5,6,2],[0,3,7,4],[3,2,6,7],[0,4,5,1],[4,7,6,5],[0,1,2,3]];
+for (let j = 0; j < ny; j++) for (let k = 0; k < nz; k++) for (let i = 0; i < nx; i++) {
+  const c = at(i, j, k); if (c < 0) continue;
+  if (i >= CLIP) continue;
+  const cx = (i + 0.5) * PITCH, cy = (j + 0.5) * PITCH, cz = (k + 0.5) * PITCH;
+  for (let f = 0; f < 6; f++) {
+    const [di, dj, dk] = DIRS[f];
+    if (at(i + di, j + dj, k + dk) >= 0) continue;
+    const q = quad[f].map(ci => { const p = corners[ci]; return [cx + p[0] * H, cy + p[1] * H, cz + p[2] * H]; });
+    tris.push({ p: q, c: COLOR[c], n: DIRS[f] });
+  }
+}
+console.log('дом', m.size.map(v => v.toFixed(1)).join('×'), 'вокселей', m.stats.voxels, 'граней', tris.length);
+
+function render(eye, atPt, W = 1000) {
+  const Hh = Math.round(W * 0.62);
+  const f = atPt.map((v, i) => v - eye[i]); const fl = Math.hypot(...f); const fw = f.map(v => v / fl);
+  const up = [0, 1, 0];
+  const r = [fw[1] * up[2] - fw[2] * up[1], fw[2] * up[0] - fw[0] * up[2], fw[0] * up[1] - fw[1] * up[0]];
+  const rl = Math.hypot(...r); const right = r.map(v => v / rl);
+  const u = [right[1] * fw[2] - right[2] * fw[1], right[2] * fw[0] - right[0] * fw[2], right[0] * fw[1] - right[1] * fw[0]];
+  const tanY = Math.tan(50 * Math.PI / 180 / 2), aspect = W / Hh;
+  const px = Buffer.alloc(W * Hh * 3);
+  for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) { const i = (y * W + x) * 3; const s = 1 - y / Hh; px[i] = 120 + 40 * s | 0; px[i+1] = 150 + 30 * s | 0; px[i+2] = 185 + 25 * s | 0; }
+  const zb = new Float32Array(W * Hh).fill(Infinity);
+  const proj = p => { const d = [p[0]-eye[0], p[1]-eye[1], p[2]-eye[2]]; const z = d[0]*fw[0]+d[1]*fw[1]+d[2]*fw[2]; if (z <= 0.05) return null;
+    const sx = (d[0]*right[0]+d[1]*right[1]+d[2]*right[2])/(z*tanY*aspect); const sy = (d[0]*u[0]+d[1]*u[1]+d[2]*u[2])/(z*tanY);
+    return [W/2 + sx*W/2, Hh/2 - sy*Hh/2, z]; };
+  for (const tri of tris) {
+   for (const t of [{ p: [tri.p[0], tri.p[1], tri.p[2]], c: tri.c, n: tri.n }, { p: [tri.p[0], tri.p[2], tri.p[3]], c: tri.c, n: tri.n }]) {
+    const ps = t.p.map(proj); if (ps.some(p => !p)) continue;
+    const [ax, ay, az] = ps[0], [bx, by, bz] = ps[1], [cx2, cy2, cz2] = ps[2];
+    const area = (bx-ax)*(cy2-ay)-(cx2-ax)*(by-ay); if (Math.abs(area) < 1e-9) continue;
+    const n = t.n;
+    const light = 0.5 + 0.5 * Math.max(0, n[0]*0.45 + n[1]*0.75 + n[2]*-0.5);
+    const minX = Math.max(0, Math.floor(Math.min(ax,bx,cx2))), maxX = Math.min(W-1, Math.ceil(Math.max(ax,bx,cx2)));
+    const minY = Math.max(0, Math.floor(Math.min(ay,by,cy2))), maxY = Math.min(Hh-1, Math.ceil(Math.max(ay,by,cy2)));
+    for (let y = minY; y <= maxY; y++) for (let x = minX; x <= maxX; x++) {
+      const w0 = ((bx-x)*(cy2-y)-(cx2-x)*(by-y))/area, w1 = ((cx2-x)*(ay-y)-(ax-x)*(cy2-y))/area, w2 = 1-w0-w1;
+      if (w0 < -1e-6 || w1 < -1e-6 || w2 < -1e-6) continue;
+      const z = 1/(w0/az + w1/bz + w2/cz2); const i = y*W+x; if (z >= zb[i]) continue; zb[i] = z;
+      const fog = Math.min(1, z / 300);
+      for (let c = 0; c < 3; c++) px[i*3+c] = Math.max(0, Math.min(255, (t.c[c]*light)*(1-fog*0.35) + [150,170,200][c]*fog*0.35)) | 0;
+    }
+   }
+  }
+  return { W, H: Hh, px };
+}
+fs.mkdirSync('tools/_render', { recursive: true });
+const cx = m.size[0]/2, cz = m.size[2]/2;
+const views = {
+  front: [[cx, m.size[1]*0.35, -m.size[2]*2.0], [cx, m.size[1]*0.45, cz]],
+  entrance: [[cx, 1.6, -9], [cx, 2.2, 0]],
+  close: [[cx, m.size[1]*0.9, -m.size[2]*1.2], [cx, m.size[1]*0.7, cz]],
+  // изнутри подъезда: видно шахту и лестницу (а не «сразу квартиру»)
+  inside: [[m.stats.entrance[0], 1.7, 0.6], [m.stats.entrance[0], 1.2, m.size[2] * 0.45]],
+  // срез: смотрим в разрез дома, чтобы видеть перекрытия, шахту и марши
+  cut: [[-14, m.size[1] * 0.55, m.size[2] * 0.6], [cx, m.size[1] * 0.4, cz]],
+  section: [[-m.size[0] * 0.05, m.size[1] * 0.45, -1.2], [cx, m.size[1] * 0.34, cz]],
+};
+for (const [name, [eye, atPt]] of Object.entries(views)) {
+  const r = render(eye, atPt, name === 'entrance' ? 900 : 1000);
+  fs.writeFileSync(`tools/_render/voxel-${name}.png`, png(r.W, r.H, Buffer.from(r.px)));
+  console.log('→', `tools/_render/voxel-${name}.png`);
+}

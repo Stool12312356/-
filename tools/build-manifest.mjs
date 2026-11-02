@@ -11,6 +11,7 @@ import draco3d from 'draco3dgltf';
 import fs from 'fs';
 import { listSources } from './lib/sources.mjs';
 import { bakeSkins } from './lib/bake.mjs';
+import { prune } from '@gltf-transform/functions';
 
 const OUT = 'public/assets';
 const catalog = JSON.parse(fs.readFileSync('config/catalog.json', 'utf8')).items;
@@ -90,6 +91,31 @@ for (const it of catalog) {
   // иначе масштаб и коллайдер считаются по bind-позе (реальный случай: rpk выходил 5,3×19,6×1,04 м).
   // convert.mjs делает то же самое — так геометрия в игре и в манифесте совпадает.
   if (bakeSkins(doc)) console.log(`  поза запечена: ${it.id}`);
+  // Исключённые детали (config/catalog.json → exclude): у ПМ в паке отдельно лежат
+  // запасной и пустой магазины, они висели рядом с пистолетом в руках.
+  if (it.exclude?.length) {
+    const re = new RegExp(it.exclude.join('|'), 'i');
+    // Удаляем узел ВМЕСТЕ с поддеревом: у магазина дети называются Object_6/8/9,
+    // и если убрать только родителя, меши остаются висеть в сцене (баг: «магазин рядом»).
+    const kill = [];
+    let removed = 0;
+    const walk = (n, dead) => {
+      const isDead = dead || re.test(n.getName());
+      if (isDead) { kill.push(n); removed++; }
+      n.listChildren().slice().forEach(c => walk(c, isDead));
+    };
+    doc.getRoot().listScenes()[0].listChildren().forEach(n => walk(n, false));
+    if (kill.length) {
+      // Обнуляем все ссылки удаляемых узлов на меши: иначе prune() не выкидывает
+      // геометрию (у ПМ меш магазина ссылался на тот же материал, что и корпус).
+      const deadMeshes = new Set();
+      for (const n of kill) { const m = n.getMesh(); if (m) deadMeshes.add(m); n.setMesh(null); }
+      kill.forEach(n => n.dispose());
+      // теперь выкидываем меши, на которые не осталось ни одной ссылки
+      for (const m of deadMeshes) if (!m.listParents().some(p => p.propertyType === 'Node')) m.dispose();
+      console.log(`  исключено деталей: ${removed} (${it.id})`);
+    }
+  }
   const scene = doc.getRoot().listScenes()[0];
   const b0 = getBounds(scene);
   let size0 = b0.max.map((v, i) => v - b0.min[i]);
@@ -125,10 +151,23 @@ for (const it of catalog) {
     size: [mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]].map(v => +v.toFixed(3)),
     tris: Math.round(tris), animations: doc.getRoot().listAnimations().map(a => a.getName()),
   });
+  // Вьюмодель ПМ без магазина: пишем «противень» уже после измерений (prune не должен
+  // сломать нормализацию), и только для моделей со списком исключений.
+  if (it.exclude?.length) {
+    try {
+      await doc.transform(prune());
+      fs.writeFileSync('assets/_vm/_map.json', JSON.stringify({ ...(fs.existsSync('assets/_vm/_map.json') ? JSON.parse(fs.readFileSync('assets/_vm/_map.json', 'utf8')) : {}), [file]: it.id }));
+      await io.write(`assets/_vm/${it.id}.glb`, doc);
+    } catch (e) { console.warn('не сохранил вьюмодель', it.id, e); }
+  }
   out.push(e);
 }
 const unmapped = files.filter(f => !claimed.has(f));
-const manifest = { generated: new Date().toISOString(), items: out, unmappedFiles: unmapped };
+// exclude: детали моделей, которые не должны попадать в игру (у ПМ в паке
+// запасной магазин лежит отдельным узлом рядом с пистолетом).
+const exclude = {};
+for (const it of catalog) if (it.exclude?.length) exclude[it.id] = it.exclude;
+const manifest = { generated: new Date().toISOString(), items: out, exclude, unmappedFiles: unmapped };
 fs.writeFileSync(`${OUT}/manifest.json`, JSON.stringify(manifest, null, 1));
 const real = out.filter(o => !o.placeholder && !o.procedural), ph = out.filter(o => o.placeholder), proc = out.filter(o => o.procedural);
 console.log(`manifest: ${out.length} предметов | реальных моделей: ${real.length} | заглушек: ${ph.length} | процедурных: ${proc.length} | неопознанных файлов: ${unmapped.length}`);
