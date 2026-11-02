@@ -10,6 +10,7 @@ import { Vector3 } from 'three';
 import draco3d from 'draco3dgltf';
 import fs from 'fs';
 import { listSources } from './lib/sources.mjs';
+import { bakeSkins } from './lib/bake.mjs';
 
 const OUT = 'public/assets';
 const catalog = JSON.parse(fs.readFileSync('config/catalog.json', 'utf8')).items;
@@ -85,6 +86,10 @@ for (const it of catalog) {
     e.placeholder = true; e.placeholderSpec = it.placeholder; out.push(e); continue;
   }
   const doc = await io.read(pathOf[file]);
+  // Скин/поза: у моделей со Sketchfab реальная поза живёт в костях. Запекаем её ДО замера габаритов,
+  // иначе масштаб и коллайдер считаются по bind-позе (реальный случай: rpk выходил 5,3×19,6×1,04 м).
+  // convert.mjs делает то же самое — так геометрия в игре и в манифесте совпадает.
+  if (bakeSkins(doc)) console.log(`  поза запечена: ${it.id}`);
   const scene = doc.getRoot().listScenes()[0];
   const b0 = getBounds(scene);
   let size0 = b0.max.map((v, i) => v - b0.min[i]);
@@ -92,6 +97,12 @@ for (const it of catalog) {
   const longAxis = (fwd.endsWith('x')) ? 0 : 2;
   const wideAxis = longAxis === 0 ? 2 : 0;
   let scale = it.scale ?? (it.targetLength ? it.targetLength / size0[longAxis] : it.targetHeight ? it.targetHeight / size0[1] : it.targetWidth ? it.targetWidth / size0[wideAxis] : 1);
+  // Страховка: если масштаб не задан явно и модель «не в метрах» (длиннее 100 м или короче 10 см),
+  // это почти всегда зашитый в модель масштаб — предупреждаем, а не молча строим великана.
+  if (it.scale === undefined && !it.targetLength && !it.targetHeight && !it.targetWidth &&
+      (size0[longAxis] > 100 || size0[longAxis] < 0.1)) {
+    console.warn(`! ${it.id}: габарит ${size0.map(v => +v.toFixed(2))} — похоже на чужой масштаб, задайте targetLength/scale в catalog.json`);
+  }
   const rotY = it.yawDeg !== undefined ? it.yawDeg * Math.PI / 180 : ROT[fwd];
   const c = Math.cos(rotY), s = Math.sin(rotY);
   const rot = ([x, y, z]) => [x * c + z * s, y, -x * s + z * c];
