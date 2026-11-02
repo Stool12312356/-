@@ -80,3 +80,6 @@ desktop.ini
 # Исходные (несжатые) модели — только локально, 386 МБ, см. tools/download-assets.sh
 assets/models/
 assets/_split/
+
+# Облегчённые текстуры для слабых ПК — собираются из models, не нужны в git
+public/assets/game-low/
