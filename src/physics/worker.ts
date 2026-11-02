@@ -328,6 +328,7 @@ function loop() {
     case 'spawnPlayer': spawnPlayer(m.pos); break;
     case 'impulse': { const rb = bodies.get(m.id); rb?.applyImpulse({ x: m.imp[0], y: m.imp[1], z: m.imp[2] }, true); break; }
     case 'explosion': explosion(m.pos, m.radius, m.impulse); break;
+    case 'heal': ps.hp = Math.min(ps.hpLimit, ps.hp + Math.max(0, m.hp)); break;
     case 'hurt': if (m.damage > 0) { ps.hp -= m.damage; ps.hurtAt = PLAYER.hpRegenDelay; } break;
     case 'maxHp': {
       // предел здоровья от класса: поддержка крепче, разведчик хрупче.

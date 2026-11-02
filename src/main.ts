@@ -14,6 +14,7 @@ import { Match, type SoldierRef } from './game/match';
 import { buildCapturePoints, spawnFor } from './game/maps';
 import { Squads } from './game/squads';
 import { CLASSES, CLASS_ORDER, loadout, perkOf, type ClassId } from './game/classes';
+import { Gadgets, gadgetForKey, type GadgetId } from './game/gadgets';
 import { spawnVoxelHouse, spawnSpecial, type PlacedBuilding } from './game/structure';
 import { BUILDINGS, SPAWN } from './game/world';
 import { SURFACES, pointBlankRange, EXPLOSION, EXPLOSION_SMALL } from './game/weapons';
@@ -65,8 +66,15 @@ let lastHitMarker = 0;
 const audio = new Audio();
 /** Режим «Штурм» (ТЗ п.7): точки захвата, билеты, время. Логика — в game/match.ts */
 let match: Match | null = null;
+/** названия гаджетов для фида */
+const GADGET_NAME: Record<GadgetId, string> = {
+  medkit: 'аптечка', wrench: 'ремключ', ammo: 'ящик патронов',
+  drone: 'дрон-разведчик', grenade: 'граната', mine: 'мина', c4: 'С4',
+};
 /** выбранный класс пехоты (ТЗ п.8) — влияет на набор оружия, HP-множитель и перезарядку */
 let playerClass: ClassId = 'assault';
+/** гаджеты класса: аптечка, ящик патронов, С4/мина/граната, дрон (ТЗ п.8) */
+let gadgets: Gadgets | null = null;
 /** управление бойцами: мозги ботов + урон (game/squads.ts) */
 let squads: Squads | null = null;
 /** сколько бойцов на сторону в одной волне */
@@ -83,6 +91,27 @@ async function boot() {
   const fx = effects = new Effects(scene);
   const cmb = combat = new PlayerCombat(lib, phys, fx, camera);
   scope = new Scope(document.body);
+  // ГАДЖЕТЫ (ТЗ п.8): лечение/патроны/взрыв/дрон. Эффекты — настоящие: HP через физику,
+  // взрыв через тот же blast-код, что и у РПГ.
+  gadgets = new Gadgets({
+    heal: (hp) => phys.post({ type: 'heal', hp }),
+    resupply: (mags) => combat?.resupply(mags),
+    explode: (p, radius, power) => {
+      phys.post({ type: 'explosion', pos: p, radius, impulse: power === 'big' ? 700 : 380 });
+      effects?.explosion(p, radius);
+      effects?.fire(p, power === 'big' ? 1.2 : 0.8);
+      audio.explosion(p, listenerPos(camera));
+      const b = findHouseNear(p, 2);
+      if (b) b.house.damageAt(p, power === 'big' ? EXPLOSION.crater : EXPLOSION_SMALL.crater,
+        power === 'big' ? EXPLOSION.strength : EXPLOSION_SMALL.strength,
+        { max: power === 'big' ? EXPLOSION.craterMax : EXPLOSION_SMALL.craterMax });
+      for (const bld of buildings) bld.propSet.blast(p, 2.4, power === 'big' ? 260 : 140, scene);
+    },
+    origin: () => [camera.position.x, camera.position.y, camera.position.z],
+    aim: () => { const d = lookDir(); return [d.x, d.y, d.z]; },
+  }, effects, phys);
+  gadgets.onUse = (id, ok, why) => addFeed(ok ? `Применено: ${GADGET_NAME[id]}` : `${GADGET_NAME[id]}: ${why}`);
+  gadgets.setFrom(CLASSES[playerClass].gadgets);
   cmb.onViewModel = (obj) => {
     if (viewmodel) viewmodel.removeFromParent();
     viewmodel = obj;
@@ -232,6 +261,7 @@ function selectClass(id: ClassId) {
   playerClass = id;
   const perk = perkOf(id);
   combat?.setLoadout(loadout(id), perk.reloadMul);
+  gadgets?.setFrom(CLASSES[id].gadgets);
   if (started && phys.player) {
     // HP класса: поддержка крепче. Считаем от текущего, чтобы не «лечить» сменой класса
     phys.post({ type: 'maxHp', hp: Math.round(100 * perk.hpMul) });
@@ -436,6 +466,12 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyC') { toggledCrouch = !toggledCrouch; toggledProne = false; }
   if (e.code === 'KeyZ') { toggledProne = !toggledProne; toggledCrouch = false; }
   if (e.code === 'KeyR') { combat?.reload(); audio.reload(); }
+  // ГАДЖЕТЫ класса (ТЗ п.8): H — аптечка/ремключ, J — боеприпасы, K — С4/мина/граната,
+  // L — дрон. Клавиша работает только если гаджет есть у выбранного класса.
+  if (gadgets && ['KeyH', 'KeyJ', 'KeyK', 'KeyL'].includes(e.code) && started) {
+    const g = gadgetForKey(gadgets.list, e.code);
+    if (g) { e.preventDefault(); gadgets.use(g); }
+  }
   if (e.code === 'KeyF') throwCrate();
   if (e.code === 'KeyG') blast();
   if (e.code === 'KeyB') phys.post({ type: 'spawnPlayer', pos: SPAWN });
@@ -561,7 +597,7 @@ function frame(now: number) {
   if (combat) {
     const spread = 8 + (combat.isReloading ? 0 : 6);
     const ch = $('crosshair'); ch.style.setProperty('--gap', `${spread}px`);
-    $('ammo').textContent = combat.hud();
+    $('ammo').textContent = combat.hud() + (gadgets ? `   ${gadgets.hud()}` : '');
     $('hits').style.opacity = String(Math.max(0, 1 - (now - lastHitMarker) / 220));
   }
   if (aimT > 0) { aimT -= dt; $('aim').textContent = aimMsg; $('aim').style.opacity = String(Math.min(1, aimT * 2)); } else $('aim').style.opacity = '0';

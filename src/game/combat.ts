@@ -160,6 +160,12 @@ export class PlayerCombat {
   /** ПКМ: прицеливание */
   setAiming(on: boolean) { this.aiming = on; }
 
+  /** Ящик боеприпасов: добавить магазины к текущему оружию (ТЗ п.8, поддержка). */
+  resupply(mags: number) {
+    const st = this.state, w = this.weapon;
+    st.reserve += w.mag * Math.max(0, Math.floor(mags));
+  }
+
   reload() {
     const s = this.state, w = this.weapon;
     if (this.reloading > 0 || s.mag >= w.mag || s.reserve <= 0) return;

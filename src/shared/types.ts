@@ -102,6 +102,8 @@ export type ToWorker =
   | { type: 'ray'; id: number; origin: [number, number, number]; dir: [number, number, number]; max: number }
   /** урон игроку от ботов (бьёт в то же состояние, что взрывы и падения) */
   | { type: 'hurt'; damage: number }
+  /** полечить игрока (аптечка класса), не выше предела */
+  | { type: 'heal'; hp: number }
   /** предел здоровья класса (поддержка крепче): hpLimit, текущее HP не лечится вверх */
   | { type: 'maxHp'; hp: number };
 
