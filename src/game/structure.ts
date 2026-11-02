@@ -9,6 +9,7 @@ import { VoxelHouse } from './voxelhouse.ts';
 import { buildFurniture } from './furniture.ts';
 import { furnish as furnishRoom } from './plan.ts';
 import { PITCH } from './voxelhouse.ts';
+import { Props, partKindOf, type PropItem } from './props.ts';
 
 export interface PlacedBuilding {
   house: VoxelHouse;
@@ -21,28 +22,33 @@ export interface PlacedBuilding {
   stairs: Staircase[];
   /** лестница первого подъезда (для отладки/тестов) */
   stair: Staircase;
+  /** разрушаемые предметы этого дома: мебель и лестницы (см. props.ts) */
+  props: PropItem[];
+  /** владелец предметов: через него наносится урон (props.ts) */
+  propSet: Props;
 }
 
-/** Мебель внутри дома: ставится по квартирам, сливается по материалам в один меш на материал. */
 /**
- * Мебель строго по 2D-плану (plan.ts): каждая комната получает свои предметы,
- * повёрнутые так же, как на картинке docs/plan-2k.png.
- * Геометрия сливается по материалам — иначе это сотни draw call и просадка ФПС.
+ * Мебель внутри дома: ставится по 2D-плану (plan.ts) и сразу превращается в
+ * РАЗРУШАЕМЫЕ предметы (props.ts).
+ *
+ * Раньше вся мебель сливалась в один меш на материал — дешёво, но её нельзя было
+ * ни разрушить, ни толкнуть: пуля проходила сквозь стул. Теперь каждый предмет —
+ * отдельная запись в Props со своей прочностью, а геометрия по-прежнему слита
+ * пачками (дом × этаж × материал), так что draw call почти не вырос.
  */
-function furnish(model: VoxelHouseModel, scene: THREE.Scene, origin: THREE.Vector3, rotY: number) {
+function furnish(
+  model: VoxelHouseModel, scene: THREE.Scene, origin: THREE.Vector3, rotY: number, props: Props,
+): PropItem[] {
   const plan = model.plan;
-  const W = plan.w, D = plan.d;
   const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotY);
-  const buckets = new Map<string, { geo: THREE.BufferGeometry[]; mat: THREE.Material }>();
-  // БАГ: высота этажа считалась как size.y/(floors+1) = 15.5/6 ≈ 2.58 м, а полы на самом
-  // деле через 3.0 м (model.floorH). Мебель на верхних этажах «висела» в воздухе / тонула
-  // в плите. Берём высоту этажа из модели, а пол — уровень плиты (f * floorH).
   const floorH = model.floorH;
-  const secW = W;
+  const secW = plan.w;
+  const out: PropItem[] = [];
+  let family = 0;
   for (let s = 0; s < model.sections; s++) {
     for (let f = 0; f < model.floors; f++) {
-      // пол этажа f — это ПЛИТА, то есть верхняя плоскость вокселя (f*floorH); мебель
-      // ставим на неё с зазором 2 см
+      // пол этажа f — верхняя плоскость плиты (f * floorH); мебель с зазором 2 см
       const y = 0.02 + f * floorH;
       const secCenterX = -model.size[0] / 2 + s * secW + secW / 2;
       for (const room of plan.rooms) {
@@ -52,34 +58,50 @@ function furnish(model: VoxelHouseModel, scene: THREE.Scene, origin: THREE.Vecto
           const g = buildFurniture(item.kind);
           if (!g) continue;
           g.position.copy(p);
-          // на плане поворот задан вокруг вертикали; в мире добавляем поворот дома
           g.rotation.y = item.rot;
           g.updateMatrixWorld(true);
+          // один предмет мебели = одна «семья»: собран из разных материалов
+          // (дерево + металл + ткань), поэтому ломается целиком
+          const fam = ++family;
           g.traverse(o => {
             const m = o as THREE.Mesh;
             if (!m.isMesh) return;
             const mat = m.material as THREE.Material;
-            const key = `${mat.uuid}|${(mat as THREE.MeshStandardMaterial).color?.getHexString?.() ?? 'x'}`;
-            const list = buckets.get(key) ?? { geo: [], mat };
             const geo = m.geometry.clone();
             geo.applyMatrix4(m.matrixWorld);
-            list.geo.push(geo);
-            buckets.set(key, list);
+            const rec = props.add({
+              type: 'furniture', kind: item.kind, geos: [geo], material: mat,
+              // пачка: дом-этаж-материал → одна физика и один меш на материал
+              bucketKey: `f:${model.kind}:${s}:${f}:${mat.uuid}`,
+              surface: (mat as THREE.MeshStandardMaterial).metalness > 0.45 ? 'metal' : 'wood',
+              kindMat: partKindOf(mat), family: fam,
+            });
+            if (rec) out.push(rec);
           });
         }
       }
     }
   }
-  for (const { geo, mat } of buckets.values()) {
-    if (!geo.length) continue;
-    const merged = mergeGeometries(geo, false) ?? geo[0];
-    const mesh = new THREE.Mesh(merged, mat);
-    // имя — чтобы тесты и отладка могли отличить мебель от чанков дома
-    mesh.name = 'furniture';
-    mesh.castShadow = mesh.receiveShadow = true;
-    scene.add(mesh);
+  void scene;
+  return out;
+}
+
+/**
+ * Лестница как разрушаемый объект: каждая ступень и площадка — отдельный предмет.
+ * Площадки помечены как опорные (см. props.ts: снёс площадку — рассыпался марш).
+ */
+/** Материал лестницы — тот же, что у видимого меша (иначе пачка не совпадёт по цвету). */
+const stoneMat = new THREE.MeshStandardMaterial({ color: '#b9b4a8', roughness: 0.92, metalness: 0.02 });
+
+function destroyableStairs(st: Staircase, bucketKey: string, props: Props, out: PropItem[]) {
+  for (const part of st.parts) {
+    const rec = props.add({
+      type: 'stairs', kind: part.kind, geos: [part.geo], material: stoneMat,
+      bucketKey, surface: 'concrete', kindMat: 'stone',
+      hpScale: part.kind === 'landing' ? 2.2 : 1,
+    });
+    if (rec) out.push(rec);
   }
-  void D;
 }
 
 export function spawnVoxelHouse(
@@ -130,6 +152,8 @@ export function spawnVoxelHouse(
   // БАГ: лестница строилась одна на весь дом. У 3-секционной хрущёвки три подъезда и
   // три лестничных клетки, а марши были только в первой; из остальных подъездов наверх
   // попасть было нельзя.
+  const props = new Props(phys);
+  const propItems: PropItem[] = [];
   const stairs: Staircase[] = [];
   for (let s = 0; s < model.sections; s++) {
     const secCx = (s - (model.sections - 1) / 2) * model.plan.w;
@@ -144,22 +168,27 @@ export function spawnVoxelHouse(
         st.verts[i] = v.x + offset.x; st.verts[i + 1] = v.y + offset.y; st.verts[i + 2] = v.z + offset.z;
       }
     }
-    scene.add(st.mesh);
-    phys.add({
-      kind: 'static',
-      shapes: [{ t: 'trimesh', verts: st.verts, idx: st.idx }],
-      pos: [0, 0, 0], quat: [0, 0, 0, 1], surface: 'concrete',
-    } as never);
+    // ВАЖНО: отдельное статичное тело на всю лестницу больше не создаём — её
+    // ступени и площадки теперь разрушаемые предметы (props.ts), и физика собирается
+    // из них. Иначе после разрушения марша по нему всё равно можно было бы ходить.
+    scene.remove(st.mesh);
+    destroyableStairs(st, `s:${model.kind}:${s}`, props, propItems);
     stairs.push(st);
   }
   const stair = stairs[0];
 
-  furnish(model, scene, offset, rotY);
+  const furniture = furnish(model, scene, offset, rotY, props);
+  propItems.push(...furniture);
+  // тела физики и меши — пачками
+  props.build(scene);
 
   // свет у подъезда: один источник на дом (точечные источники дорогие)
   const lamp = new THREE.PointLight('#ffd9a0', 12, 26, 2);
   lamp.position.copy(offset).add(new THREE.Vector3(0, 3.2, model.size[2] / 2 + 2.5).applyQuaternion(q));
   scene.add(lamp);
 
-  return { house, model, stairs, stair, center: new THREE.Vector3(offset.x, model.size[1] / 2, offset.z), size: model.size };
+  return {
+    house, model, stairs, stair, props: propItems, propSet: props,
+    center: new THREE.Vector3(offset.x, model.size[1] / 2, offset.z), size: model.size,
+  };
 }

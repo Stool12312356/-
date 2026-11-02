@@ -131,7 +131,29 @@ const B: Record<string, (p: P) => THREE.Group> = {
   busstop() { const g = new THREE.Group(); add(g, box(4, 0.1, 1.6, '#d8d8d0'), 0, 2.4, 0); for (const s of [-1, 1]) add(g, box(0.1, 2.4, 1.5, '#8a8a82'), s * 1.9, 1.2, 0); add(g, box(3.8, 2.0, 0.08, '#667'), 0, 1.3, -0.75); add(g, box(2.5, 0.08, 0.5, '#6a4a2a'), 0, 0.5, -0.4); return g; },
   monument() { const g = new THREE.Group(); add(g, box(4, 4, 4, '#777770'), 0, 2, 0); add(g, box(1.2, 5, 0.8, '#3a3a38'), 0, 6.5, 0); add(g, sph(0.4, '#3a3a38'), 0, 9.3, 0); add(g, box(0.4, 0.4, 3, '#3a3a38'), 0.5, 8, -1, 0.3); return g; },
   swing() { const g = new THREE.Group(); for (const s of [-1, 1]) { add(g, cyl(0.04, 0.04, 2.6, '#b03030', 6), s * 1.2, 1.2, 0.6, 0.3); add(g, cyl(0.04, 0.04, 2.6, '#b03030', 6), s * 1.2, 1.2, -0.6, -0.3); } add(g, cyl(0.04, 0.04, 2.6, '#b03030', 6), 0, 2.3, 0, 0, 0, X); add(g, box(0.4, 0.05, 0.2, '#2a4a8a'), 0, 0.55, 0); return g; },
-  tree(p) { const g = new THREE.Group(); if (p.type === 'spruce') { add(g, cyl(0.15, 0.2, 1.5, '#4a3a2a', 6), 0, 0.75, 0); for (let i = 0; i < 4; i++) add(g, new THREE.Mesh(new THREE.ConeGeometry(1.8 - i * 0.35, 2.2, 8), mat('#1f4a3a')), 0, 2 + i * 1.3, 0); } else { add(g, cyl(0.12, 0.2, 5, '#d8d4c8', 6), 0, 2.5, 0); add(g, sph(1.8, '#6a8a3a', 1, 1.3, 1), 0, 6, 0); } return g; },
+  // ЗИМА: ёлки в снегу (тёмно-зелёные лапы + белые шапки), лиственные — голые
+  // ветки с наледью. Раньше на снегу стояли летние зелёные кроны.
+  tree(p) {
+    const g = new THREE.Group();
+    if (p.type === 'spruce') {
+      add(g, cyl(0.15, 0.2, 1.5, '#4a3a2a', 6), 0, 0.75, 0);
+      for (let i = 0; i < 4; i++) {
+        const r = 1.8 - i * 0.35;
+        add(g, new THREE.Mesh(new THREE.ConeGeometry(r, 2.2, 8), mat('#25453a')), 0, 2 + i * 1.3, 0);
+        add(g, new THREE.Mesh(new THREE.ConeGeometry(r * 0.82, 0.9, 8), mat('#e8f1f7', 0.9)), 0, 2 + i * 1.3 + 0.75, 0);
+      }
+    } else {
+      add(g, cyl(0.12, 0.2, 5, '#5a4a3a', 6), 0, 2.5, 0);
+      // голая крона: несколько тонких веток и снежные шапки на них
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2;
+        add(g, cyl(0.03, 0.06, 2.4, '#5f5148', 5), Math.cos(a) * 0.7, 6 + (i % 2) * 0.5, Math.sin(a) * 0.7, 0.5 * Math.cos(a), 0, 0.5 * Math.sin(a));
+        add(g, sph(0.55, '#e8f1f7', 1, 0.55, 1), Math.cos(a) * 1.2, 6.9 + (i % 2) * 0.5, Math.sin(a) * 1.2);
+      }
+      add(g, sph(0.9, '#e8f1f7', 1, 0.5, 1), 0, 7.6, 0);
+    }
+    return g;
+  },
   barrel() { const g = new THREE.Group(); add(g, cyl(0.29, 0.29, 0.88, '#8a2a1a', 14), 0, 0.44, 0); add(g, cyl(0.3, 0.3, 0.04, '#555', 14), 0, 0.5, 0); return g; },
 
   // Прицелы и планки. Труба оптики + кронштейн, боковая планка — пластина с пазами.

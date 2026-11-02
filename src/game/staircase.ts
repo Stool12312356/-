@@ -23,6 +23,17 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { ApartmentPlan } from './plan';
 
+/**
+ * Часть лестницы, которую можно разрушить: ступень, марш или площадка.
+ * Нужна разрушаемости — см. props.ts. Геометрия в мировых координатах дома.
+ */
+export interface StairPart {
+  geo: THREE.BufferGeometry;
+  /** 'step' — ступень марша, 'landing' — площадка (опорная!) */
+  kind: 'step' | 'landing';
+  floor: number;
+}
+
 export interface Staircase {
   /** видимая геометрия всех маршей и площадок (мировые координаты дома) */
   mesh: THREE.Mesh;
@@ -38,6 +49,8 @@ export interface Staircase {
   zone: { x0: number; x1: number; z0: number; z1: number };
   /** глубина фасадной площадки и площадки разворота */
   landing: number;
+  /** части для разрушаемости (в мировых координатах) */
+  parts: StairPart[];
 }
 
 /**
@@ -91,7 +104,7 @@ function dims(plan: ApartmentPlan, floorH: number): Dims {
 const TREAD_THICK = 0.32;
 function flight(
   out: THREE.BufferGeometry[], lane: [number, number], yBase: number,
-  zStart: number, dir: 1 | -1, d: Dims,
+  zStart: number, dir: 1 | -1, d: Dims, floor = 0, collect?: StairPart[],
 ) {
   const w = lane[1] - lane[0];
   for (let i = 0; i < d.steps; i++) {
@@ -100,13 +113,15 @@ function flight(
     const g = new THREE.BoxGeometry(w, h, d.tread + 0.01);
     g.translate(lane[0] + w / 2, top - h / 2, zStart + dir * (i + 0.5) * d.tread);
     out.push(g);
+    collect?.push({ geo: g.clone(), kind: 'step', floor });
   }
 }
 
-function landing(out: THREE.BufferGeometry[], d: Dims, yTop: number, zCenter: number, depth = LANDING) {
+function landing(out: THREE.BufferGeometry[], d: Dims, yTop: number, zCenter: number, depth = LANDING, floor = 0, collect?: StairPart[]) {
   const g = new THREE.BoxGeometry(d.lx1 - d.lx0, 0.22, depth);
   g.translate((d.lx0 + d.lx1) / 2, yTop - 0.11, zCenter);
   out.push(g);
+  collect?.push({ geo: g.clone(), kind: 'landing', floor });
 }
 
 export function buildStaircase(
@@ -114,6 +129,9 @@ export function buildStaircase(
 ): Staircase {
   const d = dims(plan, floorH);
   const geos: THREE.BufferGeometry[] = [];
+  /** части для разрушаемости — в мировых координатах, поэтому сразу сдвигаем на origin */
+  const parts: StairPart[] = [];
+  const collect: StairPart[] = [];
   /** начало марша 0 (у фасадной площадки) и площадки разворота */
   const zFlight0 = d.zFront + LANDING;
   const zFlight1 = d.zBack - LANDING;
@@ -122,16 +140,18 @@ export function buildStaircase(
     const y = f * floorH;
     const midY = y + floorH / 2;
     // марш 0: от фасада вглубь, левая половина клетки
-    flight(geos, d.laneL, y, zFlight0 + 0.001, +1, d);
+    flight(geos, d.laneL, y, zFlight0 + 0.001, +1, d, f, collect);
     // площадка разворота в тылу, во всю ширину
-    landing(geos, d, midY, d.zBack - LANDING / 2);
+    landing(geos, d, midY, d.zBack - LANDING / 2, LANDING, f, collect);
     // марш 1: от тыла к фасаду, правая половина, с площадки разворота
-    flight(geos, d.laneR, midY, zFlight1 - 0.001, -1, d);
+    flight(geos, d.laneR, midY, zFlight1 - 0.001, -1, d, f, collect);
     // площадка этажа у фасада: на неё выводит марш 1 и с неё вход в коридор.
     // На первом этаже это пол подъезда, поэтому «плиту» не рисуем — она совпадает с полом.
-    if (f > 0) landing(geos, d, y, d.zFront + LANDING / 2);
+    if (f > 0) landing(geos, d, y, d.zFront + LANDING / 2, LANDING, f, collect);
   }
 
+  // геометрия частей — в мировых координатах (origin добавляем один раз здесь)
+  for (const p of collect) { p.geo.translate(origin.x, origin.y, origin.z); parts.push(p); }
   const merged = mergeGeometries(geos, false);
   if (!merged) throw new Error('не удалось собрать геометрию лестницы');
   merged.computeVertexNormals();
@@ -160,7 +180,7 @@ export function buildStaircase(
   return {
     mesh, verts, idx, steps: d.steps, rise: d.rise, tread: d.tread, floorH,
     zone: { x0: d.x0, x1: d.x1, z0: d.zFront, z1: d.zBack },
-    landing: LANDING,
+    landing: LANDING, parts,
   };
 }
 

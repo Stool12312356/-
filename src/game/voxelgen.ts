@@ -22,6 +22,8 @@ export interface VoxelHouseOpts {
 }
 
 export interface VoxelHouseModel {
+  /** тип дома — ключ пачек геометрии/физики мебели (props.ts) */
+  kind: 'khrushchevka' | 'brezhnevka';
   spec: GridSpec;
   /** по этому плану вырезаны внутренние стены и расставлена мебель */
   plan: ApartmentPlan;
@@ -237,6 +239,7 @@ export function buildVoxelHouse(opts: VoxelHouseOpts): VoxelHouseModel {
   for (let c = 0; c < cells.length; c++) if (cells[c] >= 0) voxels++;
 
   return {
+    kind: opts.kind,
     spec: { nx, ny, nz, ox: 0, oy: 0, oz: 0, cells, sectionOf, bearing },
     plan,
     size: [nx * PITCH, ny * PITCH, nz * PITCH],

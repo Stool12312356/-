@@ -23,9 +23,13 @@ const Q = new URLSearchParams(location.search);
 renderer.shadowMap.enabled = !Q.has('noshadow'); renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.95;
 const scene = new THREE.Scene();
-scene.background = new THREE.Color('#9fb4c8'); scene.fog = new THREE.Fog('#9fb4c8', 120, 420);
+// Зимнее небо: холодное, светлое у горизонта. Тот же цвет в тумане — иначе дальние
+// дома «вырезаны» на фоне другого оттенка.
+scene.background = new THREE.Color('#cdd9e4'); scene.fog = new THREE.Fog('#cdd9e4', 120, 420);
 const camera = new THREE.PerspectiveCamera(75, 1, 0.05, 1200); scene.add(camera);
-scene.add(new THREE.HemisphereLight('#cfe0ff', '#4a4a3a', 1.0));
+// Снизу светит СНЕГ, а не земля: раньше нижний цвет был тёмно-коричневый, и зимой
+// предметы снизу выглядели грязно-жёлтыми.
+scene.add(new THREE.HemisphereLight('#dce9f7', '#b9c6d2', 1.15));
 const sun = new THREE.DirectionalLight('#fff1d6', 2.4); sun.position.set(60, 90, 40); sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048); const sc = sun.shadow.camera; sc.left = -80; sc.right = 80; sc.top = 80; sc.bottom = -80; sc.near = 1; sc.far = 300; sun.shadow.bias = -0.0004;
 scene.add(sun, sun.target);
@@ -123,6 +127,12 @@ function onImpact(i: Impact) {
       if (killed) addFeed(`Выбито ${killed} блоков`);
       if (best.house.collapsed.size) addFeed('СЕКЦИЯ ОБРУШЕНА');
     }
+    // Мебель и лестница тоже разрушаются: у них нет вокселей, поэтому взрыв
+    // обрабатывается отдельно для каждого дома рядом (см. props.ts).
+    for (const b of buildings) {
+      const broken = b.propSet.blast(i.pos, EXPLOSION.crater + 1.2, EXPLOSION.strength, scene);
+      if (broken) addFeed(`Разбито предметов: ${broken}`);
+    }
     aimMsg = 'ПОПАДАНИЕ РПГ'; aimT = 1.6;
     return;
   }
@@ -137,6 +147,22 @@ function onImpact(i: Impact) {
       const broken = b.house.damageAt(i.pos, 0.45, dmg, { max: 3 });
       if (broken) { lastHitMarker = performance.now(); }
     }
+  }
+  // попадание по мебели/лестнице: у них отдельные тела физики, а предмет ищем по
+  // точке попадания (тело-пачка не знает, во что именно попали).
+  // ВАЖНО: проверяем, что пуля попала ИМЕННО в тело предметов, иначе выстрел в стену
+  // рядом со столом «разбивал» стол.
+  for (const b of buildings) {
+    if (!b.propSet.ownsBody(i.bodyId)) continue;
+    const target = b.propSet.nearest(i.pos, 0.6);
+    if (!target) continue;
+    const broken = b.propSet.damage(target, i.penetrated ? 120 : 45, scene);
+    if (broken) {
+      addFeed(target.type === 'stairs' ? 'Ступень разрушена' : 'Мебель разбита');
+      lastHitMarker = performance.now();
+      effects.dust(i.pos, 4, 0.7);
+    }
+    break;
   }
   // попадание по боту: ищем ближайшего в радиусе пули
   const bot = bots.nearest(i.pos, 0.85);
@@ -230,6 +256,7 @@ function blast() {
   effects?.explosion([hit.x, hit.y, hit.z], 18);
   const bestG = findHouseNear([hit.x, hit.y, hit.z], 3);
   if (bestG) bestG.house.damageAt([hit.x, hit.y, hit.z], EXPLOSION_SMALL.crater, EXPLOSION_SMALL.strength, { max: EXPLOSION_SMALL.craterMax });
+  for (const b of buildings) b.propSet.blast([hit.x, hit.y, hit.z], 2.6, 200, scene);
 }
 
 let lastT = performance.now(), fps = 60, eyeY = 1.65, bob = 0;
