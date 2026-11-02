@@ -1,0 +1,41 @@
+{
+  "note": "Текстуры скачаны из свободных источников и уменьшены до 512px. Список — для атрибуции.",
+  "textures": [
+    {
+      "name": "brick",
+      "file": "brick.jpg",
+      "source": "mrdoob/three.js/examples/textures/brick_diffuse.jpg",
+      "license": "three.js examples (MIT)"
+    },
+    {
+      "name": "wood",
+      "file": "wood.jpg",
+      "source": "mrdoob/three.js/examples/textures/hardwood2_diffuse.jpg",
+      "license": "three.js examples (MIT)"
+    },
+    {
+      "name": "grass",
+      "file": "grass.jpg",
+      "source": "mrdoob/three.js/examples/textures/terrain/grasslight-big.jpg",
+      "license": "three.js examples (MIT)"
+    },
+    {
+      "name": "asphalt",
+      "file": "asphalt.jpg",
+      "source": "KhronosGroup/glTF-Sample-Assets/Models/TrafficCone/glTF/asphalt_02_diff_1k.jpg",
+      "license": "Khronos glTF-Sample-Assets (CC0)"
+    },
+    {
+      "name": "brick_normal",
+      "file": "brick_normal.jpg",
+      "source": "KhronosGroup/glTF-Sample-Assets/Models/TrafficCone/glTF/asphalt_02_rough_1k.jpg",
+      "license": "Khronos glTF-Sample-Assets (CC0)"
+    },
+    {
+      "name": "stucco",
+      "file": "stucco.jpg",
+      "source": "mrdoob/three.js/examples/textures/brick_bump.jpg",
+      "license": "three.js examples (MIT)"
+    }
+  ]
+}

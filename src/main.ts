@@ -7,6 +7,7 @@ import { setupEnvironment } from './render/env';
 import { Effects } from './game/effects';
 import { PlayerCombat } from './game/combat';
 import { Scope } from './game/scope';
+import { loadTextures } from './render/tex';
 import { Bots } from './game/bots';
 import { spawnVoxelHouse, type PlacedBuilding } from './game/structure';
 import { SURFACES, pointBlankRange } from './game/weapons';
@@ -50,6 +51,7 @@ let lastHitMarker = 0;
 
 async function boot() {
   const load = $('load');
+  await loadTextures((d, t, n) => { load.textContent = `Загрузка текстур ${d}/${t}: ${n}`; });
   await lib.init((d, t, n) => { load.textContent = `Загрузка моделей ${d}/${t}: ${n}`; });
   await phys.ready;
   buildPolygon(scene, lib, phys);
@@ -109,8 +111,10 @@ function onImpact(i: Impact) {
     effects.explosion(i.pos, 9);
     const best = findHouseNear(i.pos, 3);
     if (best) {
-      // РПГ: выбивает ВОКСЕЛЬНЫЙ кратер (не панель целиком)
-      const killed = best.house.damageAt(i.pos, 2.6, 8, { max: 160 });
+      // РПГ: выбивает ВОКСЕЛЬНЫЙ кратер. Сила 400 при HP бетона 30 — гарантированно
+      // сносит блоки в радиусе; раньше стояло 8, и блоки только темнели (претензия
+      // «РПГ не рушит блоки, иногда они темнеют»).
+      const killed = best.house.damageAt(i.pos, 3.4, 400, { max: 600 });
       if (killed) addFeed(`Выбито ${killed} блоков`);
       if (best.house.collapsed.size) addFeed('СЕКЦИЯ ОБРУШЕНА');
     }

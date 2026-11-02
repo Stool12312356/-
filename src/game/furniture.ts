@@ -20,5 +20,61 @@ const FURN: Record<string, () => THREE.Group> = {
   carpet: () => { const g = new THREE.Group(); const c = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.02, 1.8), mat('carpet', '#7a3a3a', 1)); g.add(c); return g; },
   lamp: () => { const g = new THREE.Group(); const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.4, 6), mat('metal2', '#444', 0.4, 0.6)); rod.position.y = 0.2; g.add(rod); const sh = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.22, 10, 1, true), mat('lamp', '#e8dfc8', 0.9, 0, { side: THREE.DoubleSide })); sh.position.y = -0.02; g.add(sh); const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), mat('bulb', '#fff2c0', 0.4, 0, { emissive: new THREE.Color('#ffe8a0'), emissiveIntensity: 1.8 })); bulb.position.y = -0.08; g.add(bulb); return g; },
 };
-export function buildFurniture(kind: string): THREE.Group | null { const f = FURN[kind]; return f ? f() : null; }
+export function buildFurniture(kind: string): THREE.Group | null {
+  const f = FURN[kind] ?? EXTRA[kind];
+  return f ? f() : null;
+}
 export const FURNITURE_KINDS = Object.keys(FURN);
+
+/**
+ * Мебель, которой не хватало для планировки: кухонный гарнитур, унитаз, ванна, мойка.
+ * Раньше на плане эти комнаты «затыкали» обычными шкафами — выглядело как склад.
+ */
+const M = (c: string) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.75, metalness: 0.05 });
+const EXTRA: Record<string, () => THREE.Group> = {
+  kitchen: () => {
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.85, 0.55), M('#c9c3b2'));
+    body.position.y = 0.425; g.add(body);
+    const top = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.06, 0.6), M('#8d8a85'));
+    top.position.y = 0.88; g.add(top);
+    for (let i = 0; i < 4; i++) {
+      const door = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.04), M('#b8b2a2'));
+      door.position.set(-0.82 + i * 0.55, 0.45, 0.29); g.add(door);
+    }
+    const hood = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.25, 0.4), M('#9aa0a6'));
+    hood.position.set(0.3, 1.75, 0.1); g.add(hood);
+    g.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+    return g;
+  },
+  toilet: () => {
+    const g = new THREE.Group();
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.4, 0.5), M('#e8e8e6'));
+    base.position.y = 0.2; g.add(base);
+    const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, 0.06, 14), M('#f2f2f0'));
+    seat.position.y = 0.43; g.add(seat);
+    const tank = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 0.18), M('#e2e2e0'));
+    tank.position.set(0, 0.65, -0.18); g.add(tank);
+    g.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) m.castShadow = true; });
+    return g;
+  },
+  bath: () => {
+    const g = new THREE.Group();
+    const tub = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.55, 0.75), M('#eef0f2'));
+    tub.position.y = 0.275; g.add(tub);
+    const inner = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.3, 0.58), M('#cfd6dc'));
+    inner.position.y = 0.42; g.add(inner);
+    g.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) m.castShadow = true; });
+    return g;
+  },
+  sink: () => {
+    const g = new THREE.Group();
+    const bowl = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.18, 0.42), M('#f0f2f4'));
+    bowl.position.y = 0.82; g.add(bowl);
+    const tap = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.22, 8), M('#b9c0c6'));
+    tap.position.set(0, 1.0, -0.16); g.add(tap);
+    const ped = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.78, 0.16), M('#e6e8ea'));
+    ped.position.y = 0.39; g.add(ped);
+    return g;
+  },
+};

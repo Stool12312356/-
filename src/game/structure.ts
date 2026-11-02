@@ -6,6 +6,7 @@ import type { PhysicsClient } from '../physics/client';
 import { buildVoxelHouse, type VoxelHouseModel, type VoxelHouseOpts } from './voxelgen';
 import { VoxelHouse } from './voxelhouse';
 import { buildFurniture } from './furniture';
+import { furnish as furnishRoom } from './plan';
 import { PITCH } from './voxelhouse';
 
 export interface PlacedBuilding {
@@ -18,29 +19,31 @@ export interface PlacedBuilding {
 }
 
 /** Мебель внутри дома: ставится по квартирам, сливается по материалам в один меш на материал. */
+/**
+ * Мебель строго по 2D-плану (plan.ts): каждая комната получает свои предметы,
+ * повёрнутые так же, как на картинке docs/plan-2k.png.
+ * Геометрия сливается по материалам — иначе это сотни draw call и просадка ФПС.
+ */
 function furnish(model: VoxelHouseModel, scene: THREE.Scene, origin: THREE.Vector3, rotY: number) {
-  const [, H, D] = model.size;
-  const W = model.size[0];
+  const plan = model.plan;
+  const W = plan.w, D = plan.d;
   const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotY);
   const buckets = new Map<string, { geo: THREE.BufferGeometry[]; mat: THREE.Material }>();
-  const floorH = H / (model.floors + 1);
-  const kinds: ('bed' | 'table' | 'chair' | 'wardrobe' | 'sofa' | 'tv' | 'fridge' | 'shelf' | 'carpet' | 'lamp')[] =
-    ['bed', 'table', 'chair', 'wardrobe', 'sofa', 'tv', 'fridge', 'shelf', 'carpet', 'lamp'];
-  const secW = W / model.sections;
+  const floorH = (model.size[1]) / (model.floors + 1);
+  const secW = W;
   for (let s = 0; s < model.sections; s++) {
     for (let f = 0; f < model.floors; f++) {
       const y = 0.02 + f * floorH;
-      // две квартиры на секцию — слева и справа от лестничной клетки
-      for (const side of [-1, 1]) {
-        const qx = -W / 2 + s * secW + secW / 2 + side * secW * 0.28;
-        for (let n = 0; n < 4; n++) {
-          const kind = kinds[(f * 7 + s * 3 + n + (side > 0 ? 4 : 0)) % kinds.length];
-          const dx = ((n % 2) - 0.5) * 1.6, dz = (Math.floor(n / 2) - 0.5) * (D * 0.45) + side * 0.4;
-          const p = new THREE.Vector3(qx + dx, y, dz).applyQuaternion(q).add(origin);
-          const g = buildFurniture(kind);
+      const secCenterX = -model.size[0] / 2 + s * secW + secW / 2;
+      for (const room of plan.rooms) {
+        if (room.id === 'stairs') continue;
+        for (const item of furnishRoom(room)) {
+          const p = new THREE.Vector3(secCenterX + item.x, y, item.z).applyQuaternion(q).add(origin);
+          const g = buildFurniture(item.kind);
           if (!g) continue;
           g.position.copy(p);
-          g.rotation.y = side > 0 ? Math.PI : 0;
+          // на плане поворот задан вокруг вертикали; в мире добавляем поворот дома
+          g.rotation.y = item.rot;
           g.updateMatrixWorld(true);
           g.traverse(o => {
             const m = o as THREE.Mesh;
@@ -64,6 +67,7 @@ function furnish(model: VoxelHouseModel, scene: THREE.Scene, origin: THREE.Vecto
     mesh.castShadow = mesh.receiveShadow = true;
     scene.add(mesh);
   }
+  void D;
 }
 
 export function spawnVoxelHouse(

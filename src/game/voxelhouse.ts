@@ -15,6 +15,7 @@
 import * as THREE from 'three';
 import type { PhysicsClient } from '../physics/client';
 import type { Surface } from '../shared/types';
+import { tex } from '../render/tex.ts';
 
 export const PITCH = 0.5;
 
@@ -140,6 +141,13 @@ export class VoxelHouse {
   private scene: THREE.Scene;
   private phys: PhysicsClient;
   private tint = new Float32Array(CAP * 3);
+  /**
+   * Множитель затемнения от повреждений (1 — целый, 0.55 — почти разрушен).
+   * ВАЖНО: раньше затемнение жило только в цветах вершин чанка, а чанк после разрушения
+   * пересобирается заново с белыми цветами — блок «светлел обратно» (претензия «блоки
+   * темнеют, но после повторного возвращаются»). Теперь множитель хранится по id.
+   */
+  private dmgF = new Float32Array(CAP).fill(1);
 
   private chunkR = new Map<string, ChunkRender>();
   private chunkP = new Map<string, ChunkPhys>();
@@ -202,17 +210,25 @@ export class VoxelHouse {
       this.tint[id * 3] = v; this.tint[id * 3 + 1] = v; this.tint[id * 3 + 2] = v;
     }
 
-    const tex = blockTexture();
+    // Реальные текстуры из public/textures (см. src/render/tex.ts). Если текстура не
+    // загрузилась — материал остаётся однотонным, игра не падает.
+    const tBrick = tex('brick'), tStucco = tex('stucco'), tWood = tex('wood');
+    const generated = blockTexture();      // запасная процедурная кладка
+    const MAP: Record<number, THREE.Texture | null> = { 0: tStucco, 1: tStucco, 2: tBrick, 4: tWood, 5: tStucco };
     for (const [k, color] of Object.entries(VOXEL_COLOR)) {
       const kk = +k;
       if (kk === 3) {
         this.mats.set(kk, new THREE.MeshStandardMaterial({ color, roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.4 }));
-      } else if (kk === 4) {
-        this.mats.set(kk, new THREE.MeshStandardMaterial({ color, roughness: 0.95, metalness: 0.0 }));
-      } else {
-        // map + vertexColors=false: оттенок берём цветом материала, текстура даёт рельеф швов
-        this.mats.set(kk, new THREE.MeshStandardMaterial({ color, ...(tex ? { map: tex } : {}), roughness: 0.92, metalness: 0.02 }));
+        continue;
       }
+      const map = MAP[kk] ?? generated;
+      this.mats.set(kk, new THREE.MeshStandardMaterial({
+        color,
+        ...(map ? { map } : {}),
+        roughness: kk === 4 ? 0.95 : 0.92,
+        metalness: 0.02,
+        vertexColors: true,
+      }));
     }
     this.buildDebris();
     for (const key of this.allChunks()) this.ensureChunk(key);
@@ -258,13 +274,15 @@ export class VoxelHouse {
   private static FACES = VOXEL_FACES;
   private static CORNERS = CUBE_CORNERS;
   private static QUAD = VOXEL_QUADS;
+  /** UV-координаты углов грани: (0,0) (1,0) (1,1) (0,1) в порядке quads */
+  private static QUAD_UV = [[0, 0], [1, 0], [1, 1], [0, 1]];
 
   /** Собирает геометрию чанка: наружные грани живых вокселей, по группам на материал. */
   private ensureChunk(key: string) {
     const [cx, cy, cz] = key.split(',').map(Number);
     const i0 = cx * CHUNK, j0 = cy * CHUNK, k0 = cz * CHUNK;
     const h = PITCH / 2;
-    const perKind = new Map<number, { verts: number[]; slot: Map<number, [number, number]> }>();
+    const perKind = new Map<number, { verts: number[]; uvs: number[]; slot: Map<number, [number, number]> }>();
     for (let j = j0; j < Math.min(this.ny, j0 + CHUNK); j++)
       for (let k = k0; k < Math.min(this.nz, k0 + CHUNK); k++)
         for (let i = i0; i < Math.min(this.nx, i0 + CHUNK); i++) {
@@ -272,16 +290,20 @@ export class VoxelHouse {
           if (id < 0 || !this.alive[id]) continue;
           const kind = this.kind[id];
           const cxp = this.ox + (i + 0.5) * PITCH, cyp = this.oy + (j + 0.5) * PITCH, czp = this.oz + (k + 0.5) * PITCH;
-          const a = perKind.get(kind) ?? { verts: [], slot: new Map<number, [number, number]>() };
+          const a = perKind.get(kind) ?? { verts: [], uvs: [], slot: new Map<number, [number, number]>() };
           const start = a.verts.length / 3;
           let quads = 0;
           for (let f = 0; f < 6; f++) {
             const [di, dj, dk] = VoxelHouse.FACES[f];
             const nid = this.idAt(i + di, j + dj, k + dk);
             if (nid >= 0 && this.alive[nid]) continue;          // грань внутри — не нужна
-            for (const ci of VoxelHouse.QUAD[f]) {
-              const c = VoxelHouse.CORNERS[ci];
+            // UV: каждая грань кубика получает полный тайл текстуры (0..1), иначе карта
+            // «растягивается» на весь чанк и выглядит мыльной.
+            const quadUV = VoxelHouse.QUAD_UV;
+            for (let qi = 0; qi < 4; qi++) {
+              const c = VoxelHouse.CORNERS[VoxelHouse.QUAD[f][qi]];
               a.verts.push(cxp + c[0] * h, cyp + c[1] * h, czp + c[2] * h);
+              a.uvs.push(quadUV[qi * 2], quadUV[qi * 2 + 1]);
             }
             quads++;
           }
@@ -291,6 +313,7 @@ export class VoxelHouse {
 
     // один BufferGeometry на чанк, материалы — группами
     const pos: number[] = [];
+    const uvArr: number[] = [];
     const kinds: number[] = [];
     const ranges: { start: number; count: number; kind: number }[] = [];
     const slot = new Map<number, [number, number]>();
@@ -298,6 +321,7 @@ export class VoxelHouse {
       if (!a.verts.length) continue;
       const base = pos.length / 3;
       for (const v of a.verts) pos.push(v);
+      for (const u of a.uvs) uvArr.push(u);
       for (const [id, [st, cnt]] of a.slot) slot.set(id, [st + base, cnt]);
       ranges.push({ start: base, count: a.verts.length / 3, kind });
       kinds.push(kind);
@@ -307,8 +331,17 @@ export class VoxelHouse {
     const geo = new THREE.BufferGeometry();
     const attr = new THREE.Float32BufferAttribute(new Float32Array(pos), 3);
     geo.setAttribute('position', attr);
-    // цвет вершин: нужен для затемнения повреждённых блоков (см. damageMark)
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(uvArr), 2));
+    // цвет вершин: затемнение повреждённых блоков (см. damageMark). Пишем СРАЗУ из dmgF,
+    // иначе после пересборки чанка повреждения «заживали».
     const colors = new Float32Array(pos.length).fill(1);
+    for (const [id, [start, count]] of slot) {
+      const f = this.dmgF[id];
+      if (f >= 0.999) continue;
+      for (let v = start; v < start + count; v++) {
+        colors[v * 3] = f; colors[v * 3 + 1] = f; colors[v * 3 + 2] = f;
+      }
+    }
     geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     const index: number[] = [];
     for (const r of ranges) {
@@ -461,11 +494,12 @@ export class VoxelHouse {
     const s = ch.slot.get(id);
     if (!s) return;
     const f = 0.55 + 0.45 * Math.max(0, this.hp[id] / Math.max(0.001, this.maxHp[id]));
+    this.dmgF[id] = f;                       // запоминаем: переживёт пересборку чанка
     const col = ch.geo.getAttribute('color') as THREE.BufferAttribute | undefined;
     if (!col) return;
     const arr = col.array as Float32Array;
     for (let v = s[0]; v < s[0] + s[1]; v++) {
-      arr[v * 3] *= f; arr[v * 3 + 1] *= f; arr[v * 3 + 2] *= f;
+      arr[v * 3] = f; arr[v * 3 + 1] = f; arr[v * 3 + 2] = f;
     }
     col.needsUpdate = true;
   }

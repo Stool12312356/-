@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { tex } from '../render/tex.ts';
 
 export const MAP_SIZE = 400, SEG = 160;
 /** Высота рельефа. Центральная зона 260x260 м плоская (полигон), дальше холмы. */
@@ -28,7 +29,22 @@ export function buildTerrain() {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(verts, 3)); geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
   geo.setIndex(new THREE.BufferAttribute(idx, 1)); geo.computeVertexNormals();
-  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, flatShading: false }));
+  // Трава/бетон реальной текстурой: цвет вершин задаёт, где газон, где площадка,
+  // а карта даёт фактуру (иначе земля выглядит однотонным пластиком).
+  const grass = tex('grass');
+  if (grass) {
+    // UV по мировым координатам: 400 м / 8 м = 50 повторов — масштаб травы ~8 м на тайл
+    const uvs = new Float32Array(n * n * 2);
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+      uvs[(j * n + i) * 2] = i / SEG * 50;
+      uvs[(j * n + i) * 2 + 1] = j / SEG * 50;
+    }
+    geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+  }
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+    vertexColors: true, roughness: 1, flatShading: false,
+    ...(grass ? { map: grass } : {}),
+  }));
   mesh.receiveShadow = true;
   return { mesh, verts, idx };
 }
