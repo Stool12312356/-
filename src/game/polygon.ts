@@ -25,7 +25,11 @@ export function buildPolygon(scene: THREE.Scene, lib: AssetLibrary, phys: Physic
     phys.add({ kind: 'static', pos: [x, y, z], quat: quat ? [quat.x, quat.y, quat.z, quat.w] : undefined, friction: 0.9, shapes: [{ t: 'box', he: [w / 2, h / 2, d / 2] }] });
     return m;
   };
+  // Предмет мог исчезнуть из манифеста (правки ТЗ: mon50→claymore, tm62→mine01 и т.п.).
+  // Один отсутствующий id не должен ронять весь полигон — пропускаем его и пишем в консоль.
+  const missing = new Set<string>();
   const place = (id: string, x: number, z: number, o: { y?: number; rotY?: number; dyn?: boolean; lab?: boolean; mass?: number } = {}) => {
+    if (!lib.has(id)) { if (!missing.has(id)) { missing.add(id); console.warn('Полигон: нет в манифесте, пропущено —', id); } return null; }
     const inst = lib.make(id); const obj = inst.object; const item = inst.item;
     const shape = lib.colliderFor(id, obj);
     const box = new THREE.Box3().setFromObject(obj); const size = box.getSize(new THREE.Vector3());
@@ -42,14 +46,15 @@ export function buildPolygon(scene: THREE.Scene, lib: AssetLibrary, phys: Physic
   const real = ['t90a', 'bmp2', 'm1a2', 'm2', 'mi24', 'mh6'];
   real.forEach((id, i) => place(id, -45 + i * 18, 40, { rotY: Math.PI }));
   // --- ряды B: техника-заглушки (каждая своя форма) ---
-  const vph = ['btr80', 'brdm2', 'zsu234', 'uaz469', 'gaz66', 'ural4320', 'ural_moto', 'mi8', 'su25', 'boat', 'inflatable', 'vaz2101', 'volga24', 'liaz', 'tram', 'kamaz'];
+  const vph = ['btr80', 'brdm2', 'zsu234', 'uaz469', 'gaz66', 'ural4320', 'mi8', 'su25', 'pubg_boat', 'assault_boat', 'vaz2105', 'volga24', 'liaz', 'tatra_t3', 'kamaz'];
   vph.forEach((id, i) => place(id, -62 + (i % 8) * 17, i < 8 ? 12 : -14, { rotY: Math.PI }));
 
   // --- стол с оружием и гаджетами ---
-  const items = ['akm', 'ak74', 'aks74u', 'svd', 'pkm', 'rpk', 'rpg7', 'spg9', 'pm', 'gp25', 'mortar82', 'rgd5', 'f1', 'c4', 'mon50', 'tm62', 'medkit', 'ammobox', 'wrench', 'drone', 'm4a1', 'awm_l96', 'pgm_ur'];
+  const items = ['akm', 'ak74', 'aks74u', 'svd', 'pkm', 'rpk', 'rpg7', 'pm', 'gp25', 'mortar_m30', 'rgd5', 'f1', 'c4', 'claymore', 'mine01', 'medkit', 'ammobox', 'drone_scout', 'fpv_drone', 'm4a1', 'awm_l96', 'pgm_ur'];
   const slot = 1.45, tx = -(items.length * slot) / 2;
   staticBox(0, 0.45, 76, items.length * slot + 2, 0.9, 1.8, '#5a4a3a');
   items.forEach((id, i) => {
+    if (!lib.has(id)) { if (!missing.has(id)) { missing.add(id); console.warn('Полигон: нет в манифесте, пропущено —', id); } return; }
     const inst = lib.make(id); const b = new THREE.Box3().setFromObject(inst.object); const s = b.getSize(new THREE.Vector3());
     // оружие кладём «лёжа»: длинная сторона вдоль оси стола (X) — разворачиваем на 90°, чтобы все влезли
     const longZ = s.z > s.x * 1.5 && s.z > 0.5;
