@@ -165,7 +165,15 @@
    "match": "^ak74_wood\\.glb$",
    "forward": "-z",
    "viewmodel": "rig",
-   "note": "из пака ak-74_pack_game_asset"
+   "note": "из пака ak-74_pack_game_asset",
+   "placeholder": {
+    "builder": "rifle",
+    "p": {
+     "len": 0.94,
+     "mag": "curved",
+     "stock": "plum"
+    }
+   }
   },
   {
    "id": "ak74m",
@@ -175,7 +183,15 @@
    "match": "^ak74m\\.glb$",
    "forward": "-z",
    "viewmodel": "rig",
-   "note": "из пака"
+   "note": "из пака",
+   "placeholder": {
+    "builder": "rifle",
+    "p": {
+     "len": 0.94,
+     "mag": "curved",
+     "stock": "polymer"
+    }
+   }
   },
   {
    "id": "ak74m_1p29",
@@ -185,7 +201,15 @@
    "match": "^ak74m_1p29\\.glb$",
    "forward": "-z",
    "viewmodel": "rig",
-   "note": "из пака"
+   "note": "из пака",
+   "placeholder": {
+    "builder": "rifle",
+    "p": {
+     "len": 0.94,
+     "mag": "curved",
+     "stock": "polymer"
+    }
+   }
   },
   {
    "id": "ak74_rail",
@@ -195,7 +219,11 @@
    "match": "^ak74_wood_rail\\.glb$",
    "forward": "-z",
    "viewmodel": "rig",
-   "note": "из пака"
+   "note": "из пака",
+   "placeholder": {
+    "builder": "scope",
+    "p": {}
+   }
   },
   {
    "id": "ak74_beryl",
@@ -205,7 +233,15 @@
    "match": "^ak74_beryl\\.glb$",
    "forward": "-z",
    "viewmodel": "rig",
-   "note": "из пака"
+   "note": "из пака",
+   "placeholder": {
+    "builder": "rifle",
+    "p": {
+     "len": 0.94,
+     "mag": "curved",
+     "stock": "polymer"
+    }
+   }
   },
   {
    "id": "ak74_tactical",
@@ -215,7 +251,15 @@
    "match": "^ak74_tactical\\.glb$",
    "forward": "-z",
    "viewmodel": "rig",
-   "note": "из пака"
+   "note": "из пака",
+   "placeholder": {
+    "builder": "rifle",
+    "p": {
+     "len": 0.94,
+     "mag": "curved",
+     "stock": "polymer"
+    }
+   }
   },
   {
    "id": "att_1p29",
@@ -225,7 +269,11 @@
    "match": "^att_1p29\\.glb$",
    "forward": "-z",
    "mount": "side_rail",
-   "note": "из пака АК"
+   "note": "из пака АК",
+   "placeholder": {
+    "builder": "scope",
+    "p": {}
+   }
   },
   {
    "id": "att_side_rail",
@@ -235,7 +283,11 @@
    "match": "^att_side_rail\\.glb$",
    "forward": "-z",
    "mount": "receiver_left",
-   "note": "из пака АК"
+   "note": "из пака АК",
+   "placeholder": {
+    "builder": "scope",
+    "p": {}
+   }
   },
   {
    "id": "att_pica_optic",
@@ -245,23 +297,11 @@
    "match": "^att_pica_optic\\.glb$",
    "forward": "-z",
    "mount": "side_rail",
-   "note": "из пака АК"
-  },
-  {
-   "id": "aks74u",
-   "name": "АКС-74У",
-   "category": "weapon",
-   "faction": "ussr",
-   "match": null,
+   "note": "из пака АК",
    "placeholder": {
-    "builder": "rifle",
-    "p": {
-     "len": 0.73,
-     "mag": "curved",
-     "stock": "folded"
-    }
-   },
-   "note": "модели нет — заглушка (в паке АК короткого ствола нет)"
+    "builder": "scope",
+    "p": {}
+   }
   },
   {
    "id": "svd",
@@ -271,7 +311,16 @@
    "match": "dragunov",
    "targetLength": 1.225,
    "forward": "-z",
-   "viewmodel": "rig"
+   "viewmodel": "rig",
+   "placeholder": {
+    "builder": "rifle",
+    "p": {
+     "len": 1.22,
+     "mag": "straight",
+     "stock": "skeleton",
+     "scope": true
+    }
+   }
   },
   {
    "id": "pkm",
@@ -281,7 +330,14 @@
    "match": "low-poly_pkm",
    "targetLength": 1.16,
    "forward": "+z",
-   "viewmodel": "rig"
+   "viewmodel": "rig",
+   "placeholder": {
+    "builder": "mg",
+    "p": {
+     "len": 1.16,
+     "belt": true
+    }
+   }
   },
   {
    "id": "rpk",
@@ -291,7 +347,14 @@
    "match": "low-poly_rpk",
    "targetLength": 1.04,
    "forward": "+x",
-   "viewmodel": "rig"
+   "viewmodel": "rig",
+   "placeholder": {
+    "builder": "mg",
+    "p": {
+     "len": 1.04,
+     "belt": false
+    }
+   }
   },
   {
    "id": "rpg7",
@@ -300,7 +363,14 @@
    "faction": "ussr",
    "match": "rpg_-_7",
    "targetLength": 0.95,
-   "forward": "+z"
+   "forward": "+z",
+   "placeholder": {
+    "builder": "launcher",
+    "p": {
+     "len": 0.95,
+     "warhead": true
+    }
+   }
   },
   {
    "id": "pm",
@@ -309,7 +379,11 @@
    "faction": "ussr",
    "match": "makarov",
    "targetLength": 0.16,
-   "forward": "+x"
+   "forward": "+x",
+   "placeholder": {
+    "builder": "pistol",
+    "p": {}
+   }
   },
   {
    "id": "gp25",
@@ -320,7 +394,14 @@
    "targetLength": 0.32,
    "forward": "-z",
    "mount": "underbarrel",
-   "note": "навешивается под ствол"
+   "note": "навешивается под ствол",
+   "placeholder": {
+    "builder": "launcher",
+    "p": {
+     "len": 0.32,
+     "warhead": false
+    }
+   }
   },
   {
    "id": "mortar_m30",
@@ -329,7 +410,15 @@
    "faction": "ussr",
    "match": "m30_mortar",
    "targetHeight": 1.3,
-   "forward": "-x"
+   "forward": "-x",
+   "placeholder": {
+    "builder": "launcher",
+    "p": {
+     "len": 1.3,
+     "warhead": false,
+     "mortar": true
+    }
+   }
   },
   {
    "id": "rgd5",
@@ -338,7 +427,13 @@
    "faction": "ussr",
    "match": "rgd-5",
    "targetHeight": 0.115,
-   "forward": "+z"
+   "forward": "+z",
+   "placeholder": {
+    "builder": "grenade",
+    "p": {
+     "shape": "egg"
+    }
+   }
   },
   {
    "id": "f1",
@@ -347,7 +442,13 @@
    "faction": "ussr",
    "match": "^f-1\\.glb$",
    "targetHeight": 0.13,
-   "forward": "+z"
+   "forward": "+z",
+   "placeholder": {
+    "builder": "grenade",
+    "p": {
+     "shape": "ribbed"
+    }
+   }
   },
   {
    "id": "c4",
@@ -356,7 +457,11 @@
    "faction": "ussr",
    "match": "c4_explosive",
    "targetLength": 0.3,
-   "forward": "+z"
+   "forward": "+z",
+   "placeholder": {
+    "builder": "brick",
+    "p": {}
+   }
   },
   {
    "id": "claymore",
@@ -365,7 +470,11 @@
    "faction": "ussr",
    "match": "claymore",
    "targetWidth": 0.22,
-   "forward": "+z"
+   "forward": "+z",
+   "placeholder": {
+    "builder": "claymore",
+    "p": {}
+   }
   },
   {
    "id": "mine01",
@@ -374,7 +483,11 @@
    "faction": "ussr",
    "match": "mine-01",
    "targetWidth": 0.32,
-   "forward": "+z"
+   "forward": "+z",
+   "placeholder": {
+    "builder": "mine",
+    "p": {}
+   }
   },
   {
    "id": "medkit",
@@ -383,7 +496,19 @@
    "faction": "ussr",
    "match": "first_aid",
    "targetHeight": 0.25,
-   "forward": "+z"
+   "forward": "+z",
+   "placeholder": {
+    "builder": "crate",
+    "p": {
+     "color": "#e8e8e8",
+     "cross": true,
+     "size": [
+      0.32,
+      0.2,
+      0.2
+     ]
+    }
+   }
   },
   {
    "id": "ammobox",
@@ -392,7 +517,18 @@
    "faction": "ussr",
    "match": "ammo_box",
    "scale": 0.0125,
-   "forward": "+z"
+   "forward": "+z",
+   "placeholder": {
+    "builder": "crate",
+    "p": {
+     "color": "#4a5a30",
+     "size": [
+      0.5,
+      0.3,
+      0.28
+     ]
+    }
+   }
   },
   {
    "id": "drone_scout",
@@ -401,7 +537,11 @@
    "faction": "ussr",
    "match": "^drone\\.glb$",
    "scale": 0.165,
-   "forward": "+x"
+   "forward": "+x",
+   "placeholder": {
+    "builder": "drone",
+    "p": {}
+   }
   },
   {
    "id": "fpv_drone",
@@ -410,7 +550,13 @@
    "faction": "ussr",
    "match": "fpv_drone",
    "scale": 0.03,
-   "forward": "+z"
+   "forward": "+z",
+   "placeholder": {
+    "builder": "drone",
+    "p": {
+     "fpv": true
+    }
+   }
   },
   {
    "id": "btr80",
@@ -422,7 +568,17 @@
    "forward": "+x",
    "mass": 13600,
    "hp": 800,
-   "locomotion": "wheeled"
+   "locomotion": "wheeled",
+   "placeholder": {
+    "builder": "wheeled",
+    "p": {
+     "wheels": 8,
+     "len": 7.65,
+     "w": 2.9,
+     "h": 2.4,
+     "body": "apc"
+    }
+   }
   },
   {
    "id": "brdm2",
@@ -434,7 +590,17 @@
    "forward": "+x",
    "mass": 7000,
    "hp": 500,
-   "locomotion": "wheeled"
+   "locomotion": "wheeled",
+   "placeholder": {
+    "builder": "wheeled",
+    "p": {
+     "wheels": 4,
+     "len": 5.75,
+     "w": 2.35,
+     "h": 2.3,
+     "body": "apc"
+    }
+   }
   },
   {
    "id": "zsu234",
@@ -446,7 +612,16 @@
    "forward": "+x",
    "mass": 19000,
    "hp": 600,
-   "locomotion": "tracked"
+   "locomotion": "tracked",
+   "placeholder": {
+    "builder": "tracked",
+    "p": {
+     "len": 6.5,
+     "w": 3.1,
+     "h": 2.2,
+     "turret": "quad"
+    }
+   }
   },
   {
    "id": "uaz469",
@@ -458,7 +633,17 @@
    "forward": "-x",
    "mass": 1700,
    "hp": 300,
-   "locomotion": "wheeled"
+   "locomotion": "wheeled",
+   "placeholder": {
+    "builder": "wheeled",
+    "p": {
+     "wheels": 4,
+     "len": 4,
+     "w": 1.8,
+     "h": 2,
+     "body": "jeep"
+    }
+   }
   },
   {
    "id": "gaz66",
@@ -470,7 +655,17 @@
    "forward": "+z",
    "mass": 3400,
    "hp": 350,
-   "locomotion": "wheeled"
+   "locomotion": "wheeled",
+   "placeholder": {
+    "builder": "wheeled",
+    "p": {
+     "wheels": 4,
+     "len": 5.8,
+     "w": 2.3,
+     "h": 2.5,
+     "body": "truck"
+    }
+   }
   },
   {
    "id": "ural4320",
@@ -482,7 +677,17 @@
    "forward": "+x",
    "mass": 8000,
    "hp": 400,
-   "locomotion": "wheeled"
+   "locomotion": "wheeled",
+   "placeholder": {
+    "builder": "wheeled",
+    "p": {
+     "wheels": 6,
+     "len": 7.3,
+     "w": 2.5,
+     "h": 2.9,
+     "body": "truck"
+    }
+   }
   },
   {
    "id": "kamaz",
@@ -494,7 +699,17 @@
    "forward": "+z",
    "mass": 9000,
    "hp": 400,
-   "locomotion": "wheeled"
+   "locomotion": "wheeled",
+   "placeholder": {
+    "builder": "wheeled",
+    "p": {
+     "wheels": 6,
+     "len": 7.8,
+     "w": 2.5,
+     "h": 3.3,
+     "body": "truck"
+    }
+   }
   },
   {
    "id": "liaz",
@@ -506,7 +721,17 @@
    "forward": "+z",
    "mass": 9500,
    "hp": 300,
-   "locomotion": "wheeled"
+   "locomotion": "wheeled",
+   "placeholder": {
+    "builder": "wheeled",
+    "p": {
+     "wheels": 4,
+     "len": 10.5,
+     "w": 2.5,
+     "h": 3,
+     "body": "bus"
+    }
+   }
   },
   {
    "id": "tatra_t3",
@@ -518,7 +743,17 @@
    "forward": "+z",
    "mass": 18000,
    "hp": 400,
-   "locomotion": "rail"
+   "locomotion": "rail",
+   "placeholder": {
+    "builder": "wheeled",
+    "p": {
+     "wheels": 4,
+     "len": 6.5,
+     "w": 2.5,
+     "h": 3.0,
+     "body": "tram"
+    }
+   }
   },
   {
    "id": "volga24",
@@ -530,7 +765,17 @@
    "forward": "-z",
    "mass": 1420,
    "hp": 220,
-   "locomotion": "wheeled"
+   "locomotion": "wheeled",
+   "placeholder": {
+    "builder": "wheeled",
+    "p": {
+     "wheels": 4,
+     "len": 4.73,
+     "w": 1.8,
+     "h": 1.5,
+     "body": "sedan"
+    }
+   }
   },
   {
    "id": "vaz2105",
@@ -542,7 +787,17 @@
    "forward": "+z",
    "mass": 1000,
    "hp": 200,
-   "locomotion": "wheeled"
+   "locomotion": "wheeled",
+   "placeholder": {
+    "builder": "wheeled",
+    "p": {
+     "wheels": 4,
+     "len": 4.1,
+     "w": 1.6,
+     "h": 1.4,
+     "body": "car"
+    }
+   }
   },
   {
    "id": "mi8",
@@ -555,7 +810,14 @@
    "mass": 7000,
    "hp": 800,
    "locomotion": "heli",
-   "colliderExclude": "rotor|blade"
+   "colliderExclude": "rotor|blade",
+   "placeholder": {
+    "builder": "heli",
+    "p": {
+     "len": 18.2,
+     "rotor": 21.3
+    }
+   }
   },
   {
    "id": "su25",
@@ -567,7 +829,11 @@
    "forward": "+z",
    "mass": 14000,
    "hp": 700,
-   "locomotion": "plane"
+   "locomotion": "plane",
+   "placeholder": {
+    "builder": "jet",
+    "p": {}
+   }
   },
   {
    "id": "assault_boat",
@@ -578,7 +844,14 @@
    "scale": 0.01,
    "forward": "+z",
    "mass": 250,
-   "hp": 80
+   "hp": 80,
+   "placeholder": {
+    "builder": "boat",
+    "p": {
+     "len": 6,
+     "w": 2.2
+    }
+   }
   },
   {
    "id": "pubg_boat",
@@ -588,7 +861,14 @@
    "match": "pubg_boat",
    "forward": "+x",
    "mass": 3000,
-   "hp": 300
+   "hp": 300,
+   "placeholder": {
+    "builder": "boat",
+    "p": {
+     "len": 6,
+     "w": 2.2
+    }
+   }
   },
   {
    "id": "soldier_ussr",
@@ -599,7 +879,13 @@
    "targetHeight": 1.8,
    "forward": "+z",
    "recolor": "winter",
-   "note": "T-поза, перекрашен"
+   "note": "T-поза, перекрашен",
+   "placeholder": {
+    "builder": "humanoid",
+    "p": {
+     "color": "#5a6a3a"
+    }
+   }
   },
   {
    "id": "soldier_opfor",
@@ -610,7 +896,13 @@
    "targetHeight": 1.85,
    "forward": "+z",
    "recolor": "winter",
-   "note": "T-поза, перекрашен"
+   "note": "T-поза, перекрашен",
+   "placeholder": {
+    "builder": "humanoid",
+    "p": {
+     "color": "#6a5a48"
+    }
+   }
   },
   {
    "id": "lenin",
@@ -619,7 +911,11 @@
    "faction": "civil",
    "match": "lenin",
    "targetHeight": 8.0,
-   "forward": "+z"
+   "forward": "+z",
+   "placeholder": {
+    "builder": "monument",
+    "p": {}
+   }
   },
   {
    "id": "busstop",
@@ -628,7 +924,11 @@
    "faction": "civil",
    "match": "bus_stop",
    "scale": 0.0125,
-   "forward": "+z"
+   "forward": "+z",
+   "placeholder": {
+    "builder": "busstop",
+    "p": {}
+   }
   },
   {
    "id": "kiosk",
@@ -637,7 +937,11 @@
    "faction": "civil",
    "match": "kiosk",
    "scale": 0.75,
-   "forward": "+z"
+   "forward": "+z",
+   "placeholder": {
+    "builder": "kiosk",
+    "p": {}
+   }
   },
   {
    "id": "garage_a",
@@ -646,7 +950,11 @@
    "faction": "civil",
    "match": "^garage_a\\.glb$",
    "forward": "+x",
-   "note": "из пака гаражей"
+   "note": "из пака гаражей",
+   "placeholder": {
+    "builder": "garage",
+    "p": {}
+   }
   },
   {
    "id": "garage_b",
@@ -655,7 +963,11 @@
    "faction": "civil",
    "match": "^garage_b\\.glb$",
    "forward": "+z",
-   "note": "из пака гаражей"
+   "note": "из пака гаражей",
+   "placeholder": {
+    "builder": "garage",
+    "p": {}
+   }
   },
   {
    "id": "garage_c",
@@ -664,7 +976,11 @@
    "faction": "civil",
    "match": "^garage_c\\.glb$",
    "forward": "+z",
-   "note": "из пака гаражей"
+   "note": "из пака гаражей",
+   "placeholder": {
+    "builder": "garage",
+    "p": {}
+   }
   },
   {
    "id": "garage_d",
@@ -673,7 +989,11 @@
    "faction": "civil",
    "match": "^garage_d\\.glb$",
    "forward": "+z",
-   "note": "из пака гаражей"
+   "note": "из пака гаражей",
+   "placeholder": {
+    "builder": "garage",
+    "p": {}
+   }
   },
   {
    "id": "wtree_a",
@@ -682,7 +1002,13 @@
    "faction": "civil",
    "match": "^wtree_a\\.glb$",
    "forward": "+z",
-   "note": "из пака зимних деревьев"
+   "note": "из пака зимних деревьев",
+   "placeholder": {
+    "builder": "tree",
+    "p": {
+     "type": "spruce"
+    }
+   }
   },
   {
    "id": "wtree_b",
@@ -691,7 +1017,13 @@
    "faction": "civil",
    "match": "^wtree_b\\.glb$",
    "forward": "+z",
-   "note": "из пака зимних деревьев"
+   "note": "из пака зимних деревьев",
+   "placeholder": {
+    "builder": "tree",
+    "p": {
+     "type": "spruce"
+    }
+   }
   },
   {
    "id": "wtree_c",
@@ -700,7 +1032,13 @@
    "faction": "civil",
    "match": "^wtree_c\\.glb$",
    "forward": "+z",
-   "note": "из пака зимних деревьев"
+   "note": "из пака зимних деревьев",
+   "placeholder": {
+    "builder": "tree",
+    "p": {
+     "type": "spruce"
+    }
+   }
   },
   {
    "id": "wtree_d",
@@ -709,7 +1047,13 @@
    "faction": "civil",
    "match": "^wtree_d\\.glb$",
    "forward": "+z",
-   "note": "из пака зимних деревьев"
+   "note": "из пака зимних деревьев",
+   "placeholder": {
+    "builder": "tree",
+    "p": {
+     "type": "spruce"
+    }
+   }
   },
   {
    "id": "wtree_e",
@@ -718,7 +1062,13 @@
    "faction": "civil",
    "match": "^wtree_e\\.glb$",
    "forward": "+z",
-   "note": "из пака зимних деревьев"
+   "note": "из пака зимних деревьев",
+   "placeholder": {
+    "builder": "tree",
+    "p": {
+     "type": "spruce"
+    }
+   }
   },
   {
    "id": "wtree_f",
@@ -727,7 +1077,13 @@
    "faction": "civil",
    "match": "^wtree_f\\.glb$",
    "forward": "+z",
-   "note": "из пака зимних деревьев"
+   "note": "из пака зимних деревьев",
+   "placeholder": {
+    "builder": "tree",
+    "p": {
+     "type": "spruce"
+    }
+   }
   },
   {
    "id": "wtree_g",
@@ -736,7 +1092,13 @@
    "faction": "civil",
    "match": "^wtree_g\\.glb$",
    "forward": "+z",
-   "note": "из пака зимних деревьев"
+   "note": "из пака зимних деревьев",
+   "placeholder": {
+    "builder": "tree",
+    "p": {
+     "type": "spruce"
+    }
+   }
   },
   {
    "id": "wtree_h",
@@ -745,7 +1107,13 @@
    "faction": "civil",
    "match": "^wtree_h\\.glb$",
    "forward": "+z",
-   "note": "из пака зимних деревьев"
+   "note": "из пака зимних деревьев",
+   "placeholder": {
+    "builder": "tree",
+    "p": {
+     "type": "spruce"
+    }
+   }
   },
   {
    "id": "wtree_i",
@@ -754,7 +1122,13 @@
    "faction": "civil",
    "match": "^wtree_i\\.glb$",
    "forward": "+z",
-   "note": "из пака зимних деревьев"
+   "note": "из пака зимних деревьев",
+   "placeholder": {
+    "builder": "tree",
+    "p": {
+     "type": "spruce"
+    }
+   }
   },
   {
    "id": "wshrub_a",
@@ -763,7 +1137,13 @@
    "faction": "civil",
    "match": "^wshrub_a\\.glb$",
    "forward": "+z",
-   "note": "из пака"
+   "note": "из пака",
+   "placeholder": {
+    "builder": "tree",
+    "p": {
+     "type": "shrub"
+    }
+   }
   },
   {
    "id": "wshrub_b",
@@ -772,7 +1152,13 @@
    "faction": "civil",
    "match": "^wshrub_b\\.glb$",
    "forward": "+z",
-   "note": "из пака"
+   "note": "из пака",
+   "placeholder": {
+    "builder": "tree",
+    "p": {
+     "type": "shrub"
+    }
+   }
   },
   {
    "id": "wshrub_c",
@@ -781,7 +1167,13 @@
    "faction": "civil",
    "match": "^wshrub_c\\.glb$",
    "forward": "+z",
-   "note": "из пака"
+   "note": "из пака",
+   "placeholder": {
+    "builder": "tree",
+    "p": {
+     "type": "shrub"
+    }
+   }
   },
   {
    "id": "whedge_a",
@@ -790,7 +1182,13 @@
    "faction": "civil",
    "match": "^whedge_a\\.glb$",
    "forward": "+z",
-   "note": "из пака"
+   "note": "из пака",
+   "placeholder": {
+    "builder": "tree",
+    "p": {
+     "type": "hedge"
+    }
+   }
   },
   {
    "id": "whedge_b",
@@ -799,7 +1197,13 @@
    "faction": "civil",
    "match": "^whedge_b\\.glb$",
    "forward": "+z",
-   "note": "из пака"
+   "note": "из пака",
+   "placeholder": {
+    "builder": "tree",
+    "p": {
+     "type": "hedge"
+    }
+   }
   },
   {
    "id": "wforest",
@@ -808,7 +1212,13 @@
    "faction": "civil",
    "match": "^wforest\\.glb$",
    "forward": "+z",
-   "note": "из пака"
+   "note": "из пака",
+   "placeholder": {
+    "builder": "tree",
+    "p": {
+     "type": "spruce"
+    }
+   }
   },
   {
    "id": "snow_ground",
@@ -817,7 +1227,16 @@
    "faction": "civil",
    "match": "^snow_ground\\.glb$",
    "forward": "+z",
-   "note": "из пака (Snow)"
+   "note": "из пака (Snow)",
+   "placeholder": {
+    "builder": "panel",
+    "p": {
+     "floors": 1,
+     "sections": 1,
+     "secW": 4,
+     "depth": 4
+    }
+   }
   },
   {
    "id": "snow_melting",
@@ -826,7 +1245,16 @@
    "faction": "civil",
    "match": "^snow_melting\\.glb$",
    "forward": "+z",
-   "note": "из пака (Snow_Melting)"
+   "note": "из пака (Snow_Melting)",
+   "placeholder": {
+    "builder": "panel",
+    "p": {
+     "floors": 1,
+     "sections": 1,
+     "secW": 4,
+     "depth": 4
+    }
+   }
   },
   {
    "id": "khrushchevka",
@@ -834,7 +1262,16 @@
    "category": "building",
    "faction": "civil",
    "match": null,
-   "procedural": "panel5"
+   "procedural": "panel5",
+   "placeholder": {
+    "builder": "panel",
+    "p": {
+     "floors": 5,
+     "sections": 4,
+     "secW": 8,
+     "depth": 11
+    }
+   }
   },
   {
    "id": "brezhnevka",
@@ -842,7 +1279,16 @@
    "category": "building",
    "faction": "civil",
    "match": null,
-   "procedural": "panel9"
+   "procedural": "panel9",
+   "placeholder": {
+    "builder": "panel",
+    "p": {
+     "floors": 9,
+     "sections": 3,
+     "secW": 10,
+     "depth": 13
+    }
+   }
   }
  ]
 }

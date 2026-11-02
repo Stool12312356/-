@@ -133,6 +133,25 @@ const B: Record<string, (p: P) => THREE.Group> = {
   swing() { const g = new THREE.Group(); for (const s of [-1, 1]) { add(g, cyl(0.04, 0.04, 2.6, '#b03030', 6), s * 1.2, 1.2, 0.6, 0.3); add(g, cyl(0.04, 0.04, 2.6, '#b03030', 6), s * 1.2, 1.2, -0.6, -0.3); } add(g, cyl(0.04, 0.04, 2.6, '#b03030', 6), 0, 2.3, 0, 0, 0, X); add(g, box(0.4, 0.05, 0.2, '#2a4a8a'), 0, 0.55, 0); return g; },
   tree(p) { const g = new THREE.Group(); if (p.type === 'spruce') { add(g, cyl(0.15, 0.2, 1.5, '#4a3a2a', 6), 0, 0.75, 0); for (let i = 0; i < 4; i++) add(g, new THREE.Mesh(new THREE.ConeGeometry(1.8 - i * 0.35, 2.2, 8), mat('#1f4a3a')), 0, 2 + i * 1.3, 0); } else { add(g, cyl(0.12, 0.2, 5, '#d8d4c8', 6), 0, 2.5, 0); add(g, sph(1.8, '#6a8a3a', 1, 1.3, 1), 0, 6, 0); } return g; },
   barrel() { const g = new THREE.Group(); add(g, cyl(0.29, 0.29, 0.88, '#8a2a1a', 14), 0, 0.44, 0); add(g, cyl(0.3, 0.3, 0.04, '#555', 14), 0, 0.5, 0); return g; },
+
+  // Прицелы и планки. Труба оптики + кронштейн, боковая планка — пластина с пазами.
+  scope(p) {
+    const g = new THREE.Group();
+    const rail = p.rail === true;         // только планка, без оптики
+    if (rail) {
+      add(g, box(0.05, 0.02, 0.22, '#3a3a3a', 0.5, 0.6));
+      for (let i = 0; i < 5; i++) add(g, box(0.055, 0.012, 0.015, '#222', 0.4, 0.7), 0, 0.016, -0.08 + i * 0.04);
+      return g;
+    }
+    const fast = p.side === true;         // боковой кронштейн «ласточкин хвост»
+    const L = p.len ?? 0.26;
+    add(g, cyl(0.021, 0.021, L, '#1a1a1c', 14), 0, 0, 0, X);
+    for (const s of [-1, 1]) add(g, cyl(0.026, 0.026, 0.012, '#111', 14), 0, 0, s * L * 0.42, X);
+    add(g, box(0.03, 0.035, 0.05, '#2a2a2a'), 0, -0.033, fast ? -0.05 : 0);
+    if (fast) add(g, box(0.026, 0.05, 0.12, '#333', 0.5, 0.6), -0.035, -0.05, 0);
+    if (p.holo) add(g, box(0.035, 0.045, 0.06, '#222'), 0, 0.033, 0);
+    return g;
+  },
 };
 
 export function buildPlaceholder(spec: { builder: string; p: P }): THREE.Group {

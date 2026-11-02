@@ -1,49 +1,6 @@
 {
- "generated": "2026-11-02T10:34:02.769Z",
+ "generated": "2026-11-02T13:32:20.163Z",
  "items": [
-  {
-   "id": "akm",
-   "name": "АКМ",
-   "category": "weapon",
-   "faction": "ussr",
-   "placeholder": false,
-   "source": "akmn.glb",
-   "file": "assets/game/akmn.glb",
-   "collider": "assets/colliders/akm.json",
-   "forward": "+z",
-   "forwardVerified": true,
-   "normalize": {
-    "scale": 0.989545,
-    "rotY": 3.141592653589793,
-    "offset": [
-     -0.0073,
-     -0.0092,
-     -0.0924
-    ]
-   },
-   "size": [
-    0.074,
-    0.256,
-    0.88
-   ],
-   "tris": 45726,
-   "animations": []
-  },
-  {
-   "id": "ak74",
-   "name": "АК-74",
-   "category": "weapon",
-   "faction": "ussr",
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "rifle",
-    "p": {
-     "len": 0.94,
-     "mag": "curved",
-     "stock": "plum"
-    }
-   }
-  },
   {
    "id": "aks74u",
    "name": "АКС-74У",
@@ -57,244 +14,6 @@
      "mag": "curved",
      "stock": "folded"
     }
-   }
-  },
-  {
-   "id": "svd",
-   "name": "СВД",
-   "category": "weapon",
-   "faction": "ussr",
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "rifle",
-    "p": {
-     "len": 1.22,
-     "mag": "straight",
-     "stock": "skeleton",
-     "scope": true
-    }
-   }
-  },
-  {
-   "id": "pkm",
-   "name": "ПКМ",
-   "category": "weapon",
-   "faction": "ussr",
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "mg",
-    "p": {
-     "len": 1.16,
-     "belt": true
-    }
-   }
-  },
-  {
-   "id": "rpk",
-   "name": "РПК",
-   "category": "weapon",
-   "faction": "ussr",
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "mg",
-    "p": {
-     "len": 1.04,
-     "belt": false
-    }
-   }
-  },
-  {
-   "id": "rpg7",
-   "name": "РПГ-7",
-   "category": "weapon",
-   "faction": "ussr",
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "launcher",
-    "p": {
-     "len": 0.95,
-     "warhead": true
-    }
-   }
-  },
-  {
-   "id": "spg9",
-   "name": "СПГ-9",
-   "category": "weapon",
-   "faction": "ussr",
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "launcher",
-    "p": {
-     "len": 2.1,
-     "warhead": true,
-     "tripod": true
-    }
-   }
-  },
-  {
-   "id": "pm",
-   "name": "ПМ",
-   "category": "weapon",
-   "faction": "ussr",
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "pistol",
-    "p": {}
-   }
-  },
-  {
-   "id": "rgd5",
-   "name": "РГД-5",
-   "category": "gadget",
-   "faction": "ussr",
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "grenade",
-    "p": {
-     "shape": "egg"
-    }
-   }
-  },
-  {
-   "id": "f1",
-   "name": "Ф-1",
-   "category": "gadget",
-   "faction": "ussr",
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "grenade",
-    "p": {
-     "shape": "ribbed"
-    }
-   }
-  },
-  {
-   "id": "c4",
-   "name": "C4",
-   "category": "gadget",
-   "faction": "ussr",
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "brick",
-    "p": {}
-   }
-  },
-  {
-   "id": "mon50",
-   "name": "МОН-50",
-   "category": "gadget",
-   "faction": "ussr",
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "claymore",
-    "p": {}
-   }
-  },
-  {
-   "id": "tm62",
-   "name": "ТМ-62",
-   "category": "gadget",
-   "faction": "ussr",
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "mine",
-    "p": {}
-   }
-  },
-  {
-   "id": "gp25",
-   "name": "ГП-25",
-   "category": "weapon",
-   "faction": "ussr",
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "launcher",
-    "p": {
-     "len": 0.32,
-     "warhead": false
-    }
-   }
-  },
-  {
-   "id": "medkit",
-   "name": "Аптечка",
-   "category": "gadget",
-   "faction": "ussr",
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "crate",
-    "p": {
-     "color": "#e8e8e8",
-     "cross": true,
-     "size": [
-      0.32,
-      0.2,
-      0.2
-     ]
-    }
-   }
-  },
-  {
-   "id": "ammobox",
-   "name": "Ящик боеприпасов",
-   "category": "gadget",
-   "faction": "ussr",
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "crate",
-    "p": {
-     "color": "#4a5a30",
-     "size": [
-      0.5,
-      0.3,
-      0.28
-     ]
-    }
-   }
-  },
-  {
-   "id": "wrench",
-   "name": "Ремкомплект",
-   "category": "gadget",
-   "faction": "ussr",
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "crate",
-    "p": {
-     "color": "#8a6a20",
-     "size": [
-      0.4,
-      0.1,
-      0.1
-     ]
-    }
-   }
-  },
-  {
-   "id": "mortar82",
-   "name": "Миномёт 82 мм",
-   "category": "weapon",
-   "faction": "ussr",
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "launcher",
-    "p": {
-     "len": 1.2,
-     "warhead": false,
-     "tripod": true
-    }
-   }
-  },
-  {
-   "id": "drone",
-   "name": "Дрон-разведчик",
-   "category": "gadget",
-   "faction": "ussr",
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "drone",
-    "p": {}
    }
   },
   {
@@ -323,7 +42,7 @@
     0.422,
     1.885
    ],
-   "tris": 14814,
+   "tris": 14138,
    "animations": [
     "Draw",
     "Reload",
@@ -418,7 +137,7 @@
     2.793,
     9.7
    ],
-   "tris": 18101,
+   "tris": 17797,
    "animations": []
   },
   {
@@ -529,7 +248,7 @@
    "forward": "+x",
    "forwardVerified": true,
    "normalize": {
-    "scale": 1.000076,
+    "scale": 1.000081,
     "rotY": 1.5707963267948966,
     "offset": [
      -0.0259,
@@ -563,18 +282,436 @@
     "scale": 3.3,
     "rotY": -0.7504915783575616,
     "offset": [
-     -0.138,
-     1.531,
-     -0.0006
+     -0.1381,
+     1.5404,
+     -0.0005
     ]
    },
    "size": [
-    7.721,
-    3.071,
+    7.72,
+    3.081,
     9.189
    ],
    "tris": 9776,
    "animations": []
+  },
+  {
+   "id": "barrel",
+   "name": "Бочка",
+   "category": "prop",
+   "faction": "civil",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "barrel",
+    "p": {}
+   }
+  },
+  {
+   "id": "crate",
+   "name": "Деревянный ящик",
+   "category": "prop",
+   "faction": "civil",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "crate",
+    "p": {
+     "color": "#8a6a3a",
+     "size": [
+      0.9,
+      0.9,
+      0.9
+     ]
+    }
+   }
+  },
+  {
+   "id": "akm",
+   "name": "АКМ",
+   "category": "weapon",
+   "faction": "ussr",
+   "viewmodel": "rig",
+   "placeholder": false,
+   "source": "akmn.glb",
+   "file": "assets/game/akmn.glb",
+   "collider": "assets/colliders/akm.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.989545,
+    "rotY": 3.141592653589793,
+    "offset": [
+     -0.0073,
+     -0.0092,
+     -0.0924
+    ]
+   },
+   "size": [
+    0.074,
+    0.256,
+    0.88
+   ],
+   "tris": 45726,
+   "animations": []
+  },
+  {
+   "id": "ak74",
+   "name": "АК-74 (дерево)",
+   "category": "weapon",
+   "faction": "ussr",
+   "note": "из пака ak-74_pack_game_asset",
+   "viewmodel": "rig",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "rifle",
+    "p": {
+     "len": 0.94,
+     "mag": "curved",
+     "stock": "plum"
+    }
+   }
+  },
+  {
+   "id": "ak74m",
+   "name": "АК-74М (пластик)",
+   "category": "weapon",
+   "faction": "ussr",
+   "note": "из пака",
+   "viewmodel": "rig",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "rifle",
+    "p": {
+     "len": 0.94,
+     "mag": "curved",
+     "stock": "polymer"
+    }
+   }
+  },
+  {
+   "id": "ak74m_1p29",
+   "name": "АК-74М + прицел 1П29",
+   "category": "weapon",
+   "faction": "ussr",
+   "note": "из пака",
+   "viewmodel": "rig",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "rifle",
+    "p": {
+     "len": 0.94,
+     "mag": "curved",
+     "stock": "polymer"
+    }
+   }
+  },
+  {
+   "id": "ak74_rail",
+   "name": "АК-74 + боковая планка",
+   "category": "weapon",
+   "faction": "ussr",
+   "note": "из пака",
+   "viewmodel": "rig",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "scope",
+    "p": {}
+   }
+  },
+  {
+   "id": "ak74_beryl",
+   "name": "АК-74 (телескопический приклад + коллиматор)",
+   "category": "weapon",
+   "faction": "ussr",
+   "note": "из пака",
+   "viewmodel": "rig",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "rifle",
+    "p": {
+     "len": 0.94,
+     "mag": "curved",
+     "stock": "polymer"
+    }
+   }
+  },
+  {
+   "id": "ak74_tactical",
+   "name": "АК-74 тактический (планки + рукоять)",
+   "category": "weapon",
+   "faction": "ussr",
+   "note": "из пака",
+   "viewmodel": "rig",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "rifle",
+    "p": {
+     "len": 0.94,
+     "mag": "curved",
+     "stock": "polymer"
+    }
+   }
+  },
+  {
+   "id": "att_1p29",
+   "name": "Прицел 1П29",
+   "category": "attachment",
+   "faction": "ussr",
+   "note": "из пака АК",
+   "mount": "side_rail",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "scope",
+    "p": {}
+   }
+  },
+  {
+   "id": "att_side_rail",
+   "name": "Боковая планка (side rail)",
+   "category": "attachment",
+   "faction": "ussr",
+   "note": "из пака АК",
+   "mount": "receiver_left",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "scope",
+    "p": {}
+   }
+  },
+  {
+   "id": "att_pica_optic",
+   "name": "Коллиматор/оптика на Picatinny-кронштейне",
+   "category": "attachment",
+   "faction": "ussr",
+   "note": "из пака АК",
+   "mount": "side_rail",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "scope",
+    "p": {}
+   }
+  },
+  {
+   "id": "svd",
+   "name": "СВД",
+   "category": "weapon",
+   "faction": "ussr",
+   "viewmodel": "rig",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "rifle",
+    "p": {
+     "len": 1.22,
+     "mag": "straight",
+     "stock": "skeleton",
+     "scope": true
+    }
+   }
+  },
+  {
+   "id": "pkm",
+   "name": "ПКМ",
+   "category": "weapon",
+   "faction": "ussr",
+   "viewmodel": "rig",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "mg",
+    "p": {
+     "len": 1.16,
+     "belt": true
+    }
+   }
+  },
+  {
+   "id": "rpk",
+   "name": "РПК",
+   "category": "weapon",
+   "faction": "ussr",
+   "viewmodel": "rig",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "mg",
+    "p": {
+     "len": 1.04,
+     "belt": false
+    }
+   }
+  },
+  {
+   "id": "rpg7",
+   "name": "РПГ-7",
+   "category": "weapon",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "launcher",
+    "p": {
+     "len": 0.95,
+     "warhead": true
+    }
+   }
+  },
+  {
+   "id": "pm",
+   "name": "ПМ",
+   "category": "weapon",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "pistol",
+    "p": {}
+   }
+  },
+  {
+   "id": "gp25",
+   "name": "ГП-25 (подствольный модуль)",
+   "category": "attachment",
+   "faction": "ussr",
+   "note": "навешивается под ствол",
+   "mount": "underbarrel",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "launcher",
+    "p": {
+     "len": 0.32,
+     "warhead": false
+    }
+   }
+  },
+  {
+   "id": "mortar_m30",
+   "name": "Миномёт M30",
+   "category": "weapon",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "launcher",
+    "p": {
+     "len": 1.3,
+     "warhead": false,
+     "mortar": true
+    }
+   }
+  },
+  {
+   "id": "rgd5",
+   "name": "РГД-5",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "grenade",
+    "p": {
+     "shape": "egg"
+    }
+   }
+  },
+  {
+   "id": "f1",
+   "name": "Ф-1",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "grenade",
+    "p": {
+     "shape": "ribbed"
+    }
+   }
+  },
+  {
+   "id": "c4",
+   "name": "C4",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "brick",
+    "p": {}
+   }
+  },
+  {
+   "id": "claymore",
+   "name": "Claymore (вместо МОН-50)",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "claymore",
+    "p": {}
+   }
+  },
+  {
+   "id": "mine01",
+   "name": "Мина mine-01 (вместо ТМ-62)",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "mine",
+    "p": {}
+   }
+  },
+  {
+   "id": "medkit",
+   "name": "Аптечка",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "crate",
+    "p": {
+     "color": "#e8e8e8",
+     "cross": true,
+     "size": [
+      0.32,
+      0.2,
+      0.2
+     ]
+    }
+   }
+  },
+  {
+   "id": "ammobox",
+   "name": "Ящик боеприпасов",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "crate",
+    "p": {
+     "color": "#4a5a30",
+     "size": [
+      0.5,
+      0.3,
+      0.28
+     ]
+    }
+   }
+  },
+  {
+   "id": "drone_scout",
+   "name": "Дрон-разведчик",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "drone",
+    "p": {}
+   }
+  },
+  {
+   "id": "fpv_drone",
+   "name": "FPV-дрон камикадзе",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "drone",
+    "p": {
+     "fpv": true
+    }
+   }
   },
   {
    "id": "btr80",
@@ -696,17 +833,103 @@
    }
   },
   {
-   "id": "ural_moto",
-   "name": "Мотоцикл Урал",
+   "id": "kamaz",
+   "name": "КамАЗ-5330",
    "category": "vehicle",
-   "faction": "ussr",
-   "mass": 350,
-   "hp": 120,
-   "locomotion": "bike",
+   "faction": "civil",
+   "mass": 9000,
+   "hp": 400,
+   "locomotion": "wheeled",
    "placeholder": true,
    "placeholderSpec": {
-    "builder": "bike",
-    "p": {}
+    "builder": "wheeled",
+    "p": {
+     "wheels": 6,
+     "len": 7.8,
+     "w": 2.5,
+     "h": 3.3,
+     "body": "truck"
+    }
+   }
+  },
+  {
+   "id": "liaz",
+   "name": "ЛиАЗ-677",
+   "category": "vehicle",
+   "faction": "civil",
+   "mass": 9500,
+   "hp": 300,
+   "locomotion": "wheeled",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "wheeled",
+    "p": {
+     "wheels": 4,
+     "len": 10.5,
+     "w": 2.5,
+     "h": 3,
+     "body": "bus"
+    }
+   }
+  },
+  {
+   "id": "tatra_t3",
+   "name": "Трамвай Tatra T3",
+   "category": "vehicle",
+   "faction": "civil",
+   "mass": 18000,
+   "hp": 400,
+   "locomotion": "rail",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "wheeled",
+    "p": {
+     "wheels": 4,
+     "len": 6.5,
+     "w": 2.5,
+     "h": 3,
+     "body": "tram"
+    }
+   }
+  },
+  {
+   "id": "volga24",
+   "name": "ГАЗ-24 «Волга»",
+   "category": "vehicle",
+   "faction": "civil",
+   "mass": 1420,
+   "hp": 220,
+   "locomotion": "wheeled",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "wheeled",
+    "p": {
+     "wheels": 4,
+     "len": 4.73,
+     "w": 1.8,
+     "h": 1.5,
+     "body": "sedan"
+    }
+   }
+  },
+  {
+   "id": "vaz2105",
+   "name": "ВАЗ-2105",
+   "category": "vehicle",
+   "faction": "civil",
+   "mass": 1000,
+   "hp": 200,
+   "locomotion": "wheeled",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "wheeled",
+    "p": {
+     "wheels": 4,
+     "len": 4.1,
+     "w": 1.6,
+     "h": 1.4,
+     "body": "car"
+    }
    }
   },
   {
@@ -741,7 +964,23 @@
    }
   },
   {
-   "id": "boat",
+   "id": "assault_boat",
+   "name": "Надувная лодка (штурмовая)",
+   "category": "boat",
+   "faction": "ussr",
+   "mass": 250,
+   "hp": 80,
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "boat",
+    "p": {
+     "len": 6,
+     "w": 2.2
+    }
+   }
+  },
+  {
+   "id": "pubg_boat",
    "name": "Катер",
    "category": "boat",
    "faction": "ussr",
@@ -751,128 +990,18 @@
    "placeholderSpec": {
     "builder": "boat",
     "p": {
-     "len": 8,
-     "w": 2.6
-    }
-   }
-  },
-  {
-   "id": "inflatable",
-   "name": "Надувная лодка",
-   "category": "boat",
-   "faction": "ussr",
-   "mass": 250,
-   "hp": 80,
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "boat",
-    "p": {
-     "len": 3.6,
-     "w": 1.6,
-     "round": true
-    }
-   }
-  },
-  {
-   "id": "vaz2101",
-   "name": "ВАЗ-2101",
-   "category": "civilian",
-   "faction": "civil",
-   "mass": 950,
-   "hp": 200,
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "wheeled",
-    "p": {
-     "wheels": 4,
-     "len": 4.07,
-     "w": 1.6,
-     "h": 1.4,
-     "body": "sedan"
-    }
-   }
-  },
-  {
-   "id": "volga24",
-   "name": "ГАЗ-24 «Волга»",
-   "category": "civilian",
-   "faction": "civil",
-   "mass": 1420,
-   "hp": 220,
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "wheeled",
-    "p": {
-     "wheels": 4,
-     "len": 4.73,
-     "w": 1.8,
-     "h": 1.5,
-     "body": "sedan"
-    }
-   }
-  },
-  {
-   "id": "liaz",
-   "name": "ЛиАЗ",
-   "category": "civilian",
-   "faction": "civil",
-   "mass": 9500,
-   "hp": 300,
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "wheeled",
-    "p": {
-     "wheels": 4,
-     "len": 10.5,
-     "w": 2.5,
-     "h": 3,
-     "body": "bus"
-    }
-   }
-  },
-  {
-   "id": "tram",
-   "name": "Трамвай",
-   "category": "civilian",
-   "faction": "civil",
-   "mass": 18000,
-   "hp": 400,
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "wheeled",
-    "p": {
-     "wheels": 4,
-     "len": 14,
-     "w": 2.5,
-     "h": 3.3,
-     "body": "bus"
-    }
-   }
-  },
-  {
-   "id": "kamaz",
-   "name": "КамАЗ",
-   "category": "civilian",
-   "faction": "civil",
-   "mass": 9000,
-   "hp": 400,
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "wheeled",
-    "p": {
-     "wheels": 6,
-     "len": 7.8,
-     "w": 2.5,
-     "h": 3.3,
-     "body": "truck"
+     "len": 6,
+     "w": 2.2
     }
    }
   },
   {
    "id": "soldier_ussr",
-   "name": "Советский солдат",
+   "name": "Солдат (зимний камуфляж)",
    "category": "character",
    "faction": "ussr",
+   "note": "T-поза, перекрашен",
+   "recolor": "winter",
    "placeholder": true,
    "placeholderSpec": {
     "builder": "humanoid",
@@ -883,80 +1012,17 @@
   },
   {
    "id": "soldier_opfor",
-   "name": "Противник",
+   "name": "Противник (зимний камуфляж)",
    "category": "character",
    "faction": "opfor",
+   "note": "T-поза, перекрашен",
+   "recolor": "winter",
    "placeholder": true,
    "placeholderSpec": {
     "builder": "humanoid",
     "p": {
      "color": "#6a5a48"
     }
-   }
-  },
-  {
-   "id": "khrushchevka",
-   "name": "Хрущёвка (5 эт.)",
-   "category": "building",
-   "faction": "civil",
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "panel",
-    "p": {
-     "floors": 5,
-     "sections": 4,
-     "secW": 8,
-     "depth": 11
-    }
-   }
-  },
-  {
-   "id": "brezhnevka",
-   "name": "Брежневка (9 эт.)",
-   "category": "building",
-   "faction": "civil",
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "panel",
-    "p": {
-     "floors": 9,
-     "sections": 3,
-     "secW": 10,
-     "depth": 13
-    }
-   }
-  },
-  {
-   "id": "garage",
-   "name": "Гараж",
-   "category": "building",
-   "faction": "civil",
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "garage",
-    "p": {}
-   }
-  },
-  {
-   "id": "kiosk",
-   "name": "Киоск",
-   "category": "building",
-   "faction": "civil",
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "kiosk",
-    "p": {}
-   }
-  },
-  {
-   "id": "busstop",
-   "name": "Остановка",
-   "category": "building",
-   "faction": "civil",
-   "placeholder": true,
-   "placeholderSpec": {
-    "builder": "busstop",
-    "p": {}
    }
   },
   {
@@ -971,34 +1037,81 @@
    }
   },
   {
-   "id": "swing",
-   "name": "Качели",
-   "category": "prop",
+   "id": "busstop",
+   "name": "Автобусная остановка",
+   "category": "building",
    "faction": "civil",
    "placeholder": true,
    "placeholderSpec": {
-    "builder": "swing",
+    "builder": "busstop",
     "p": {}
    }
   },
   {
-   "id": "tree_birch",
-   "name": "Берёза",
-   "category": "prop",
+   "id": "kiosk",
+   "name": "Киоск «Пивная»",
+   "category": "building",
    "faction": "civil",
    "placeholder": true,
    "placeholderSpec": {
-    "builder": "tree",
-    "p": {
-     "type": "birch"
-    }
+    "builder": "kiosk",
+    "p": {}
    }
   },
   {
-   "id": "tree_spruce",
-   "name": "Ель",
+   "id": "garage_a",
+   "name": "Гараж A (с воротами, крышей)",
+   "category": "building",
+   "faction": "civil",
+   "note": "из пака гаражей",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "garage",
+    "p": {}
+   }
+  },
+  {
+   "id": "garage_b",
+   "name": "Гараж B",
+   "category": "building",
+   "faction": "civil",
+   "note": "из пака гаражей",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "garage",
+    "p": {}
+   }
+  },
+  {
+   "id": "garage_c",
+   "name": "Гараж C",
+   "category": "building",
+   "faction": "civil",
+   "note": "из пака гаражей",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "garage",
+    "p": {}
+   }
+  },
+  {
+   "id": "garage_d",
+   "name": "Гараж D",
+   "category": "building",
+   "faction": "civil",
+   "note": "из пака гаражей",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "garage",
+    "p": {}
+   }
+  },
+  {
+   "id": "wtree_a",
+   "name": "Зимняя ель A",
    "category": "prop",
    "faction": "civil",
+   "note": "из пака зимних деревьев",
    "placeholder": true,
    "placeholderSpec": {
     "builder": "tree",
@@ -1008,33 +1121,250 @@
    }
   },
   {
-   "id": "barrel",
-   "name": "Бочка",
+   "id": "wtree_b",
+   "name": "Зимняя ель B",
    "category": "prop",
    "faction": "civil",
+   "note": "из пака зимних деревьев",
    "placeholder": true,
    "placeholderSpec": {
-    "builder": "barrel",
-    "p": {}
+    "builder": "tree",
+    "p": {
+     "type": "spruce"
+    }
    }
   },
   {
-   "id": "crate",
-   "name": "Деревянный ящик",
+   "id": "wtree_c",
+   "name": "Зимняя ель C",
    "category": "prop",
    "faction": "civil",
+   "note": "из пака зимних деревьев",
    "placeholder": true,
    "placeholderSpec": {
-    "builder": "crate",
+    "builder": "tree",
     "p": {
-     "color": "#8a6a3a",
-     "size": [
-      0.9,
-      0.9,
-      0.9
-     ]
+     "type": "spruce"
     }
    }
+  },
+  {
+   "id": "wtree_d",
+   "name": "Зимняя ель D",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака зимних деревьев",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "tree",
+    "p": {
+     "type": "spruce"
+    }
+   }
+  },
+  {
+   "id": "wtree_e",
+   "name": "Зимняя ель E",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака зимних деревьев",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "tree",
+    "p": {
+     "type": "spruce"
+    }
+   }
+  },
+  {
+   "id": "wtree_f",
+   "name": "Зимняя ель F",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака зимних деревьев",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "tree",
+    "p": {
+     "type": "spruce"
+    }
+   }
+  },
+  {
+   "id": "wtree_g",
+   "name": "Зимняя ель G",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака зимних деревьев",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "tree",
+    "p": {
+     "type": "spruce"
+    }
+   }
+  },
+  {
+   "id": "wtree_h",
+   "name": "Зимняя ель H",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака зимних деревьев",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "tree",
+    "p": {
+     "type": "spruce"
+    }
+   }
+  },
+  {
+   "id": "wtree_i",
+   "name": "Зимняя ель I",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака зимних деревьев",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "tree",
+    "p": {
+     "type": "spruce"
+    }
+   }
+  },
+  {
+   "id": "wshrub_a",
+   "name": "Зимний куст A",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "tree",
+    "p": {
+     "type": "shrub"
+    }
+   }
+  },
+  {
+   "id": "wshrub_b",
+   "name": "Зимний куст B",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "tree",
+    "p": {
+     "type": "shrub"
+    }
+   }
+  },
+  {
+   "id": "wshrub_c",
+   "name": "Зимний куст C",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "tree",
+    "p": {
+     "type": "shrub"
+    }
+   }
+  },
+  {
+   "id": "whedge_a",
+   "name": "Зимняя изгородь A",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "tree",
+    "p": {
+     "type": "hedge"
+    }
+   }
+  },
+  {
+   "id": "whedge_b",
+   "name": "Зимняя изгородь B",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "tree",
+    "p": {
+     "type": "hedge"
+    }
+   }
+  },
+  {
+   "id": "wforest",
+   "name": "Участок зимнего леса",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "tree",
+    "p": {
+     "type": "spruce"
+    }
+   }
+  },
+  {
+   "id": "snow_ground",
+   "name": "Снежная поверхность",
+   "category": "terrain",
+   "faction": "civil",
+   "note": "из пака (Snow)",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "panel",
+    "p": {
+     "floors": 1,
+     "sections": 1,
+     "secW": 4,
+     "depth": 4
+    }
+   }
+  },
+  {
+   "id": "snow_melting",
+   "name": "Подтаявший снег",
+   "category": "terrain",
+   "faction": "civil",
+   "note": "из пака (Snow_Melting)",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "panel",
+    "p": {
+     "floors": 1,
+     "sections": 1,
+     "secW": 4,
+     "depth": 4
+    }
+   }
+  },
+  {
+   "id": "khrushchevka",
+   "name": "Хрущёвка (5 эт., разрушаемая, с мебелью)",
+   "category": "building",
+   "faction": "civil",
+   "placeholder": false,
+   "procedural": "panel5"
+  },
+  {
+   "id": "brezhnevka",
+   "name": "Брежневка (9 эт., разрушаемая, с мебелью)",
+   "category": "building",
+   "faction": "civil",
+   "placeholder": false,
+   "procedural": "panel9"
   }
  ],
  "unmappedFiles": []

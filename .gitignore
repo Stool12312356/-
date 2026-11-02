@@ -22,8 +22,6 @@ raw/
 *.blend1
 *.fbx
 *.obj
-*.glb
-*.gltf
 *.exr
 *.hdr
 *.tif
@@ -78,3 +76,7 @@ desktop.ini
 !.env.example
 *.pem
 *.key
+
+# Исходные (несжатые) модели — только локально, 386 МБ, см. tools/download-assets.sh
+assets/models/
+assets/_split/
