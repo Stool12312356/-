@@ -1,94 +1,74 @@
-// Постановка процедурного здания в сцену: воксели (стены/перекрытия) + стекло + мебель.
-// Мебель собирается один раз и сливается по материалам, иначе 300 предметов = 2000 драв-коллов.
+// Постановка дома в сцену: панели + мебель + свет. Моделей зданий нет намеренно —
+// нужен интерьер и разрушаемость, монолитный GLB этого не даёт.
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { PhysicsClient } from '../physics/client';
-import { buildFurniture, buildWindows, type BuildingSpec } from './buildings';
-import { VoxelBuilding, type VoxelWall } from './voxel';
+import type { HouseSpec } from './house';
+import { HousePanels } from './voxel';
+import { buildFurniture } from './furniture';
 
 export interface PlacedBuilding {
-  voxels: VoxelBuilding;
-  spec: BuildingSpec;
-  /** центр здания в мире (для поиска «какой дом рядом») */
+  panels: HousePanels;
+  spec: HouseSpec;
+  /** центр дома в мире */
   center: THREE.Vector3;
-  /** группы мебели по секциям: при обвале секции мебель убираем */
-  furniture: THREE.Object3D[];
 }
 
-export function spawnVoxelBuilding(
-  spec: BuildingSpec, scene: THREE.Scene, phys: PhysicsClient,
+export function spawnHouse(
+  spec: HouseSpec, scene: THREE.Scene, phys: PhysicsClient,
   pos: [number, number, number], rotY = 0,
 ): PlacedBuilding {
   const origin = new THREE.Vector3(...pos);
-  // поворот здания применяем к блокам один раз (проще, чем вращать физику)
   const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotY);
-  const walls: VoxelWall[] = spec.walls.map(w => {
-    const p = new THREE.Vector3(...w.pos).applyQuaternion(q).add(origin);
-    return { ...w, pos: [p.x, p.y, p.z], rotY: w.rotY + rotY };
+  // поворот здания применяем к панелям и мебели один раз (физику вращать не нужно)
+  const panels = spec.panels.map(p => {
+    const v = new THREE.Vector3(...p.pos).applyQuaternion(q).add(origin);
+    return { ...p, pos: [v.x, v.y, v.z] as [number, number, number], rotY: p.rotY + rotY };
   });
-  // окна/мебель тоже
-  const specWorld: BuildingSpec = {
-    ...spec,
-    windows: spec.windows.map(w => {
-      const p = new THREE.Vector3(...w.pos).applyQuaternion(q).add(origin);
-      return { ...w, pos: [p.x, p.y, p.z], rotY: w.rotY + rotY };
-    }),
-    props: spec.props.map(pr => {
-      const p = new THREE.Vector3(...pr.pos).applyQuaternion(q).add(origin);
-      return { ...pr, pos: [p.x, p.y, p.z], rotY: pr.rotY + rotY };
-    }),
-  };
+  const props = spec.props.map(pr => {
+    const v = new THREE.Vector3(...pr.pos).applyQuaternion(q).add(origin);
+    return { ...pr, pos: [v.x, v.y, v.z] as [number, number, number], rotY: pr.rotY + rotY };
+  });
 
-  const voxels = new VoxelBuilding(walls, scene, phys, new THREE.Vector3(0, 0, 0));
-  voxels.register();
-  // окна ставим прямо в сцену: их немного и они не участвуют в разрушении
-  const win = buildWindows(specWorld);
-  scene.add(win);
+  const hp = new HousePanels(panels, scene, phys);
+  hp.register();
 
-  // мебель: сливаем по материалам
+  // мебель: сливаем по материалам — вместо 250 объектов один меш на материал
   const buckets = new Map<string, { geo: THREE.BufferGeometry[]; mat: THREE.Material }>();
-  for (const pr of specWorld.props) {
+  for (const pr of props) {
     const f = buildFurniture(pr.kind);
     if (!f) continue;
-    f.position.set(...pr.pos); f.rotation.y = pr.rotY;
+    f.position.set(pr.pos[0], pr.pos[1], pr.pos[2]);
+    f.rotation.y = pr.rotY;
     f.updateMatrixWorld(true);
     f.traverse(o => {
       const m = o as THREE.Mesh;
       if (!m.isMesh) return;
-      const material = m.material as THREE.Material;
-      if (!buckets.has(material.uuid)) buckets.set(material.uuid, { geo: [], mat: material });
+      const mat = m.material as THREE.Material;
+      const key = `${mat.uuid}|${(mat as THREE.MeshStandardMaterial).color?.getHexString?.() ?? 'x'}`;
+      const list = buckets.get(key) ?? { geo: [], mat };
       const g = m.geometry.clone();
       g.applyMatrix4(m.matrixWorld);
-      buckets.get(material.uuid)!.geo.push(g);
+      list.geo.push(g);
+      buckets.set(key, list);
     });
   }
-  // Свет внутри: PointLight на каждую квартиру = 300 источников (нельзя).
-  // Вместо этого — тёплые emissive-пятна на потолках: визуально «квартиры живые»,
-  // а стоимость нулевая. Плюс общий тусклый свет внутри дома на уровне земли.
-  const specW = specWorld;
-  const lightGeo = new THREE.PlaneGeometry(1.1, 1.1);
-  const lightMat = new THREE.MeshBasicMaterial({ color: '#ffe6b0', transparent: true, opacity: 0.5, side: THREE.DoubleSide });
-  const lamps = specW.props.filter(p => p.kind === 'lamp');
-  const lampInst = new THREE.InstancedMesh(lightGeo, lightMat, Math.max(1, lamps.length));
-  const dm = new THREE.Object3D();
-  lamps.forEach((pr, i) => {
-    dm.position.set(pr.pos[0], pr.pos[1] + 0.35, pr.pos[2]);
-    dm.rotation.x = Math.PI / 2;
-    dm.updateMatrix(); lampInst.setMatrixAt(i, dm.matrix);
-  });
-  lampInst.count = lamps.length;
-  lampInst.instanceMatrix.needsUpdate = true;
-  lampInst.frustumCulled = false;
-  scene.add(lampInst);
-
-  const furniture: THREE.Object3D[] = [];
   for (const { geo, mat } of buckets.values()) {
-    const merged = mergeGeometries(geo, false);
-    if (!merged) continue;
-    const mesh = new THREE.Mesh(merged, mat);
-    mesh.castShadow = true; mesh.receiveShadow = true;
-    scene.add(mesh); furniture.push(mesh);
-    geo.forEach(g => g.dispose());
+    if (!geo.length) continue;
+    const mesh = new THREE.Mesh(mergeAll(geo), mat);
+    mesh.castShadow = mesh.receiveShadow = true;
+    scene.add(mesh);
   }
-  return { voxels, spec: specWorld, furniture, center: origin.clone().add(new THREE.Vector3(0, spec.size[1] / 2, 0)) };
+
+  // тёплый свет у подъездов: два источника на дом, не больше (точечные источники дорогие)
+  const mid = origin.clone().add(new THREE.Vector3(0, 4, spec.size[2] / 2 + 3.5).applyQuaternion(q));
+  const lamp = new THREE.PointLight('#ffd9a0', 10, 24, 2);
+  lamp.position.copy(mid);
+  scene.add(lamp);
+
+  return { panels: hp, spec, center: origin.clone().add(new THREE.Vector3(0, spec.size[1] / 2, 0)) };
+}
+
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+function mergeAll(list: THREE.BufferGeometry[]) {
+  return mergeGeometries(list, false) ?? list[0];
 }

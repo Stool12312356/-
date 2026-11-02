@@ -28,9 +28,17 @@ export class PhysicsClient {
         if (m.type === 'ready') res();
         else if (m.type === 'snapshot') this.onSnap(m);
         else if (m.type === 'tracers') this.tracers = m.tracers;
+        else if (m.type === 'ray') { if (m.id === this.raySeq) { this.rayDist = m.dist; this.rayPoint = m.point ?? null; } }
         else if (m.type === 'impacts') { for (const i of m.impacts) { this.impactQueue.push(i); this.impactCb?.(i); } if (this.impactQueue.length > 512) this.impactQueue.splice(0, 256); }
       };
     });
+  }
+  /** последний ответ на probe(): дистанция до того, во что смотрит камера */
+  private raySeq = 0; rayDist: number | null = null; rayPoint: [number, number, number] | null = null;
+  /** Спросить у физики, куда упирается луч. Ответ придёт в следующем кадре (rayDist). */
+  probe(origin: number[], dir: number[], max = 200) {
+    this.raySeq++;
+    this.post({ type: 'ray', id: this.raySeq, origin: origin as [number, number, number], dir: dir as [number, number, number], max });
   }
   newId() { return this.nextId++; }
   post(m: ToWorker, transfer: Transferable[] = []) { this.worker.postMessage(m, transfer); }

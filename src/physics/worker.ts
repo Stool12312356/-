@@ -323,6 +323,17 @@ function loop() {
     case 'explosion': explosion(m.pos, m.radius, m.impulse); break;
     case 'shoot': tracers.push({ ...m.tracer }); break;
     case 'removePanel': removePanel(m.bodyId, m.panel); break;
+    case 'ray': {
+      // Луч от камеры. Нужен, чтобы ствол смотрел РОВНО в перекрестие, а не «примерно».
+      const ray = new RAPIER.Ray({ x: m.origin[0], y: m.origin[1], z: m.origin[2] }, { x: m.dir[0], y: m.dir[1], z: m.dir[2] });
+      const hit = world.castRay(ray, m.max, true, undefined, undefined, pCol ?? undefined);
+      const out: FromWorker = hit
+        ? { type: 'ray', id: m.id, dist: hit.timeOfImpact, point: [
+            m.origin[0] + m.dir[0] * hit.timeOfImpact, m.origin[1] + m.dir[1] * hit.timeOfImpact, m.origin[2] + m.dir[2] * hit.timeOfImpact] }
+        : { type: 'ray', id: m.id, dist: null };
+      (self as any).postMessage(out);
+      break;
+    }
   }
 };
 

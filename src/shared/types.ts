@@ -93,7 +93,9 @@ export type ToWorker =
   /** добавить снаряд (пуля или ракета). direction нормализован, speed в м/с */
   | { type: 'shoot'; tracer: Tracer }
   /** убрать одну панель дома из физики (она уничтожена) */
-  | { type: 'removePanel'; bodyId: number; panel: number };
+  | { type: 'removePanel'; bodyId: number; panel: number }
+  /** луч из камеры: куда упирается перекрестие (для сведения ствола и прицела) */
+  | { type: 'ray'; id: number; origin: [number, number, number]; dir: [number, number, number]; max: number };
 
 export interface PlayerState {
   pos: [number, number, number]; vel: [number, number, number]; grounded: boolean; stance: 0 | 1 | 2;
@@ -103,6 +105,7 @@ export interface PlayerState {
 }
 export type FromWorker =
   | { type: 'ready' }
+  | { type: 'ray'; id: number; dist: number | null; point?: [number, number, number] }
   | { type: 'snapshot'; t: number; ids: Int32Array; tf: Float32Array; player: PlayerState | null; awake: number; total: number; stepMs: number }
   /** трассеры после шага физики (для отрисовки) */
   | { type: 'tracers'; tracers: Tracer[] }
