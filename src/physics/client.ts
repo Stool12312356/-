@@ -1,4 +1,4 @@
-import type { ToWorker, FromWorker, BodyDesc, PlayerInput, PlayerState } from '../shared/types';
+import type { ToWorker, FromWorker, BodyDesc, PlayerInput, PlayerState, Tracer, Impact } from '../shared/types';
 import * as THREE from 'three';
 
 /** Мост main-thread <-> physics worker. Хранит два последних снапшота и интерполирует для рендера. */
@@ -10,6 +10,15 @@ export class PhysicsClient {
   private tPrev = 0; private tCur = 0; private nextId = 1;
   player: PlayerState | null = null; private playerPrev: PlayerState | null = null;
   stats = { awake: 0, total: 0, stepMs: 0 };
+  /** битовая маска необязательных сообщений: трассеры и попадания шлются, только если включены */
+  traceEnabled = true;
+  /** последние трассеры (обновляется воркером 60 раз/с) */
+  tracers: Tracer[] = [];
+  /** попадания, накопившиеся с прошлого кадра — забираются игрой и очищаются */
+  private impactQueue: Impact[] = [];
+  private impactCb: ((i: Impact) => void) | null = null;
+  onImpact(cb: (i: Impact) => void) { this.impactCb = cb; }
+  takeImpacts(): Impact[] { const q = this.impactQueue; this.impactQueue = []; return q; }
   private q = new THREE.Quaternion(); private q2 = new THREE.Quaternion();
 
   constructor() {
@@ -18,11 +27,19 @@ export class PhysicsClient {
         const m = e.data;
         if (m.type === 'ready') res();
         else if (m.type === 'snapshot') this.onSnap(m);
+        else if (m.type === 'tracers') this.tracers = m.tracers;
+        else if (m.type === 'impacts') { for (const i of m.impacts) { this.impactQueue.push(i); this.impactCb?.(i); } if (this.impactQueue.length > 512) this.impactQueue.splice(0, 256); }
       };
     });
   }
   newId() { return this.nextId++; }
   post(m: ToWorker, transfer: Transferable[] = []) { this.worker.postMessage(m, transfer); }
+  /** многоколоночный статичный дом: одна физическая сущность, много панелей */
+  addBuilding(desc: Omit<BodyDesc, 'id'>, panels: number[]): number {
+    const id = this.nextId++;
+    this.post({ type: 'addBodies', bodies: [{ ...desc, id, panels } as BodyDesc] });
+    return id;
+  }
   /** Добавляет физическое тело и привязывает к нему Object3D (может быть null для невидимых). */
   add(desc: Omit<BodyDesc, 'id'>, obj?: THREE.Object3D): number {
     const id = this.nextId++;
@@ -31,6 +48,11 @@ export class PhysicsClient {
     return id;
   }
   sendInput(i: PlayerInput) { this.post({ type: 'input', input: i }); }
+  /** выстрел: снаряд становится физическим телом внутри воркера */
+  shoot(t: Omit<Tracer, 'prev' | 'life'> & { life?: number }) {
+    this.post({ type: 'shoot', tracer: { prev: [...t.pos], life: t.life ?? 3, ...t } as Tracer });
+  }
+  removePanel(bodyId: number, panel: number) { this.post({ type: 'removePanel', bodyId, panel }); }
   private onSnap(m: Extract<FromWorker, { type: 'snapshot' }>) {
     this.prev = this.cur; this.cur = new Map(); this.tPrev = this.tCur; this.tCur = performance.now();
     for (let i = 0; i < m.ids.length; i++) this.cur.set(m.ids[i], m.tf.subarray(i * 7, i * 7 + 7));

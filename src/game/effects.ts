@@ -1,0 +1,202 @@
+// Визуал стрельбы: трассеры, искры от попаданий, пробоины, вспышка ствола, дым.
+// Всё пулится: линии трассеров — один LineSegments, искры — Points, декали — InstancedMesh.
+// Иначе на 30 выстрелов в секунду браузер захлебнётся созданием объектов.
+import * as THREE from 'three';
+import type { Tracer, Impact, Surface } from '../shared/types';
+import { SURFACES } from './weapons';
+
+const TRACER_MAX = 192;
+const SPARK_MAX = 600;
+const DECAL_MAX = 420;
+
+const decalTex = (() => {
+  // круглая пробоина с тёмным центром и светлой каймой — рисуется один раз на canvas
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d')!;
+  const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grd.addColorStop(0, 'rgba(10,10,10,1)'); grd.addColorStop(0.35, 'rgba(30,28,26,.95)');
+  grd.addColorStop(0.62, 'rgba(120,115,105,.55)'); grd.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grd; g.beginPath(); g.arc(32, 32, 32, 0, Math.PI * 2); g.fill();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+})();
+
+export class Effects {
+  private scene: THREE.Scene;
+  private tracerGeo: THREE.BufferGeometry;
+  private tracerPos: Float32Array;
+  private tracerCol: Float32Array;
+  private tracerLines: THREE.LineSegments;
+  /** хвост трассера живёт 90 мс — как настоящая трассирующая пуля */
+  private tracerAge = new Map<number, number>();
+
+  private sparkGeo: THREE.BufferGeometry;
+  private sparkPos: Float32Array;
+  private sparkVel: Float32Array;
+  private sparkLife: Float32Array;
+  private sparkColor: Float32Array;
+  private sparkPoints: THREE.Points;
+  private sparkHead = 0;
+
+  private decals: THREE.InstancedMesh;
+  private decalHead = 0;
+  private decalDummy = new THREE.Object3D();
+
+  private muzzle: THREE.PointLight;
+  private muzzleT = 0;
+
+  constructor(scene: THREE.Scene) {
+    this.scene = scene;
+    // --- трассеры ---
+    this.tracerPos = new Float32Array(TRACER_MAX * 6);
+    this.tracerCol = new Float32Array(TRACER_MAX * 6);
+    this.tracerGeo = new THREE.BufferGeometry();
+    this.tracerGeo.setAttribute('position', new THREE.BufferAttribute(this.tracerPos, 3));
+    this.tracerGeo.setAttribute('color', new THREE.BufferAttribute(this.tracerCol, 3));
+    this.tracerLines = new THREE.LineSegments(this.tracerGeo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.9, depthWrite: false }));
+    this.tracerLines.frustumCulled = false; this.tracerLines.renderOrder = 5;
+    scene.add(this.tracerLines);
+
+    // --- искры ---
+    this.sparkPos = new Float32Array(SPARK_MAX * 3);
+    this.sparkVel = new Float32Array(SPARK_MAX * 3);
+    this.sparkLife = new Float32Array(SPARK_MAX);
+    this.sparkColor = new Float32Array(SPARK_MAX * 3);
+    this.sparkGeo = new THREE.BufferGeometry();
+    this.sparkGeo.setAttribute('position', new THREE.BufferAttribute(this.sparkPos, 3));
+    this.sparkGeo.setAttribute('color', new THREE.BufferAttribute(this.sparkColor, 3));
+    for (let i = 0; i < SPARK_MAX; i++) this.sparkPos[i * 3 + 1] = -999;
+    this.sparkPoints = new THREE.Points(this.sparkGeo, new THREE.PointsMaterial({ size: 0.055, vertexColors: true, transparent: true, opacity: 0.95, depthWrite: false, blending: THREE.AdditiveBlending }));
+    this.sparkPoints.frustumCulled = false;
+    scene.add(this.sparkPoints);
+
+    // --- пробоины ---
+    const plane = new THREE.PlaneGeometry(0.16, 0.16);
+    const mat = new THREE.MeshBasicMaterial({ map: decalTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 });
+    this.decals = new THREE.InstancedMesh(plane, mat, DECAL_MAX);
+    this.decals.frustumCulled = false; this.decals.count = DECAL_MAX;
+    this.decalDummy.scale.setScalar(0.0001); this.decalDummy.updateMatrix();
+    for (let i = 0; i < DECAL_MAX; i++) this.decals.setMatrixAt(i, this.decalDummy.matrix);
+    scene.add(this.decals);
+
+    // --- вспышка ствола ---
+    this.muzzle = new THREE.PointLight('#ffd9a0', 0, 12, 2);
+    scene.add(this.muzzle);
+  }
+
+  /** Вызывать каждый кадр. Лёгкая вспышка у ствола. */
+  flash(pos: THREE.Vector3) {
+    this.muzzle.position.copy(pos); this.muzzle.intensity = 26; this.muzzleT = 0.06;
+  }
+
+  /** Обновление трассеров из воркера. */
+  updateTracers(tracers: Tracer[], camera: THREE.Camera) {
+    const p = this.tracerPos, c = this.tracerCol;
+    let n = 0;
+    const now = performance.now();
+    const seen = new Set<number>();
+    for (const t of tracers) {
+      if (n >= TRACER_MAX) break;
+      seen.add(t.id);
+      const age = now - (this.tracerAge.get(t.id) ?? now);
+      if (!this.tracerAge.has(t.id)) this.tracerAge.set(t.id, now);
+      // хвост: линия от предыдущей позиции к текущей
+      const ax = t.prev[0], ay = t.prev[1], az = t.prev[2];
+      const bx = t.pos[0], by = t.pos[1], bz = t.pos[2];
+      p[n * 6 + 0] = ax; p[n * 6 + 1] = ay; p[n * 6 + 2] = az;
+      p[n * 6 + 3] = bx; p[n * 6 + 4] = by; p[n * 6 + 5] = bz;
+      const fade = Math.max(0.15, 1 - age / 900);
+      // у дульного среза ярко-жёлтый, дальше красноватый
+      c[n * 6 + 0] = 1.0 * fade; c[n * 6 + 1] = 0.82 * fade; c[n * 6 + 2] = 0.35 * fade;
+      c[n * 6 + 3] = 1.0 * fade; c[n * 6 + 4] = 0.55 * fade; c[n * 6 + 5] = 0.18 * fade;
+      n++;
+    }
+    for (const id of [...this.tracerAge.keys()]) if (!seen.has(id)) this.tracerAge.delete(id);
+    for (let i = n; i < TRACER_MAX; i++) { p[i * 6 + 2] = -9999; p[i * 6 + 5] = -9999; }
+    this.tracerGeo.setDrawRange(0, n * 2);
+    (this.tracerGeo.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
+    (this.tracerGeo.getAttribute('color') as THREE.BufferAttribute).needsUpdate = true;
+    void camera;
+  }
+
+  /** Попадание: искры + пробоина. Цвет зависит от материала. */
+  impact(i: Impact) {
+    if (i.kind === 'explosive') return;
+    const s = SURFACES[i.surface];
+    const col = new THREE.Color(s.color);
+    const cnt = i.penetrated ? 4 : 9;
+    for (let k = 0; k < cnt; k++) {
+      const idx = this.sparkHead++ % SPARK_MAX;
+      this.sparkPos[idx * 3] = i.pos[0]; this.sparkPos[idx * 3 + 1] = i.pos[1]; this.sparkPos[idx * 3 + 2] = i.pos[2];
+      const sp = 1.5 + Math.random() * 4;
+      this.sparkVel[idx * 3] = (i.normal[0] + (Math.random() - 0.5) * 1.4) * sp;
+      this.sparkVel[idx * 3 + 1] = (i.normal[1] + (Math.random() - 0.5) * 1.4) * sp + 1.2;
+      this.sparkVel[idx * 3 + 2] = (i.normal[2] + (Math.random() - 0.5) * 1.4) * sp;
+      this.sparkLife[idx] = 0.18 + Math.random() * 0.22;
+      // у металла искры белые, у бетона — пыль
+      this.sparkColor[idx * 3] = i.surface === 'metal' || i.surface === 'armor' ? 1 : col.r * 1.2;
+      this.sparkColor[idx * 3 + 1] = i.surface === 'metal' || i.surface === 'armor' ? 1 : col.g * 1.2;
+      this.sparkColor[idx * 3 + 2] = i.surface === 'metal' || i.surface === 'armor' ? 0.95 : col.b * 1.2;
+    }
+    // пробоина только на твёрдых поверхностях
+    if (i.surface !== 'dirt' && i.surface !== 'water') {
+      const d = this.decalDummy;
+      d.position.set(i.pos[0] + i.normal[0] * 0.012, i.pos[1] + i.normal[1] * 0.012, i.pos[2] + i.normal[2] * 0.012);
+      // плоскость пробоины смотрит по нормали
+      const n = new THREE.Vector3(...i.normal);
+      d.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), n);
+      d.rotateZ(Math.random() * Math.PI * 2);
+      const sc = (0.6 + Math.random() * 0.7) * (i.surface === 'glass' ? 1.8 : 1);
+      d.scale.setScalar(sc); d.updateMatrix();
+      this.decals.setMatrixAt(this.decalHead++ % DECAL_MAX, d.matrix);
+      this.decals.instanceMatrix.needsUpdate = true;
+    }
+  }
+
+  /** Взрыв: облако + ударная волна (упрощённо). */
+  explosion(pos: [number, number, number], radius: number) {
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), new THREE.MeshBasicMaterial({ color: '#ffb347', transparent: true, opacity: 0.9, depthWrite: false }));
+    ball.position.set(...pos); this.scene.add(ball);
+    const light = new THREE.PointLight('#ffa040', 900, radius * 4, 2); light.position.set(pos[0], pos[1] + 1.5, pos[2]); this.scene.add(light);
+    const t0 = performance.now();
+    const anim = () => {
+      const k = (performance.now() - t0) / 650;
+      ball.scale.setScalar(1 + k * radius * 0.55);
+      (ball.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 0.9 * (1 - k));
+      light.intensity = Math.max(0, 900 * (1 - k));
+      if (k < 1) requestAnimationFrame(anim); else { this.scene.remove(ball); this.scene.remove(light); }
+    };
+    requestAnimationFrame(anim);
+    // осколки-искры
+    for (let k = 0; k < 40; k++) {
+      const idx = this.sparkHead++ % SPARK_MAX;
+      this.sparkPos[idx * 3] = pos[0]; this.sparkPos[idx * 3 + 1] = pos[1] + 0.4; this.sparkPos[idx * 3 + 2] = pos[2];
+      const sp = 6 + Math.random() * 14;
+      const th = Math.random() * Math.PI * 2, ph = Math.acos(Math.random() * 2 - 1);
+      this.sparkVel[idx * 3] = Math.sin(ph) * Math.cos(th) * sp;
+      this.sparkVel[idx * 3 + 1] = Math.abs(Math.cos(ph)) * sp * 1.4;
+      this.sparkVel[idx * 3 + 2] = Math.sin(ph) * Math.sin(th) * sp;
+      this.sparkLife[idx] = 0.5 + Math.random() * 0.7;
+      this.sparkColor[idx * 3] = 1; this.sparkColor[idx * 3 + 1] = 0.72; this.sparkColor[idx * 3 + 2] = 0.3;
+    }
+  }
+
+  update(dt: number) {
+    if (this.muzzleT > 0) { this.muzzleT -= dt; if (this.muzzleT <= 0) this.muzzle.intensity = 0; else this.muzzle.intensity *= 0.6; }
+    // искры: гравитация + затухание
+    let any = false;
+    for (let i = 0; i < SPARK_MAX; i++) {
+      if (this.sparkLife[i] <= 0) continue;
+      any = true;
+      this.sparkLife[i] -= dt;
+      this.sparkVel[i * 3 + 1] -= 14 * dt;
+      this.sparkPos[i * 3] += this.sparkVel[i * 3] * dt;
+      this.sparkPos[i * 3 + 1] += this.sparkVel[i * 3 + 1] * dt;
+      this.sparkPos[i * 3 + 2] += this.sparkVel[i * 3 + 2] * dt;
+      if (this.sparkLife[i] <= 0) this.sparkPos[i * 3 + 1] = -999;
+    }
+    if (any) {
+      (this.sparkGeo.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
+      (this.sparkGeo.getAttribute('color') as THREE.BufferAttribute).needsUpdate = true;
+    }
+  }
+}

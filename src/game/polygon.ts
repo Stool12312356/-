@@ -79,12 +79,18 @@ export function buildPolygon(scene: THREE.Scene, lib: AssetLibrary, phys: Physic
   { const l = label('Башня 8 м: прыжок = урон от падения', true, 0.7); l.position.set(120, 9.5, 70); scene.add(l); }
 
   // --- строения ---
-  place('khrushchevka', -70, -85, { dyn: false, rotY: 0 }); place('brezhnevka', -10, -95, { dyn: false });
-  for (let i = 0; i < 5; i++) place('garage', 40 + i * 3.4, -70, { dyn: false, lab: i === 0 });
+  // Панельки НЕ ставятся здесь: это процедурные дома с интерьером и разрушаемостью,
+  // их собирает buildings.ts (SpassBuilding в main.ts). Ставить их как «модель» нельзя —
+  // файла нет, и получилась бы маджентовая заглушка (баг со скриншотов 2026-11-02).
+  for (let i = 0; i < 5; i++) place('garage_' + 'abcd'[i % 4], 40 + i * 7.5, -70, { dyn: false, lab: i === 0, rotY: Math.PI });
   place('kiosk', 75, -60, { dyn: false }); place('busstop', 80, -40, { dyn: false, rotY: -Math.PI / 2 });
-  place('lenin', 20, -45, { dyn: false }); place('swing', 45, -35, { dyn: false });
-  for (let i = 0; i < 7; i++) { place(i % 2 ? 'tree_spruce' : 'tree_birch', -95 + i * 6, -50 + (i % 3) * 3, { dyn: false, lab: false }); }
-  { const l = label('Деревья', true, 0.5); l.position.set(-80, 12, -50); scene.add(l); }
+  place('lenin', 20, -45, { dyn: false });
+  // зимний пак: ёлки/кусты/изгороди из low_poly_winter_tree_pack
+  const winter = ['wtree_a', 'wtree_b', 'wtree_c', 'wtree_d', 'wtree_e', 'wtree_f', 'wtree_g', 'wtree_h', 'wtree_i'];
+  for (let i = 0; i < 9; i++) place(winter[i], -95 + i * 8, -50 + (i % 3) * 9, { dyn: false, lab: false });
+  for (let i = 0; i < 3; i++) place(['wshrub_a', 'wshrub_b', 'wshrub_c'][i], -88 + i * 5, -22, { dyn: false, lab: false });
+  place('whedge_a', -60, -30, { dyn: false, lab: false, rotY: Math.PI / 2 });
+  { const l = label('Зимние деревья и кусты (реальный пак)', true, 0.5); l.position.set(-80, 16, -50); scene.add(l); }
 
   // --- ящики и бочки (физика: пирамида) ---
   for (let r = 0; r < 5; r++) for (let c = 0; c < 5 - r; c++) place('crate', -105 + c * 1.02 + r * 0.51, 55, { y: 0.46 + r * 0.92, lab: false, mass: 25 });

@@ -23,10 +23,17 @@ export class AssetLibrary {
     this.manifest = await (await fetch(this.base + 'assets/manifest.json?' + Date.now())).json();
     this.manifest.items.forEach(i => this.byId.set(i.id, i));
     if (new URLSearchParams(location.search).has('nomodels')) this.manifest.items.forEach(i => { if (!i.placeholder) { i.placeholder = true; i.placeholderSpec = { builder: 'crate', p: { color: '#ff00ff', size: [1, 1, 1] } }; } });
-    const real = this.manifest.items.filter(i => !i.placeholder);
+    // Процедурные предметы (панельки) не имеют файла вообще — это НЕ заглушка, их строит код.
+    // Раньше они попадали в список загрузки, файл падал (file === undefined) и включалась
+    // аварийная маджентовая заглушка — именно её было видно на скриншотах.
+    const real = this.manifest.items.filter(i => !i.placeholder && !i.procedural);
     let done = 0;
     await Promise.all(real.map(async it => {
-      try { this.gltfs.set(it.id, await this.loader.loadAsync(this.base + (new URLSearchParams(location.search).has('lowtex') ? it.file!.replace('assets/game/', 'assets/game-low/') : it.file!))); }
+      try {
+        const gltf = await this.loader.loadAsync(this.base + (new URLSearchParams(location.search).has('lowtex') ? it.file!.replace('assets/game/', 'assets/game-low/') : it.file!));
+        sanitizeMaterials(gltf.scene);
+        this.gltfs.set(it.id, gltf);
+      }
       catch (e) { console.error('Не загрузилась модель', it.id, e); it.placeholder = true; it.placeholderSpec = it.placeholderSpec ?? { builder: 'crate', p: { color: '#ff00ff', size: [1, 1, 1] } }; }
       if (it.collider) { try { const c = await (await fetch(this.base + it.collider)).json(); this.colliders.set(it.id, { t: 'hull', points: c.points }); } catch { /* fallback to bbox */ } }
       onProgress?.(++done, real.length, it.name);
@@ -67,4 +74,35 @@ export class AssetLibrary {
     const b = new THREE.Box3().setFromObject(obj); const s = b.getSize(new THREE.Vector3()), ct = b.getCenter(new THREE.Vector3());
     return { t: 'box', he: [Math.max(s.x / 2, 0.03), Math.max(s.y / 2, 0.03), Math.max(s.z / 2, 0.03)], pos: [ct.x, ct.y, ct.z] };
   }
+}
+
+/**
+ * Приведение материалов из Sketchfab к нормальному виду.
+ * Проблема со скриншотов: ГАЗ-66 и Ми-8 выходили почти чёрными. У половины моделей из папки
+ * metalness=1.0 при roughness≈1, а окружения (env map) в сцене нет — металл без отражений
+ * честно рисуется чёрным. Это не баг модели, а баг освещения, поэтому правим на входе:
+ *  - metalness выше 0.9 при отсутствии металл-карты сбрасываем в 0.1;
+ *  - полностью зеркальные (metal=1, rough=0) — тонируем как стекло/хром, а не «дыру»;
+ *  - baseColorFactor слишком тёмный при наличии текстуры — поднимаем до читаемого.
+ * Материалы клонируются, поэтому исходные GLB и соседние экземпляры не страдают.
+ */
+function sanitizeMaterials(root: THREE.Object3D) {
+  root.traverse(o => {
+    const m = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+    if (!m) return;
+    const list = Array.isArray(m) ? m : [m];
+    for (const mat of list) {
+      const sm = mat as THREE.MeshStandardMaterial;
+      if (!sm.isMeshStandardMaterial) continue;
+      const hasMetalMap = !!sm.metalnessMap;
+      if (!hasMetalMap && sm.metalness > 0.9 && sm.roughness > 0.5) sm.metalness = 0.12;
+      // «зеркало» без env map: делаем шероховатым металлом, иначе чёрное пятно
+      if (!hasMetalMap && sm.metalness > 0.9 && sm.roughness < 0.15) { sm.metalness = 0.35; sm.roughness = 0.45; }
+      if (!sm.envMapIntensity) sm.envMapIntensity = 0.6;
+      if (sm.color && sm.map) {
+        const l = 0.2126 * sm.color.r + 0.7152 * sm.color.g + 0.0722 * sm.color.b;
+        if (l < 0.35) sm.color.setScalar(Math.min(1, 0.35 + l));
+      }
+    }
+  });
 }
