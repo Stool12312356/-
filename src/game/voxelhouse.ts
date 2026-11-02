@@ -212,11 +212,15 @@ export class VoxelHouse {
 
     // Реальные текстуры из public/textures (см. src/render/tex.ts). Если текстура не
     // загрузилась — материал остаётся однотонным, игра не падает.
-    const tBrick = tex('brick'), tStone = tex('stone'), tWood = tex('wood'), tStucco = tex('ground');
+    const tBrick = tex('brick'), tStone = tex('stone'), tWood = tex('wood');
     const generated = blockTexture();      // запасная процедурная кладка
-    // 0 бетон (несущая) — штукатурка, 1 плита — штукатурка, 2 кирпич — кирпич/бут,
-    // 4 дерево, 5 ступени — бетон
-    const MAP: Record<number, THREE.Texture | null> = { 0: tStucco, 1: tStucco, 2: tStone ?? tBrick, 4: tWood, 5: tStucco };
+    // БАГ (виден на скриншоте игрока): на стены и плиты была навешана текстура 'ground' —
+    // это фотография земли с камуфляжными пятнами. Внутри квартиры потолок и стены
+    // выглядели грязно-зелёными разводами. Для бетона берём каменную кладку, а если
+    // её нет — процедурную.
+    // 0 бетон (несущая), 1 плита, 2 кирпич (стена между квартирами), 4 дерево, 5 ступени
+    const tConcrete = tStone ?? tBrick ?? generated;
+    const MAP: Record<number, THREE.Texture | null> = { 0: tConcrete, 1: tConcrete, 2: tBrick ?? tStone, 4: tWood, 5: tConcrete };
     for (const [k, color] of Object.entries(VOXEL_COLOR)) {
       const kk = +k;
       if (kk === 3) {
@@ -278,6 +282,13 @@ export class VoxelHouse {
   private static QUAD = VOXEL_QUADS;
   /** UV-координаты углов грани: (0,0) (1,0) (1,1) (0,1) в порядке quads */
   private static QUAD_UV = [0, 0, 1, 0, 1, 1, 0, 1];
+  /**
+   * UV по МИРОВЫМ координатам грани (а не «полный тайл на кубик»).
+   * Кубик 0.5 м: при UV 0..1 рисунок кирпича повторяется каждые полметра — на стене
+   * это выглядело мелкой рябью (на скриншоте: «камуфляжные» разводы на потолке).
+   * TEX_M — сколько метров стены занимает один тайл текстуры.
+   */
+  private static readonly TEX_M = 2.0;
 
   /** Собирает геометрию чанка: наружные грани живых вокселей, по группам на материал. */
   private ensureChunk(key: string) {
@@ -301,10 +312,15 @@ export class VoxelHouse {
             if (nid >= 0 && this.alive[nid]) continue;          // грань внутри — не нужна
             // UV: каждая грань кубика получает полный тайл текстуры (0..1), иначе карта
             // «растягивается» на весь чанк и выглядит мыльной.
+            // UV считаем по МИРОВЫМ координатам в плоскости грани: соседние кубики
+            // продолжают рисунок, а не повторяют его каждые полметра.
             for (let qi = 0; qi < 4; qi++) {
               const c = VoxelHouse.CORNERS[VoxelHouse.QUAD[f][qi]];
-              a.verts.push(cxp + c[0] * h, cyp + c[1] * h, czp + c[2] * h);
-              a.uvs.push(VoxelHouse.QUAD_UV[qi * 2], VoxelHouse.QUAD_UV[qi * 2 + 1]);
+              const px = cxp + c[0] * h, py = cyp + c[1] * h, pz = czp + c[2] * h;
+              a.verts.push(px, py, pz);
+              // ось X грани (нормаль ±X) → плоскость (Z, Y); ±Y → (X, Z); ±Z → (X, Y)
+              const uv = di !== 0 ? [pz, py] : dj !== 0 ? [px, pz] : [px, py];
+              a.uvs.push(uv[0] / VoxelHouse.TEX_M, uv[1] / VoxelHouse.TEX_M);
             }
             quads++;
           }

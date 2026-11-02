@@ -42,21 +42,49 @@
     ]
   },
   {
-    "file": "tools/_render/walk-04-room-hall.png",
+    "file": "tools/_render/walk-04-hall-look-stairs.png",
+    "name": "hall-look-stairs",
+    "pos": [
+      4.42,
+      3.02,
+      1.37
+    ],
+    "target": [
+      1.5,
+      4.3202697277069095,
+      3.5
+    ]
+  },
+  {
+    "file": "tools/_render/walk-05-stairwell-up.png",
+    "name": "stairwell-up",
+    "pos": [
+      1.92,
+      3.02,
+      6.99
+    ],
+    "target": [
+      1.7999999999999998,
+      1.0199893474578858,
+      1.5
+    ]
+  },
+  {
+    "file": "tools/_render/walk-06-room-hall.png",
     "name": "room-hall",
     "pos": [
-      3.92,
+      4,
       3.02,
-      1.38
+      1.42
     ],
     "target": [
       4.4,
-      4.269972658157348,
+      4.270000076293945,
       5.1
     ]
   },
   {
-    "file": "tools/_render/walk-05-room-living.png",
+    "file": "tools/_render/walk-07-room-living.png",
     "name": "room-living",
     "pos": [
       6.22,
@@ -65,12 +93,12 @@
     ],
     "target": [
       7.2,
-      4.270000076293945,
+      4.269996976852417,
       3.8083333333333336
     ]
   },
   {
-    "file": "tools/_render/walk-06-room-bedroom.png",
+    "file": "tools/_render/walk-08-room-bedroom.png",
     "name": "room-bedroom",
     "pos": [
       9.73,
@@ -79,12 +107,12 @@
     ],
     "target": [
       10.54,
-      4.269999837875366,
+      4.270000076293945,
       3.4699999999999998
     ]
   },
   {
-    "file": "tools/_render/walk-07-room-kitchen.png",
+    "file": "tools/_render/walk-09-room-kitchen.png",
     "name": "room-kitchen",
     "pos": [
       1.26,
@@ -98,21 +126,21 @@
     ]
   },
   {
-    "file": "tools/_render/walk-08-room-bath.png",
+    "file": "tools/_render/walk-10-room-bath.png",
     "name": "room-bath",
     "pos": [
       3.98,
       3.02,
-      8.35
+      8.34
     ],
     "target": [
       4.233333333333333,
-      4.2699960231781,
+      4.269940948486328,
       9.116666666666667
     ]
   },
   {
-    "file": "tools/_render/walk-09-room-kids.png",
+    "file": "tools/_render/walk-11-room-kids.png",
     "name": "room-kids",
     "pos": [
       7.65,
@@ -121,12 +149,12 @@
     ],
     "target": [
       6.64,
-      4.269992685317993,
+      4.269971704483032,
       8.65
     ]
   },
   {
-    "file": "tools/_render/walk-10-room-study.png",
+    "file": "tools/_render/walk-12-room-study.png",
     "name": "room-study",
     "pos": [
       9.73,
@@ -135,7 +163,7 @@
     ],
     "target": [
       10.42,
-      4.269993162155151,
+      4.269999837875366,
       8.89
     ]
   }

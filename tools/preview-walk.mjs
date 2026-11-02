@@ -301,6 +301,24 @@ shoot({
   fov: 88,
 });
 
+// ВЗГЛЯД ИЗ ПРИХОЖЕЙ В ЛЕСТНИЧНУЮ КЛЕТКУ через дверь квартиры — ровно тот кадр,
+// на котором игрок увидел «лестницу в никуда». Пол этажа = floorH.
+{
+  goTo(cx(-1.2), cz(-4.0), model.floorH);
+  shoot({
+    name: 'hall-look-stairs',
+    target: [cx(plan.stairs.x0 + 1.0), feet()[1] + 1.3, cz(plan.stairs.z0 + 3.0)],
+    fov: 92,
+  });
+  // и снизу вверх по шахте со второго этажа квартиры
+  goTo(cx(-4.2), cz(0.4), model.floorH);
+  shoot({
+    name: 'stairwell-up',
+    target: [cx(-4.2), feet()[1] - 2.0, cz(plan.stairs.z0 + 1.0)],
+    fov: 95,
+  });
+}
+
 // в квартиру и по комнатам (пол 1 этажа = floorH)
 const floorH = model.floorH;
 for (const r of rooms) {

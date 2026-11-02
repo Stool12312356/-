@@ -17,7 +17,9 @@ export interface PlacedBuilding {
   center: THREE.Vector3;
   /** габариты (для поиска «в какой дом попали») */
   size: [number, number, number];
-  /** лестница подъезда (проходимая, не воксельная) */
+  /** лестницы всех подъездов (проходимые, не воксельные) — по одной на секцию */
+  stairs: Staircase[];
+  /** лестница первого подъезда (для отладки/тестов) */
   stair: Staircase;
 }
 
@@ -123,24 +125,34 @@ export function spawnVoxelHouse(
   const house = new VoxelHouse(grid, scene, phys);
   if (heightAt) house.setHeightFn(heightAt);
 
-  // ---- настоящая лестница в подъезде (см. staircase.ts) ----
+  // ---- настоящие лестницы во ВСЕХ подъездах (см. staircase.ts) ----
   // Воксельная «змейка» была непроходимой: ступень 0.5 м при autostep 0.4 м.
-  const stair = buildStaircase(model.plan, model.floors, model.floorH, offset);
-  if (rotY !== 0) {
-    stair.mesh.rotation.y = rotY;
-    // физика: те же вершины, повёрнутые вокруг центра дома
-    const q2 = q, v = new THREE.Vector3();
-    for (let i = 0; i < stair.verts.length; i += 3) {
-      v.set(stair.verts[i] - offset.x, stair.verts[i + 1] - offset.y, stair.verts[i + 2] - offset.z).applyQuaternion(q2);
-      stair.verts[i] = v.x + offset.x; stair.verts[i + 1] = v.y + offset.y; stair.verts[i + 2] = v.z + offset.z;
+  // БАГ: лестница строилась одна на весь дом. У 3-секционной хрущёвки три подъезда и
+  // три лестничных клетки, а марши были только в первой; из остальных подъездов наверх
+  // попасть было нельзя.
+  const stairs: Staircase[] = [];
+  for (let s = 0; s < model.sections; s++) {
+    const secCx = (s - (model.sections - 1) / 2) * model.plan.w;
+    const origin = new THREE.Vector3(offset.x + secCx, offset.y, offset.z);
+    const st = buildStaircase(model.plan, model.floors, model.floorH, origin);
+    if (rotY !== 0) {
+      st.mesh.rotation.y = rotY;
+      // физика: те же вершины, повёрнутые вокруг центра дома
+      const v = new THREE.Vector3();
+      for (let i = 0; i < st.verts.length; i += 3) {
+        v.set(st.verts[i] - offset.x, st.verts[i + 1] - offset.y, st.verts[i + 2] - offset.z).applyQuaternion(q);
+        st.verts[i] = v.x + offset.x; st.verts[i + 1] = v.y + offset.y; st.verts[i + 2] = v.z + offset.z;
+      }
     }
+    scene.add(st.mesh);
+    phys.add({
+      kind: 'static',
+      shapes: [{ t: 'trimesh', verts: st.verts, idx: st.idx }],
+      pos: [0, 0, 0], quat: [0, 0, 0, 1], surface: 'concrete',
+    } as never);
+    stairs.push(st);
   }
-  scene.add(stair.mesh);
-  phys.add({
-    kind: 'static',
-    shapes: [{ t: 'trimesh', verts: stair.verts, idx: stair.idx }],
-    pos: [0, 0, 0], quat: [0, 0, 0, 1], surface: 'concrete',
-  } as never);
+  const stair = stairs[0];
 
   furnish(model, scene, offset, rotY);
 
@@ -149,5 +161,5 @@ export function spawnVoxelHouse(
   lamp.position.copy(offset).add(new THREE.Vector3(0, 3.2, model.size[2] / 2 + 2.5).applyQuaternion(q));
   scene.add(lamp);
 
-  return { house, model, stair, center: new THREE.Vector3(offset.x, model.size[1] / 2, offset.z), size: model.size };
+  return { house, model, stairs, stair, center: new THREE.Vector3(offset.x, model.size[1] / 2, offset.z), size: model.size };
 }

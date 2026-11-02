@@ -107,7 +107,11 @@ for (const kind of ['khrushchevka', 'brezhnevka']) {
     const j = Math.round((f * m.floorH) / PITCH) - 1;      // плита = верхний воксель этажа
     floorsChecked++;
     for (let i = 0; i < m.spec.nx; i++) for (let k = 0; k < m.spec.nz; k++) {
-      const inShaft = i > I(plan.stairs.x0) && i < I(plan.stairs.x1) && k > K(plan.stairs.z0) && k < K(plan.stairs.z1);
+      // шахта = ВНУТРЕННИЙ объём клетки (plan.stairs задан между осями стен; стена
+      // занимает воксель вокруг оси). Раньше здесь был отступ «±1», и тест «не видел»
+      // крайние клетки шахты, которые плита заливала — а марш потом шёл сквозь них.
+      const inShaft = i >= I(plan.stairs.x0) && i < I(plan.stairs.x1) &&
+        k >= K(plan.stairs.z0) && k < K(plan.stairs.z1);
       const solid = at(i, j, k) >= 0;
       if (inShaft && solid) shaftBlocked++;
       if (!inShaft && !solid) slabHoles++;

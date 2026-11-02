@@ -94,11 +94,15 @@ export function buildVoxelHouse(opts: VoxelHouseOpts): VoxelHouseModel {
     const s0 = s * secW;                                 // начало секции по i
     // метры плана → индексы сетки. План задан по ОСЕВЫМ линиям стен (они проходят через
     // ЦЕНТРЫ вокселей), поэтому floor, а не round: round «съезжал» на полвокселя.
-    // Смещение секции: центр секции s в мировых координатах = nx*PITCH/2 +
-    // (s - (sections-1)/2) * plan.w. Раньше здесь была ошибка знака, из-за которой
-    // в многосекционном доме вход и окна резались только в ПЕРВОЙ секции.
+    // Перевод координаты плана в индекс сетки. Раньше здесь складывались ДВА
+    // центрирования: `s0` (начало секции в вокселях) и `secOffset` (смещение секции
+    // ОТ ЦЕНТРА ВСЕГО ДОМА). При 1 секции ошибка компенсировалась (s0 = 0), а при
+    // 3 секциях внутренние стены, двери и шахта уезжали на секцию вперёд и вылезали
+    // за сетку: шахта оказывалась за пределами дома, плиты её заливали, и из проёма
+    // в подъезде росла «лестница в никуда» — марши шли в перекрытие. Именно поэтому
+    // тесты (1 секция) были зелёные, а в игре (3 секции) — нет.
     const secOffset = (s - (sections - 1) / 2) * plan.w;
-    const PI = (x: number) => s0 + Math.floor((x + secOffset + (nx * PITCH) / 2) / PITCH);
+    const PI = (x: number) => Math.floor((x + secOffset + (nx * PITCH) / 2) / PITCH);
     const PK = (z: number) => Math.floor((z + (nz * PITCH) / 2) / PITCH);
     // ---- стены по периметру + межсекционная ----
     for (let f = 0; f < floors; f++) {
@@ -109,7 +113,7 @@ export function buildVoxelHouse(opts: VoxelHouseOpts): VoxelHouseModel {
       const j1 = Math.floor(((f + 1) * floorH) / PITCH) - 1;
       for (let j = j0; j <= j1; j++) {
         for (let i = s0; i < s0 + secW; i++) {
-          // фасад/тыл
+          // фасад/тыл — в КАЖДОЙ секции: у каждого подъезда своя дверь и свои окна
           for (const k of [PK(plan.entrance.z), nz - 1]) {
             // проём под окно: 2.05/0.85 м → примерно воксели 2..4 (снизу 0.85 = 1.7 вокс)
             const localJ = j - j0;
@@ -138,8 +142,9 @@ export function buildVoxelHouse(opts: VoxelHouseOpts): VoxelHouseModel {
           add(0, j, k, winRowT && k > kWin0 && k < kWin1 ? 3 : 0, s, 1);
         if (s === sections - 1) for (let k = 1; k < nz - 1; k++)
           add(nx - 1, j, k, winRowT && k > kWin0 && k < kWin1 ? 3 : 0, s, 1);
-        // межсекционная кирпичная стена (не несущая: её можно пробить, дом стоит)
-        if (s > 0) add(s0, j, Math.round(nz / 2), 2, s, 0);
+        // межсекционная СТЕНА НА ВСЮ ГЛУБИНУ: это стена между квартирами, а не
+        // один воксель в середине (через него квартиры «сообщались»).
+        if (s > 0) for (let k = 0; k < nz; k++) add(s0, j, k, 2, s, 0);
       }
       // ---- ВНУТРЕННИЕ СТЕНЫ ПО 2D-ПЛАНУ (plan.ts) ----
       // Раньше дом внутри был пустой коробкой: «между квартирами нет стены, мебель
@@ -177,8 +182,12 @@ export function buildVoxelHouse(opts: VoxelHouseOpts): VoxelHouseModel {
       // ВАЖНО: plan.stairs задан «вплотную к стенам», а стена занимает целый воксель.
       // Поэтому внутренний объём клетки = границы ±1 воксель. Без этого шахта съедала
       // стену между клеткой и прихожей (получался проход шириной 6 м и «нет стены»).
-      const si0p = PI(plan.stairs.x0) + 1, si1p = PI(plan.stairs.x1) - 1;
-      const sk0p = PK(plan.stairs.z0) + 1, sk1p = PK(plan.stairs.z1) - 1;
+      // plan.stairs — уже ВНУТРЕННИЙ объём клетки (между осями стен), и стена занимает
+      // воксель вокруг своей оси. Отступ «±1 воксель» срезал лишнее: крайние клетки
+      // шахты заливались плитой, и марш проходил СКВОЗЬ перекрытие — на скриншоте это
+      // «лестница в никуда». Внутренний объём = PI(x0) .. PI(x1)-1.
+      const si0p = PI(plan.stairs.x0), si1p = PI(plan.stairs.x1) - 1;
+      const sk0p = PK(plan.stairs.z0), sk1p = PK(plan.stairs.z1) - 1;
       for (let i = s0; i < s0 + secW; i++) for (let k = 0; k < nz; k++) {
         if (cells[idx(i, jf, k)] >= 0) continue;
         if (i >= si0p && i <= si1p && k >= sk0p && k <= sk1p) continue;  // шахта
@@ -190,8 +199,8 @@ export function buildVoxelHouse(opts: VoxelHouseOpts): VoxelHouseModel {
     // что между квартирами нет стены. Теперь границы берём из плана (plan.stairs).
     // plan.stairs задан по ВНУТРЕННЕМУ объёму клетки (между стенами), поэтому
     // дополнительных отступов не нужно — иначе шахта съедала стены квартиры.
-    const sIn0 = PI(plan.stairs.x0) + 1, sIn1 = PI(plan.stairs.x1) - 1;
-    const sK0 = PK(plan.stairs.z0) + 1, sK1 = PK(plan.stairs.z1) - 1;
+    const sIn0 = PI(plan.stairs.x0), sIn1 = PI(plan.stairs.x1) - 1;
+    const sK0 = PK(plan.stairs.z0), sK1 = PK(plan.stairs.z1) - 1;
     for (let f = 0; f < floors; f++) {
       const j0 = Math.floor((f * floorH) / PITCH);
       // ВАЖНО: на первом этаже оставляем слой j = 0 — это ПОЛ подъезда. Если начать

@@ -304,5 +304,109 @@ for (const kind of ['khrushchevka', 'brezhnevka']) {
   check('спавн вычисляется из плана дома', Math.hypot(calc[0] - SPAWN[0], calc[2] - SPAWN[2]) < 1e-6);
 }
 
+// --- 9. МНОГОСЕКЦИОННЫЙ дом: тесты гоняли 1 секцию, а в игре стоят 3 и 2.
+// Внутренние стены, двери и ШАХТА переводились в индексы сетки со сложением двух
+// центрирований (начало секции + смещение от центра дома). При 1 секции это
+// компенсировалось, при 3 — уезжало на секцию вперёд: шахта вылезала за дом, плиты
+// её заливали, и в подъезде из проёма росла «лестница в никуда».
+{
+  // по одному дому каждого типа и разной этажности (третий в мире — та же хрущёвка)
+  const seen = new Set();
+  for (const d of BUILDINGS) {
+    const uid = `${d.kind}|${d.sections}`;
+    if (seen.has(uid)) continue;
+    seen.add(uid);
+    const model = buildVoxelHouse({ kind: d.kind, sections: d.sections });
+    const { nx, ny, nz, cells } = model.spec;
+    const at = (i, j, k) => (i < 0 || j < 0 || k < 0 || i >= nx || j >= ny || k >= nz) ? -1 : cells[(j * nz + k) * nx + i];
+    const secW = Math.round(model.plan.w / PITCH);
+    const plan = model.plan;
+    const PK = (z) => Math.floor((z + (nz * PITCH) / 2) / PITCH);
+    const PI = (x, s) => Math.floor((x + (s - (d.sections - 1) / 2) * plan.w + (nx * PITCH) / 2) / PITCH);
+    const tag = `${d.kind} ×${d.sections}`;
+    const probs = [];
+    for (let s = 0; s < d.sections; s++) {
+      const sec0 = s * secW, sec1 = sec0 + secW - 1;
+      const i0 = PI(plan.stairs.x0, s) + 1, i1 = PI(plan.stairs.x1, s) - 1;
+      const k0 = PK(plan.stairs.z0) + 1, k1 = PK(plan.stairs.z1) - 1;
+      if (i0 <= sec0 || i1 >= sec1 || i1 <= i0) { probs.push(`шахта секции ${s} вне секции (${i0}..${i1} при ${sec0}..${sec1})`); continue; }
+      for (let f = 1; f < model.floors; f++) {
+        const j = Math.floor((f * model.floorH) / PITCH) - 1;
+        let solid = 0;
+        for (let i = i0; i <= i1; i++) for (let k = k0; k <= k1; k++) if (at(i, j, k) >= 0) solid++;
+        if (solid) { probs.push(`шахта замурована на ${f}-м этаже (${solid} вокселей)`); break; }
+      }
+      const dI = PI(plan.entrance.x, s), dK = PK(plan.entrance.z);
+      if (at(dI, 1, dK) >= 0) probs.push(`дверь подъезда заложена в секции ${s}`);
+      // внутренняя стена квартиры (клетка | прихожая) на месте и с дверью
+      const wI = PI(plan.stairs.x1, s);
+      if (at(wI, Math.floor(1.5 / PITCH), PK(plan.stairs.z0 + 2.0)) < 0) probs.push(`нет стены клетки в секции ${s}`);
+    }
+    // марши не должны проходить сквозь перекрытие: у каждой ступени каждого подъезда
+    // должен быть просвет до плиты не меньше роста игрока + запас
+    let lowClear = 0, minClear = 99;
+    for (let s = 0; s < d.sections; s++) {
+      const so = new THREE.Vector3(model.size[0] / 2 + (s - (d.sections - 1) / 2) * plan.w, 0, model.size[2] / 2);
+      const st = buildStaircase(plan, model.floors, model.floorH, so);
+      for (let f = 0; f < model.floors - 1; f++) {
+        for (const mid of [-4.75, -3.75]) {
+          for (let n = 0; n < st.steps; n++) {
+            const y = f * model.floorH + (n + 1) * st.rise;
+            const x = so.x + mid;
+            const z = so.z + st.zone.z0 + st.landing + (n + 0.5) * st.tread;
+            const iL = Math.floor(x / PITCH), kL = Math.floor(z / PITCH);
+            let clear = 0;
+            for (let dd = 0.05; dd < 2.2; dd += 0.25) {
+              if (at(iL, Math.floor((y + dd) / PITCH), kL) < 0) clear = dd; else break;
+            }
+            minClear = Math.min(minClear, clear);
+            if (clear < PLAYER.heightStand + 0.1) lowClear++;
+          }
+        }
+      }
+    }
+    if (lowClear) probs.push(`${lowClear} ступеней упираются в перекрытие (просвет ${minClear.toFixed(2)} м)`);
+    check(`${tag}: шахта внутри дома, плиты её не заливают, двери на месте`,
+      probs.length === 0,
+      probs.length ? probs.slice(0, 3).join('; ') : `${d.sections} секц., ${model.floors} эт., просвет над маршем ${minClear.toFixed(2)} м`);
+  }
+}
+
+// --- 10. физика в СРЕДНЕМ подъезде многосекционного дома.
+// Лестница строилась одна на весь дом, поэтому в среднем и третьем подъездах маршей
+// не было вовсе: наверх было не подняться (это и был кадр «лестница в никуда»).
+{
+  const d = BUILDINGS[0];                       // 3-секционная хрущёвка — как в игре
+  const model = buildVoxelHouse({ kind: d.kind, sections: d.sections });
+  const plan = model.plan;
+  const secIdx = Math.floor(d.sections / 2);    // средний подъезд
+  const secOff = (secIdx - (d.sections - 1) / 2) * plan.w;
+  const center = new THREE.Vector3(0, 0, 0);
+  // buildStaircase ждёт origin в геометрии дома (центр плана = size/2), но сетка
+  // многосекционного дома шире одной секции — поэтому марши строим в координатах
+  // сетки напрямую: центр секции = size[0]/2 + secOff.
+  const st = buildStaircase(plan, model.floors, model.floorH, new THREE.Vector3(model.size[0] / 2 + secOff, 0, model.size[2] / 2));
+  const { world } = makeWorld(model, st);
+  const ox = model.size[0] / 2 + secOff, oz = model.size[2] / 2;
+  const p = makePlayer(world, [plan.entrance.x + ox, 0.05, plan.entrance.z + oz - 2.0]);
+  for (let f = 0; f < 240; f++) step(world, p, 0, 1);   // заходим в подъезд
+  const y0 = feet(p)[1] + 1;                            // +1, чтобы 0 не считался «подъёмом»
+  const laneL2 = (st.zone.x0 + (st.zone.x0 + st.zone.x1) / 2) / 2 + ox;
+  const laneR2 = ((st.zone.x0 + st.zone.x1) / 2 + st.zone.x1) / 2 + ox;
+  const zA2 = st.zone.z0 + oz, zB2 = st.zone.z1 + oz;
+  for (const wp of [[laneL2, zA2 + 0.35], [laneL2, zB2 - 0.35], [laneR2, zB2 - 0.35], [laneR2, zA2 + 0.35]]) {
+    for (let f = 0; f < 900; f++) {
+      const t = feet(p);
+      const dx = wp[0] - t[0], dz = wp[1] - t[2];
+      if (Math.hypot(dx, dz) < 0.25) break;
+      step(world, p, dx, dz);
+    }
+  }
+  const climbed = feet(p)[1] + 1 - y0;
+  check('в среднем подъезде 3-секционного дома есть лестница и она выводит на этаж',
+    climbed > model.floorH - 0.4,
+    `поднялись на ${climbed.toFixed(2)} м (этаж ${model.floorH} м)`);
+}
+
 console.log(`\nИТОГ: ${bad ? 'ПРОВАЛЫ' : 'OK'} — ${ok} проверок, можно зайти, подняться на этаж и обойти все комнаты`);
 process.exit(bad ? 1 : 0);
