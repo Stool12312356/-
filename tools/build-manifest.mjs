@@ -22,7 +22,17 @@ const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies(
 });
 const ROT = { '+x': Math.PI / 2, '+z': Math.PI, '-x': -Math.PI / 2, '-z': 0 };
 
-const sources = listSources(); const files = sources.map(s => s.name); const pathOf = Object.fromEntries(sources.map(s => [s.name, s.path]));
+const sources = listSources();
+// Защита: если assets/models пуст, НЕ перезаписываем рабочий манифест пустым —
+// иначе игра останется без моделей (частый случай: распаковали архив без сырых ассетов).
+if (sources.length === 0 && fs.existsSync(`${OUT}/manifest.json`)) {
+  const cur = JSON.parse(fs.readFileSync(`${OUT}/manifest.json`, 'utf8'));
+  const real = cur.items.filter(i => !i.placeholder && !i.procedural).length;
+  console.log(`assets/models пуст — манифест НЕ тронут (в нём ${cur.items.length} предметов, ${real} реальных).`);
+  console.log('Чтобы пересобрать: положите GLB в assets/models и повторите npm run assets.');
+  process.exit(0);
+}
+const files = sources.map(s => s.name); const pathOf = Object.fromEntries(sources.map(s => [s.name, s.path]));
 const claimed = new Map(); // file -> id
 const byId = new Map();
 let errors = 0;
