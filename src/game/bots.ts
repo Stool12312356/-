@@ -45,6 +45,15 @@ export class Bots {
     return bot;
   }
 
+  /** Убрать всех (новая волна) — и объекты, и тела физики. */
+  clear() {
+    for (const b of this.list) {
+      b.object.removeFromParent();
+      this.phys.removeBody(b.bodyId);
+    }
+    this.list.length = 0;
+  }
+
   /** Применить попадание. Возвращает true, если бот умер этим выстрелом. */
   hit(bot: Bot, damage: number, point: [number, number, number]) {
     if (bot.dead) return false;
@@ -79,4 +88,16 @@ export class Bots {
   }
 
   alive() { return this.list.filter(b => !b.dead).length; }
+
+  aliveBy(side: number) { return this.list.filter(b => !b.dead && b.side === side).length; }
+
+  /** Живые бойцы стороны — для режима матча (точки захвата, билеты). */
+  refs(): { side: 0 | 1; alive: boolean; pos: [number, number, number]; holding: boolean }[] {
+    return this.list.map(b => ({
+      side: (b.side ? 1 : 0) as 0 | 1,
+      alive: !b.dead,
+      pos: [b.object.position.x, b.object.position.y, b.object.position.z] as [number, number, number],
+      holding: false,
+    }));
+  }
 }

@@ -10,6 +10,8 @@ import { Scope } from './game/scope';
 import { loadTextures } from './render/tex';
 import { Audio, listenerPos } from './game/audio';
 import { Bots } from './game/bots';
+import { Match, type SoldierRef } from './game/match';
+import { buildCapturePoints, spawnFor } from './game/maps';
 import { spawnVoxelHouse, spawnSpecial, type PlacedBuilding } from './game/structure';
 import { BUILDINGS, SPAWN } from './game/world';
 import { SURFACES, pointBlankRange, EXPLOSION, EXPLOSION_SMALL } from './game/weapons';
@@ -59,6 +61,11 @@ let aimMsg = '', aimT = 0;
 let lastHitMarker = 0;
 /** Звук: создаётся на первом жесте пользователя (политика браузеров), см. audio.ts */
 const audio = new Audio();
+/** Режим «Штурм» (ТЗ п.7): точки захвата, билеты, время. Логика — в game/match.ts */
+let match: Match | null = null;
+/** сколько бойцов на сторону в одной волне */
+const WAVE = 8;
+let waveT = 0;
 
 async function boot() {
   const load = $('load');
@@ -95,15 +102,98 @@ async function boot() {
   cmb.aimProbe = (origin, dir) => { phys.probe([origin.x, origin.y, origin.z], [dir.x, dir.y, dir.z], 200); return phys.rayDist; };
   cmb.equip(0);
   const bt = bots = new Bots(scene, lib, phys);
-  // мишени: 6 своих и 6 противников (у противника другая модель — forest_soldier_outdated)
-  for (let i = 0; i < 6; i++) bt.spawn('soldier_ussr', [-30 + i * 3, 0.02, -50], Math.PI, 0);
-  for (let i = 0; i < 6; i++) bt.spawn('soldier_opfor', [-30 + i * 3, 0.02, -42], 0, 1);
+  // РЕЖИМ «ШТУРМ» (ТЗ п.7): точки захвата + волны бойцов обеих сторон.
+  match = new Match(buildCapturePoints('spalny'));
+  buildPointMarkers();
+  spawnWave();
+  bt.onDeath = (b) => {
+    // смерть бойца = минус билет его стороне (в ТЗ так и есть: билеты — это жизни)
+    match?.casualty(b.side ? 1 : 0);
+    // противник погиб — прибавка к счёту игрока в фиде
+    if (b.side) addFeed('Противник уничтожен');
+  };
   phys.onImpact(onImpact);
   phys.post({ type: 'spawnPlayer', pos: SPAWN });
   const real = lib.all().filter(i => !i.placeholder && !i.procedural).length;
   load.innerHTML = `Готово. Реальных моделей: <b class="ok">${real}</b> · заглушек: <b class="ph">${lib.all().filter(i => i.placeholder).length}</b> · процедурных домов: <b class="ok">${buildings.length}</b>`;
   ($('play') as HTMLButtonElement).disabled = false; ($('regbtn') as HTMLButtonElement).disabled = false;
   buildRegistry(); requestAnimationFrame(frame);
+}
+
+/**
+ * ВОЛНА БОЙЦОВ (ТЗ п.7/п.10): боты появляются у своих баз и расходятся к точкам
+ * захвата. Пока это манекены с HP и рэгдоллом (полный ИИ — отдельный этап), но
+ * расстановка уже «по режиму», а не в две шеренги посреди карты.
+ */
+function spawnWave() {
+  if (!bots || !match) return;
+  const my = spawnFor(0), foe = spawnFor(1);
+  for (let i = 0; i < WAVE; i++) {
+    const a = (i / WAVE) * Math.PI * 2;
+    bots.spawn('soldier_ussr', [my[0] + Math.cos(a) * 4, 0.05, my[2] + Math.sin(a) * 4], 0, 0);
+    bots.spawn('soldier_opfor', [foe[0] + Math.cos(a) * 4, 0.05, foe[2] + Math.sin(a) * 4], Math.PI, 1);
+  }
+  waveT = 0;
+}
+
+/** Раз в несколько секунд добиваем стороны до размера волны — «подкрепления» режима. */
+function reinforcements(dt: number) {
+  if (!bots || !match || match.state !== 'running') return;
+  waveT += dt;
+  if (waveT < 6) return;
+  waveT = 0;
+  const my = spawnFor(0), foe = spawnFor(1);
+  while (bots.aliveBy(0) < WAVE) {
+    const i = bots.aliveBy(0);
+    bots.spawn('soldier_ussr', [my[0] + Math.cos(i) * 4, 0.05, my[2] + Math.sin(i) * 4], 0, 0);
+  }
+  while (bots.aliveBy(1) < WAVE) {
+    const i = bots.aliveBy(1);
+    bots.spawn('soldier_opfor', [foe[0] + Math.cos(i) * 4, 0.05, foe[2] + Math.sin(i) * 4], Math.PI, 1);
+  }
+}
+
+/**
+ * ВИДИМЫЕ ТОЧКИ ЗАХВАТА: кольцо на земле + столб света, цвет = владелец.
+ * Без них в «Штурме» непонятно, куда идти: HUD показывает буквы, но не место.
+ */
+let cpMarkers: { ring: THREE.Mesh; beam: THREE.Mesh; idx: number }[] = [];
+function buildPointMarkers() {
+  if (!match) return;
+  for (const m of cpMarkers) { m.ring.removeFromParent(); m.beam.removeFromParent(); }
+  cpMarkers = [];
+  match.points.forEach((p, idx) => {
+    const y = heightAt(p.pos[0], p.pos[2]) + 0.06;
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(p.radius - 0.35, p.radius, 40),
+      new THREE.MeshBasicMaterial({ color: '#9aa4ae', transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }),
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.set(p.pos[0], y, p.pos[2]);
+    const beam = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.18, 0.18, 14, 8, 1, true),
+      new THREE.MeshBasicMaterial({ color: '#9aa4ae', transparent: true, opacity: 0.22, depthWrite: false }),
+    );
+    beam.position.set(p.pos[0], y + 7, p.pos[2]);
+    scene.add(ring, beam);
+    cpMarkers.push({ ring, beam, idx });
+  });
+}
+
+/** Перекраска маркеров по владельцу (раз в 0.2 с, не каждый кадр). */
+function updatePointMarkers() {
+  if (!match) return;
+  for (const m of cpMarkers) {
+    const p = match.points[m.idx];
+    const col = p.owner === 0 ? '#e8483c' : p.owner === 1 ? '#7fb1e8' : '#9aa4ae';
+    for (const obj of [m.ring, m.beam]) {
+      const mat = (obj as THREE.Mesh).material as THREE.MeshBasicMaterial;
+      if (mat.color.getHexString() !== col.slice(1)) mat.color.set(col);
+    }
+    // пульсация: точка, которую сейчас берут, мигает
+    const pulse = p.capturing === -1 ? 1 : 0.75 + 0.25 * Math.sin(performance.now() / 140);
+    ((m.ring as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = 0.4 + 0.3 * pulse;
+  }
 }
 
 /** Ставит процедурные панельки: хрущёвка и брежневка на своих местах. */
@@ -312,6 +402,21 @@ function blast() {
 }
 
 let lastT = performance.now(), fps = 60, eyeY = 1.65, bob = 0, stepAcc = 0;
+let matchEnded = false, scoreT = 0;
+/** Счёт режима наверху экрана: билеты, время, точки (буквы окрашены по владельцу). */
+function updateScoreHud() {
+  const el = $('score');
+  if (!el || !match) return;
+  const own = match.points.filter(p => p.owner === 0).length;
+  const foe = match.points.filter(p => p.owner === 1).length;
+  const dots = match.points.map(p => {
+    const col = p.owner === 0 ? '#e8483c' : p.owner === 1 ? '#7fb1e8' : '#9aa4ae';
+    const cap = p.capturing === 0 ? '▸' : p.capturing === 1 ? '◂' : ' ';
+    return `<span style="color:${col}">${cap}${p.name[0]}</span>`;
+  }).join(' ');
+  el.innerHTML = `БИЛЕТЫ ${Math.round(match.tickets[0])} : ${Math.round(match.tickets[1])} · ${match.hud()} · ТОЧКИ ${own}:${foe}<br>${dots}`;
+  void scoreT;
+}
 function frame(now: number) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now; fps += (1 / Math.max(dt, 1e-3) - fps) * 0.05;
@@ -354,6 +459,24 @@ function frame(now: number) {
   for (const b of buildings) { b.house.update(dt, now); houseByBody.set(b.house.bodyId, b); }
   // эффекты и трассеры
   if (effects) { effects.update(dt); effects.updateTracers(phys.tracers, camera); }
+  // РЕЖИМ «ШТУРМ»: тик точек захвата и билетов. Игрок — такой же боец в списке,
+  // иначе «своя» сторона не может захватывать точки одна.
+  if (match && bots) {
+    reinforcements(dt);
+    const refs: SoldierRef[] = bots.refs();
+    if (phys.player) {
+      const pp = phys.player.pos;
+      const pOnPoint = !!match.pointAt(pp);
+      refs.push({ side: 0, alive: phys.player.hp > 0, pos: [pp[0], pp[1], pp[2]], holding: pOnPoint && spd2 < 1.2 });
+    }
+    for (const msg of match.update(dt, refs)) addFeed(msg);
+    updateScoreHud();
+    updatePointMarkers();
+    if (match.state !== 'running' && !matchEnded) {
+      matchEnded = true;
+      addFeed(match.state === 'win' ? `ПОБЕДА: ${match.reason}` : match.state === 'lose' ? `ПОРАЖЕНИЕ: ${match.reason}` : `НИЧЬЯ: ${match.reason}`);
+    }
+  }
   // прицел-перекрестие: расхождение = разброс
   if (combat) {
     const spread = 8 + (combat.isReloading ? 0 : 6);

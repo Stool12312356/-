@@ -23,7 +23,7 @@ const stanceEye = [PLAYER.eyeStand, PLAYER.eyeCrouch, PLAYER.eyeProne];
 const stanceSpeed = [PLAYER.walk, PLAYER.crouchSpeed, PLAYER.proneSpeed];
 let pBody: RAPIER.RigidBody | null = null, pCol: RAPIER.Collider | null = null, cc: RAPIER.KinematicCharacterController;
 let input: PlayerInput = { yaw: 0, pitch: 0, fwd: 0, right: 0, jump: false, sprint: false, crouch: false, prone: false };
-const ps = { feet: [0, 0, 0] as [number, number, number], vel: [0, 0, 0] as [number, number, number], grounded: false, stance: 0 as 0 | 1 | 2, stamina: PLAYER.staminaMax, exhausted: false, hp: PLAYER.hp, sliding: false, spawn: [0, 2, 0] as [number, number, number], airTopY: 0, wasGrounded: true, pushVel: [0, 0, 0] as [number, number, number], slopeDeg: 0, groundNormal: { x: 0, y: 1, z: 0 } as { x: number; y: number; z: number } };
+const ps = { feet: [0, 0, 0] as [number, number, number], vel: [0, 0, 0] as [number, number, number], grounded: false, stance: 0 as 0 | 1 | 2, stamina: PLAYER.staminaMax, exhausted: false, hp: PLAYER.hp, sliding: false, hurtAt: 0, spawn: [0, 2, 0] as [number, number, number], airTopY: 0, wasGrounded: true, pushVel: [0, 0, 0] as [number, number, number], slopeDeg: 0, groundNormal: { x: 0, y: 1, z: 0 } as { x: number; y: number; z: number } };
 
 /** Направление вниз по склону по нормали поверхности (горизонтальная проекция). */
 function downhill(n: { x: number; y: number; z: number }): [number, number] {
@@ -34,7 +34,7 @@ function downhill(n: { x: number; y: number; z: number }): [number, number] {
 
 function spawnPlayer(pos: [number, number, number]) {
   if (pBody) { world.removeRigidBody(pBody); pBody = null; }
-  ps.spawn = pos; ps.feet = [...pos]; ps.vel = [0, 0, 0]; ps.stance = 0; ps.hp = PLAYER.hp; ps.stamina = PLAYER.staminaMax;
+  ps.spawn = pos; ps.feet = [...pos]; ps.vel = [0, 0, 0]; ps.stance = 0; ps.hp = PLAYER.hp; ps.hurtAt = 0; ps.stamina = PLAYER.staminaMax;
   const h = stanceH[0];
   pBody = world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(pos[0], pos[1] + h / 2, pos[2]));
   pCol = world.createCollider(RAPIER.ColliderDesc.capsule((h - 2 * PR) / 2, PR).setFriction(0), pBody);
@@ -133,8 +133,15 @@ function stepPlayer() {
   if (grounded && !ps.wasGrounded) {
     const drop = ps.airTopY - ps.feet[1];
     if (drop > PLAYER.fallDamageFrom) ps.hp -= (drop - PLAYER.fallDamageFrom) * 14;
+    if (drop > PLAYER.fallDamageFrom) ps.hurtAt = PLAYER.hpRegenDelay;
   }
   ps.wasGrounded = grounded; ps.grounded = grounded;
+  // РЕГЕНЕРАЦИЯ ЗДОРОВЬЯ (как в Battlefield): после боя здоровье медленно возвращается.
+  // Раньше HP умело только падать, и любой ушиб навсегда выводил игрока из боя.
+  if (ps.hp < PLAYER.hp) {
+    if (ps.hurtAt > 0) ps.hurtAt -= DT;
+    else ps.hp = Math.min(PLAYER.hp, ps.hp + PLAYER.hpRegen * DT);
+  } else ps.hurtAt = 0;
   // упал за карту / умер -> респавн
   if (ps.feet[1] < -60 || ps.hp <= 0) { spawnPlayer(ps.spawn); }
 }
@@ -195,7 +202,7 @@ function explosion(pos: [number, number, number], radius: number, impulse: numbe
   }
   if (pBody) { // ударная волна отбрасывает игрока
     const dx = ps.feet[0] - pos[0], dy = ps.feet[1] + 1 - pos[1], dz = ps.feet[2] - pos[2]; const d = Math.hypot(dx, dy, dz);
-    if (d < radius) { const f = (1 - d / radius) * 22; const inv = 1 / Math.max(d, 0.5); ps.vel[0] += dx * inv * f; ps.vel[1] += (dy * inv + 0.5) * f * 0.7; ps.vel[2] += dz * inv * f; ps.grounded = false; ps.hp -= (1 - d / radius) * 35; }
+    if (d < radius) { const f = (1 - d / radius) * 22; const inv = 1 / Math.max(d, 0.5); ps.vel[0] += dx * inv * f; ps.vel[1] += (dy * inv + 0.5) * f * 0.7; ps.vel[2] += dz * inv * f; ps.grounded = false; ps.hp -= (1 - d / radius) * 35; ps.hurtAt = PLAYER.hpRegenDelay; }
   }
 }
 

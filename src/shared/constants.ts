@@ -12,4 +12,8 @@ export const PLAYER = {
   /** максимальная скорость сползания, м/с */
   slideMax: 6.5,
   staminaMax: 100, staminaDrain: 22, staminaRegen: 14, fallDamageFrom: 6, hp: 100,
+  /** регенерация здоровья, ХП/с (обычно «дышит» после боя, как в Battlefield) */
+  hpRegen: 9,
+  /** задержка перед началом регенерации после урона, с */
+  hpRegenDelay: 4.5,
 };
