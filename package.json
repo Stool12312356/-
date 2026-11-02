@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "node tools/test-ballistics.mjs && node tools/test-buildings.mjs && node tools/test-destruction.mjs",
+    "test": "node tools/test-ballistics.mjs && node tools/test-buildings.mjs && node tools/test-destruction.mjs && node tools/test-slide.mjs",
     "dev": "node tools/build-manifest.mjs || echo manifest: используются текущие ассеты && vite",
     "build": "tsc -p . && vite build",
     "preview": "vite preview --host 0.0.0.0",
@@ -12,7 +12,8 @@
     "assets": "node tools/split.mjs && node tools/convert.mjs && node tools/convert.mjs --low && node tools/build-manifest.mjs",
     "test:ballistics": "node tools/test-ballistics.mjs",
     "test:buildings": "node tools/test-buildings.mjs",
-    "test:destruction": "node tools/test-destruction.mjs"
+    "test:destruction": "node tools/test-destruction.mjs",
+    "test:slide": "node tools/test-slide.mjs"
   },
   "keywords": [],
   "author": "",
