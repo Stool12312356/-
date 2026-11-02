@@ -151,11 +151,18 @@ export class Props {
       }
     }
     this.rebuild(scene, b);
-    this.onBreak?.(item);
+    const at: [number, number, number] = [
+      (item.box.x0 + item.box.x1) / 2, (item.box.y0 + item.box.y1) / 2, (item.box.z0 + item.box.z1) / 2,
+    ];
+    this.onBreak?.(item, at);
     return 1;
   }
 
-  onBreak?: (item: PropItem) => void;
+  /**
+   * Предмет сломан: наружу отдаём точку и материал, чтобы main.ts выбросил обломки
+   * (механика обломков — в voxelhouse.ts, она уже есть для стен).
+   */
+  onBreak?: (item: PropItem, at: [number, number, number]) => void;
 
   /** Это тело физики принадлежит мебели/лестнице? Нужно, чтобы урон по стене рядом
    *  с предметом не «разбивал» предмет. */

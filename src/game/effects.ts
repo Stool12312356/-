@@ -47,6 +47,14 @@ export class Effects {
   private muzzle: THREE.PointLight;
   private muzzleT = 0;
 
+  // --- ОГОНЬ после взрыва ---
+  // Пул из нескольких «костров»: пламя (плоские билборды-пятна), короткий свет и дым.
+  // Без пула каждый взрыв создавал бы материалы и лампы — на серии выстрелов это
+  // просадка кадров и утечка памяти. Огонь живёт 6–9 с и гаснет сам.
+  private fires: { pos: THREE.Vector3; t: number; life: number; flame: THREE.Mesh; light: THREE.PointLight; dust: number }[] = [];
+  private static readonly FIRE_MAX = 6;
+  private fireGeo = new THREE.IcosahedronGeometry(0.55, 0);
+
   constructor(scene: THREE.Scene) {
     this.scene = scene;
     // --- трассеры ---
@@ -210,7 +218,57 @@ export class Effects {
     }
   }
 
+  /**
+   * Огонь на месте взрыва (п.2: «огонь после взрыва»).
+   * Пламя — два вложенных икосаэдра (оранжевый и жёлтый), они пульсируют и растут,
+   * рядом короткий источник света, который подсвечивает стены. Всё из пула.
+   */
+  fire(pos: [number, number, number], scale = 1) {
+    // если рядом уже горит — только усилить, а не плодить костры
+    for (const f of this.fires) {
+      if (f.pos.distanceTo(new THREE.Vector3(pos[0], pos[1], pos[2])) < 1.6) { f.t = Math.max(0, f.t - 1.2); return; }
+    }
+    if (this.fires.length >= Effects.FIRE_MAX) {
+      const old = this.fires.shift();
+      if (old) { old.flame.removeFromParent(); (old.flame.material as THREE.Material).dispose(); old.light.removeFromParent(); }
+    }
+    const mat = new THREE.MeshBasicMaterial({ color: '#ff8a2a', transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending });
+    const flame = new THREE.Mesh(this.fireGeo, mat);
+    flame.position.set(pos[0], pos[1] + 0.35 * scale, pos[2]);
+    flame.scale.setScalar(0.55 * scale);
+    flame.renderOrder = 4;
+    this.scene.add(flame);
+    const light = new THREE.PointLight('#ff7a20', 26 * scale, 11 * scale, 2);
+    light.position.set(pos[0], pos[1] + 1.1 * scale, pos[2]);
+    this.scene.add(light);
+    this.fires.push({ pos: new THREE.Vector3(pos[0], pos[1], pos[2]), t: 0, life: 6 + Math.random() * 3, flame, light, dust: 0 });
+  }
+
+  /** Сколько костров горит (для HUD/тестов). */
+  get fireCount() { return this.fires.length; }
+
   update(dt: number) {
+    // огонь: пульсирует, гаснет, оставляет дым
+    for (let i = this.fires.length - 1; i >= 0; i--) {
+      const f = this.fires[i];
+      f.t += dt;
+      const k = f.t / f.life;
+      if (k >= 1) {
+        f.flame.removeFromParent();
+        (f.flame.material as THREE.Material).dispose();
+        f.light.removeFromParent();
+        this.fires.splice(i, 1);
+        continue;
+      }
+      const flicker = 0.82 + Math.sin(f.t * 17 + i) * 0.12 + Math.random() * 0.08;
+      f.flame.scale.setScalar((0.5 + Math.sin(f.t * 3) * 0.08) * flicker * (1 - k * 0.55));
+      f.flame.position.y = f.pos.y + 0.35 + Math.sin(f.t * 5.5) * 0.07;
+      (f.flame.material as THREE.MeshBasicMaterial).opacity = 0.85 * (1 - k) * flicker;
+      f.light.intensity = 26 * (1 - k) * flicker;
+      // дым: раз в 0.35 с поднимается облачко
+      f.dust += dt;
+      if (f.dust > 0.35) { f.dust = 0; this.dust([f.pos.x, f.pos.y + 1.0, f.pos.z], 1, 0.6); }
+    }
     // пыль: всплывает, раздувается и гаснет
     for (let i = this.dustPuffs.length - 1; i >= 0; i--) {
       const d = this.dustPuffs[i];

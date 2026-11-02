@@ -734,6 +734,21 @@ export class VoxelHouse {
     }
   }
 
+  /**
+   * Выбросить обломок в произвольной точке — для разрушаемой мебели и лестницы
+   * (props.ts). Механика та же, что у кусков стен: обломок летит, падает, засыпает.
+   */
+  debrisAt(p: readonly number[], count = 5, kind = 4) {
+    const v = new THREE.Vector3();
+    for (let i = 0; i < count; i++) {
+      v.set((Math.random() - 0.5) * 2.2, 0.8 + Math.random() * 2.0, (Math.random() - 0.5) * 2.2);
+      this.spawnDebris(
+        new THREE.Vector3(p[0] + (Math.random() - 0.5) * 0.5, p[1] + Math.random() * 0.5, p[2] + (Math.random() - 0.5) * 0.5),
+        v, kind,
+      );
+    }
+  }
+
   /** Пыль взрыва: вызывается из main.ts, рисуется системой эффектов. */
   onDust?: (x: number, y: number, z: number, count: number, big: boolean) => void;
   private dustCounter = 0;

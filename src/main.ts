@@ -8,8 +8,9 @@ import { Effects } from './game/effects';
 import { PlayerCombat } from './game/combat';
 import { Scope } from './game/scope';
 import { loadTextures } from './render/tex';
+import { Audio, listenerPos } from './game/audio';
 import { Bots } from './game/bots';
-import { spawnVoxelHouse, type PlacedBuilding } from './game/structure';
+import { spawnVoxelHouse, spawnSpecial, type PlacedBuilding } from './game/structure';
 import { BUILDINGS, SPAWN } from './game/world';
 import { SURFACES, pointBlankRange, EXPLOSION, EXPLOSION_SMALL } from './game/weapons';
 import type { PlayerInput, Impact } from './shared/types';
@@ -56,6 +57,8 @@ const buildings: PlacedBuilding[] = [];
 const houseByBody = new Map<number, PlacedBuilding>();
 let aimMsg = '', aimT = 0;
 let lastHitMarker = 0;
+/** Звук: создаётся на первом жесте пользователя (политика браузеров), см. audio.ts */
+const audio = new Audio();
 
 async function boot() {
   const load = $('load');
@@ -78,6 +81,16 @@ async function boot() {
     }
   };
   cmb.onRecoil = (dp, dy) => { pitch = Math.max(-1.5, Math.min(1.5, pitch + dp)); yaw += dy; };
+  // ЗВУК: выстрел. Тип звука зависит от ствола (винтовка/пистолет/снайперка/РПГ) —
+  // раньше игра была полностью беззвучной.
+  cmb.onShot = ({ weapon }) => {
+    const id = weapon.id ?? '';
+    const kind = id.includes('rpg') || id.includes('spg') ? 'rpg'
+      : id.includes('svd') ? 'sniper'
+      : id.includes('pkm') || id.includes('rpk') ? 'mg'
+      : id.includes('pm') ? 'pistol' : 'rifle';
+    audio.shot(kind);
+  };
   // куда смотрит перекрестие — нужен физике: ствол сводится в эту точку, а не «примерно вперёд»
   cmb.aimProbe = (origin, dir) => { phys.probe([origin.x, origin.y, origin.z], [dir.x, dir.y, dir.z], 200); return phys.rayDist; };
   cmb.equip(0);
@@ -107,16 +120,51 @@ function spawnBuildings() {
     houseByBody.set(b.house.bodyId, b);
     // пыль при разрушении — через систему эффектов (как в референсе)
     b.house.onDust = (x, y, z, count, big) => effects?.dust([x, y, z], count, big ? 3.2 : 1.2);
+    // ОБЛОМКИ от мебели и ступеней (п.1): раньше разбитый стул просто исчезал.
+    // Кидаем те же обломки, что летят из стен, и добавляем пыль.
+    b.propBreak = (bld, type, kind, at) => {
+      const wood = type === 'furniture';
+      // kind → тип вокселя для цвета обломка: 4 = дерево, 5 = бетон (лестница)
+      bld.house.debrisAt(at, wood ? 6 : 9, wood ? 4 : 5);
+      effects?.dust(at, wood ? 3 : 5, wood ? 0.8 : 1.4);
+      audio.hit(wood ? 'wood' : 'concrete', at, listenerPos(camera));
+      void kind;
+    };
     console.log(`дом ${d.kind}: ${b.model.size.map(v => v.toFixed(1)).join('×')} м, вокселей ${b.model.stats.voxels}, подъездов ${b.model.sections}`);
+  }
+
+  // КАЗАРМА И ВОЕНТОРГ (п.5): стоят на площадке перед домами, лицом к спавну.
+  const specials: { kind: 'barracks' | 'shop'; pos: [number, number, number]; rotY: number }[] = [
+    { kind: 'barracks', pos: [-58, 0, -40], rotY: 0 },
+    { kind: 'shop', pos: [-34, 0, -47], rotY: Math.PI / 8 },
+  ];
+  for (const d of specials) {
+    const b = spawnSpecial(d.kind, 2, scene, phys, d.pos, d.rotY, heightAt);
+    buildings.push(b);
+    houseByBody.set(b.house.bodyId, b);
+    b.house.onDust = (x, y, z, count, big) => effects?.dust([x, y, z], count, big ? 3.2 : 1.2);
+    b.propBreak = (bld, type, kind, at) => {
+      const wood = type === 'furniture';
+      bld.house.debrisAt(at, wood ? 6 : 9, wood ? 4 : 5);
+      effects?.dust(at, wood ? 3 : 5, wood ? 0.8 : 1.4);
+      audio.hit(wood ? 'wood' : 'concrete', at, listenerPos(camera));
+      void kind;
+    };
+    console.log(`${d.kind}: ${b.model.size.map(v => v.toFixed(1)).join('×')} м, вокселей ${b.model.stats.voxels}`);
   }
 }
 
 function onImpact(i: Impact) {
   if (!effects || !bots) return;
   effects.impact(i);
+  const lp = listenerPos(camera);
+  audio.hit(i.surface, i.pos, lp);
   if (i.kind === 'explosive') {
     // РПГ: взрыв в точке попадания, отдельно бьём по ближайшему дому (средний уровень разрушений)
     effects.explosion(i.pos, EXPLOSION.blast);
+    // огонь остаётся на месте взрыва несколько секунд (п.2)
+    effects.fire(i.pos, 1.1);
+    audio.explosion(i.pos, listenerPos(camera));
     const best = findHouseNear(i.pos, 3);
     if (best) {
       // Кратер ограничен параметрами из weapons.ts (EXPLOSION). Было r = 3.4 и max 600:
@@ -125,7 +173,10 @@ function onImpact(i: Impact) {
       // 26 вокселей: стену пробивает, дом не сносит.
       const killed = best.house.damageAt(i.pos, EXPLOSION.crater, EXPLOSION.strength, { max: EXPLOSION.craterMax });
       if (killed) addFeed(`Выбито ${killed} блоков`);
-      if (best.house.collapsed.size) addFeed('СЕКЦИЯ ОБРУШЕНА');
+      if (best.house.collapsed.size) {
+        addFeed('СЕКЦИЯ ОБРУШЕНА');
+        audio.collapse(i.pos, listenerPos(camera));
+      }
     }
     // Мебель и лестница тоже разрушаются: у них нет вокселей, поэтому взрыв
     // обрабатывается отдельно для каждого дома рядом (см. props.ts).
@@ -224,12 +275,13 @@ document.addEventListener('mouseup', e => {
 document.addEventListener('contextmenu', e => e.preventDefault());
 let aiming = false;
 addEventListener('keydown', e => {
+  audio.unlock();
   if (e.code === 'Tab') { e.preventDefault(); if (started || $('menu').style.display !== 'none') toggleReg(); return; }
   if (e.repeat) return; keys.add(e.code);
   if (!started) return;
   if (e.code === 'KeyC') { toggledCrouch = !toggledCrouch; toggledProne = false; }
   if (e.code === 'KeyZ') { toggledProne = !toggledProne; toggledCrouch = false; }
-  if (e.code === 'KeyR') combat?.reload();
+  if (e.code === 'KeyR') { combat?.reload(); audio.reload(); }
   if (e.code === 'KeyF') throwCrate();
   if (e.code === 'KeyG') blast();
   if (e.code === 'KeyB') phys.post({ type: 'spawnPlayer', pos: SPAWN });
@@ -259,7 +311,7 @@ function blast() {
   for (const b of buildings) b.propSet.blast([hit.x, hit.y, hit.z], 2.6, 200, scene);
 }
 
-let lastT = performance.now(), fps = 60, eyeY = 1.65, bob = 0;
+let lastT = performance.now(), fps = 60, eyeY = 1.65, bob = 0, stepAcc = 0;
 function frame(now: number) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now; fps += (1 / Math.max(dt, 1e-3) - fps) * 0.05;
@@ -269,6 +321,13 @@ function frame(now: number) {
   };
   if (started) phys.sendInput(inp);
   combat?.update(dt, phys.player ? Math.hypot(phys.player.vel[0], phys.player.vel[2]) : 0);
+  // звук: панорама по взгляду + шаги (снег/бетон) с шагом 0.55 м
+  audio.listenerYaw = yaw;
+  const spd2 = phys.player ? Math.hypot(phys.player.vel[0], phys.player.vel[2]) : 0;
+  if (started && spd2 > 0.6 && phys.player?.grounded) {
+    stepAcc += spd2 * dt;
+    if (stepAcc > (phys.player.stance === 2 ? 0.9 : 0.62)) { stepAcc = 0; audio.step('snow'); }
+  } else stepAcc = 0;
   const pl = phys.interpolate();
   if (pl && phys.player) {
     const p = phys.player; eyeY += (p.eye - eyeY) * Math.min(1, dt * 12);

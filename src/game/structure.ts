@@ -5,6 +5,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import type { PhysicsClient } from '../physics/client.ts';
 import { buildStaircase, type Staircase } from './staircase.ts';
 import { buildVoxelHouse, type VoxelHouseModel, type VoxelHouseOpts } from './voxelgen.ts';
+import { buildSpecial, stairPlan, type SpecialKind, type SpecialPlan } from './barracks.ts';
 import { VoxelHouse } from './voxelhouse.ts';
 import { buildFurniture } from './furniture.ts';
 import { furnish as furnishRoom } from './plan.ts';
@@ -26,7 +27,132 @@ export interface PlacedBuilding {
   props: PropItem[];
   /** владелец предметов: через него наносится урон (props.ts) */
   propSet: Props;
+  /** колбэк «предмет сломан» — обломки и огонь ставит main.ts */
+  propBreak?: PropBreakHandler;
 }
+
+/**
+ * ОБЩИЕ ВЕЩИ ДЛЯ ОСОБЫХ ЗДАНИЙ (казарма, военторг).
+ * Ключ пачки мебели: дом/тип + секция + этаж + материал → один меш и одно тело на материал.
+ */
+function furnishSpecial(
+  sp: SpecialPlan, scene: THREE.Scene, origin: THREE.Vector3, rotY: number, props: Props,
+): PropItem[] {
+  const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotY);
+  const plan = { w: sp.w, d: sp.d, rooms: sp.rooms, walls: [], windows: [], entrance: sp.entrance,
+    stairs: sp.stairWell ?? { x0: 0, x1: 0, z0: 0, z1: 0 } };
+  const out: PropItem[] = [];
+  let family = 0;
+  for (let f = 0; f < sp.floors; f++) {
+    const y = 0.02 + f * sp.floorH;
+    for (const room of sp.rooms) {
+      if (room.id === 'stairs') continue;
+      for (const item of furnishRoom(room, plan)) {
+        const p = new THREE.Vector3(item.x, y, item.z).applyQuaternion(q).add(origin);
+        const g = buildFurniture(item.kind);
+        if (!g) continue;
+        g.position.copy(p);
+        g.rotation.y = item.rot;
+        g.updateMatrixWorld(true);
+        const fam = ++family;
+        g.traverse(o => {
+          const m = o as THREE.Mesh;
+          if (!m.isMesh) return;
+          const mat = m.material as THREE.Material;
+          const geo = m.geometry.clone();
+          geo.applyMatrix4(m.matrixWorld);
+          const rec = props.add({
+            type: 'furniture', kind: item.kind, geos: [geo], material: mat,
+            bucketKey: `f:${sp.kind}:0:${f}:${mat.uuid}`,
+            surface: (mat as THREE.MeshStandardMaterial).metalness > 0.45 ? 'metal' : 'wood',
+            kindMat: partKindOf(mat), family: fam,
+          });
+          if (rec) out.push(rec);
+        });
+      }
+    }
+  }
+  void scene;
+  return out;
+}
+
+/**
+ * Постановка особого здания (казарма / военторг): та же сетка вокселей и та же физика,
+ * что у жилых домов, поэтому разрушается оно ровно так же — кусками.
+ */
+export function spawnSpecial(
+  kind: SpecialKind, sections: number, scene: THREE.Scene, phys: PhysicsClient,
+  pos: [number, number, number], rotY = 0, heightAt?: (x: number, z: number) => number,
+): PlacedBuilding {
+  const m = buildSpecial(kind, sections);
+  const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotY);
+  const offset = new THREE.Vector3(...pos);
+  const grid = m.spec;
+  if (rotY !== 0) {
+    const cells = grid.cells;
+    const { nx, ny, nz } = grid;
+    const out = new Int8Array(cells.length).fill(-1);
+    const secOut = new Uint8Array(cells.length);
+    const bearOut = new Uint8Array(cells.length);
+    const quarters = Math.round(rotY / (Math.PI / 2)) % 4;
+    const nnx = quarters % 2 === 0 ? nx : nz;
+    const nnz = quarters % 2 === 0 ? nz : nx;
+    for (let j = 0; j < ny; j++) for (let k = 0; k < nz; k++) for (let i = 0; i < nx; i++) {
+      const c = (j * nz + k) * nx + i;
+      if (cells[c] < 0) continue;
+      let ni = i, nk = k;
+      if (quarters === 1) { ni = nz - 1 - k; nk = i; }
+      else if (quarters === 2) { ni = nx - 1 - i; nk = nz - 1 - k; }
+      else if (quarters === 3) { ni = k; nk = nx - 1 - i; }
+      const nc = (j * nnz + nk) * nnx + ni;
+      out[nc] = cells[c]; secOut[nc] = grid.sectionOf[c]; bearOut[nc] = grid.bearing[c];
+    }
+    grid.nx = nnx; grid.nz = nnz; grid.cells = out; grid.sectionOf = secOut; grid.bearing = bearOut;
+    m.size[0] = nnx * PITCH; m.size[2] = nnz * PITCH;
+  }
+  grid.ox = offset.x - (grid.nx * PITCH) / 2;
+  grid.oy = offset.y;
+  grid.oz = offset.z - (grid.nz * PITCH) / 2;
+
+  const house = new VoxelHouse(grid, scene, phys);
+  if (heightAt) house.setHeightFn(heightAt);
+
+  const props = new Props(phys);
+  const propItems: PropItem[] = [];
+  const stairs: Staircase[] = [];
+  for (let s = 0; s < sections; s++) {
+    if (!m.plan.stairWell) break;
+    const secCx = (s - (sections - 1) / 2) * m.plan.w;
+    const origin = new THREE.Vector3(offset.x + secCx, offset.y, offset.z);
+    const st = buildStaircase(stairPlan(m.plan), m.floors, m.floorH, origin);
+    if (rotY !== 0) {
+      const v = new THREE.Vector3();
+      for (let i = 0; i < st.verts.length; i += 3) {
+        v.set(st.verts[i] - offset.x, st.verts[i + 1] - offset.y, st.verts[i + 2] - offset.z).applyQuaternion(q);
+        st.verts[i] = v.x + offset.x; st.verts[i + 1] = v.y + offset.y; st.verts[i + 2] = v.z + offset.z;
+      }
+    }
+    scene.remove(st.mesh);
+    destroyableStairs(st, `s:${kind}:${s}`, props, propItems);
+    stairs.push(st);
+  }
+  propItems.push(...furnishSpecial(m.plan, scene, offset, rotY, props));
+  props.build(scene);
+
+  const placed: PlacedBuilding = {
+    house, model: m as unknown as VoxelHouseModel, stairs, stair: stairs[0],
+    props: propItems, propSet: props,
+    center: new THREE.Vector3(offset.x, m.size[1] / 2, offset.z), size: m.size,
+  };
+  props.onBreak = (item, at) => {
+    placed.propBreak?.(placed, item.type as 'furniture' | 'stairs', item.kind, at);
+  };
+  return placed;
+}
+
+/** Что происходит, когда предмет сломан: обломки, пыль, огонь. Ставит main.ts. */
+export type PropBreakHandler = (b: PlacedBuilding, type: 'furniture' | 'stairs', kind: string,
+  at: [number, number, number]) => void;
 
 /**
  * Мебель внутри дома: ставится по 2D-плану (plan.ts) и сразу превращается в
@@ -181,14 +307,20 @@ export function spawnVoxelHouse(
   propItems.push(...furniture);
   // тела физики и меши — пачками
   props.build(scene);
+  // Обломки от сломанной мебели/ступеней (п.1): то же самое, что летит из стен.
+  // Без этого разбитый стул просто исчезал — «испарился», а не разлетелся.
+  props.onBreak = (item, at) => {
+    placed.propBreak?.(placed, item.type as 'furniture' | 'stairs', item.kind, at);
+  };
 
   // свет у подъезда: один источник на дом (точечные источники дорогие)
   const lamp = new THREE.PointLight('#ffd9a0', 12, 26, 2);
   lamp.position.copy(offset).add(new THREE.Vector3(0, 3.2, model.size[2] / 2 + 2.5).applyQuaternion(q));
   scene.add(lamp);
 
-  return {
+  const placed: PlacedBuilding = {
     house, model, stairs, stair, props: propItems, propSet: props,
     center: new THREE.Vector3(offset.x, model.size[1] / 2, offset.z), size: model.size,
   };
+  return placed;
 }
