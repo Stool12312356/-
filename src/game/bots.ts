@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import type { AssetLibrary } from '../render/assets';
 import type { PhysicsClient } from '../physics/client';
+import { WalkAnim } from './anim';;
 
 export interface Bot {
   id: number;
@@ -16,6 +17,10 @@ export interface Bot {
   dead: boolean;
   /** цвет формы: 0 — свой, 1 — противник */
   side: number;
+  /** процедурная ходьба по костям скелета (в модели нет клипов) */
+  anim?: WalkAnim;
+  /** текущая скорость для анимации, м/с (ставит squads.ts) */
+  moveSpeed?: number;
 }
 
 export class Bots {
@@ -40,7 +45,10 @@ export class Bots {
       linDamp: 0.2, angDamp: 0.9, shapes: [{ t: 'box', he: [0.3, h / 2, 0.22] }],
       surface: 'dirt', group: 0x0008, sleeping: false,
     }, obj);
-    const bot: Bot = { id: this.list.length, hp: 100, maxHp: 100, object: obj, bodyId, height: h, dead: false, side };
+    // Ходьба: в soldier.glb нет клипов, но есть скелет → анимируем костями.
+    // Если кости не нашлись (другая модель) — WalkAnim.ok === false, и бот просто едет.
+    const anim = new WalkAnim(obj);
+    const bot: Bot = { id: this.list.length, hp: 100, maxHp: 100, object: obj, bodyId, height: h, dead: false, side, anim, moveSpeed: 0 };
     this.list.push(bot);
     return bot;
   }
@@ -68,6 +76,7 @@ export class Bots {
   /** Смерть: тело становится рэгдоллом (импульс от направления пули). */
   kill(bot: Bot) {
     bot.dead = true; bot.hp = 0;
+    bot.anim?.reset();
     // «мягкое» падение: гасим вращение и роняем на бок импульсом
     this.phys.post({ type: 'impulse', id: bot.bodyId, imp: [(Math.random() - 0.5) * 40, -30, (Math.random() - 0.5) * 40] });
     bot.object.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) (m.material as THREE.MeshStandardMaterial).color?.multiplyScalar(0.7); });

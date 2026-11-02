@@ -575,6 +575,7 @@ function frame(now: number) {
     // Урон по игроку идёт в физику (то же тело, что получает урон от взрывов).
     if (squads && phys.player) {
       const pp = phys.player.pos;
+      squads.playerMaxHp = Math.round(100 * perkOf(playerClass).hpMul);
       squads.update(dt, lineOfSight, [pp[0], pp[1], pp[2]], phys.player.hp > 0,
         [camera.position.x, camera.position.y, camera.position.z]);
       let dmg = 0;

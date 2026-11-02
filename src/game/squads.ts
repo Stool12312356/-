@@ -12,6 +12,7 @@ import type { PhysicsClient } from '../physics/client';
 import type { Match } from './match';
 import { Bots, type Bot } from './bots';
 import { BOT_WEAPON, makeBrain, tickBrain, type BotBrain, type BotSkill } from './botai';
+import { BALANCE, HitGate, damageToPlayer, hitChance } from './balance';
 import type { Effects } from './effects';
 
 export interface SquadHit {
@@ -33,6 +34,19 @@ export class Squads {
   /** очередь выстрелов для звука: main.ts проигрывает их с задержкой по расстоянию */
   shots: { pos: [number, number, number]; side: 0 | 1 }[] = [];
   onKill: ((victim: Bot, killer: 0 | 1) => void) | null = null;
+  /**
+   * БАЛАНС: сколько ботов одновременно «ведут» игрока. Восемь стволов в одну цель —
+   * это не бой, а расстрел; по ТЗ боты ещё и должны делить цели между собой.
+   */
+  maxOnPlayer = 3;
+  /** не даёт убить за пару тычек: grace-период + лимит попаданий в секунду */
+  hitGate = new HitGate();
+  /** игровое время для HitGate */
+  private clock = 0;
+  /** сколько секунд игрок уже под обстрелом (для штрафа «не видел стрелка») */
+  underFire = 0;
+  /** текущий предел HP игрока (класс может быть крепче) — ставит main.ts */
+  playerMaxHp = 100;
 
   constructor(bots: Bots, match: Match, phys: PhysicsClient, effects: Effects | null) {
     this.bots = bots; this.match = match; this.phys = phys; this.effects = effects;
@@ -81,11 +95,17 @@ export class Squads {
       ? { ...makeBrain(0, [playerPos[0], playerPos[1], playerPos[2]]), yaw: 0 }
       : null;
 
+    this.clock += dt;
+    // «под обстрелом» копится только пока по игроку реально идёт огонь (0.8 с тишины — сброс)
+    this.underFire = Math.max(0, this.underFire - dt * 0.6);
+    // цель «игрок» доступна только ограниченному числу ботов: остальные воюют между собой
+    let onPlayer = 0;
     for (let i = 0; i < alive.length; i++) {
       const bot = alive[i], brain = this.brains[i];
       brain.side = bot.side ? 1 : 0;
       const enemies: BotBrain[] = this.brains.filter((b, j) => j !== i && !b.dead && b.side !== brain.side && alive[j]?.side !== bot.side);
-      if (playerBrain && brain.side === 1) enemies.push(playerBrain);
+      const canTargetPlayer = !!playerBrain && brain.side === 1 && onPlayer < this.maxOnPlayer;
+      if (canTargetPlayer) { enemies.push(playerBrain!); onPlayer++; }
 
       // перед стрельбой бот должен «увидеть» и прицелиться
       // «проба» для мозга: возвращает дистанцию до цели, если линия свободна, иначе малое число
@@ -107,25 +127,38 @@ export class Squads {
                 [nx, brain.pos[1] + 1.0, nz])) {
           brain.pos[0] = nx; brain.pos[2] = nz;
           bot.object.position.set(brain.pos[0], brain.pos[1], brain.pos[2]);
-          bot.object.rotation.y = brain.yaw;
-        }
-      } else {
-        bot.object.rotation.y += (brain.yaw - bot.object.rotation.y) * Math.min(1, dt * 8);
-      }
+          bot.moveSpeed = BOT_WEAPON.speed;
+        } else bot.moveSpeed = 0;
+      } else bot.moveSpeed = 0;
+
+      // ПОВОРОТ и ХОДЬБА: корпус доводится к цели, кости ног/рук машут по скорости.
+      // Раньше модель просто «ехала» вперёд, не шевеля ногами — на это и была жалоба.
+      const wantYaw = brain.target ? Math.atan2(brain.target.pos[0] - brain.pos[0], -(brain.target.pos[2] - brain.pos[2])) : brain.yaw;
+      let dy = wantYaw - bot.object.rotation.y;
+      while (dy > Math.PI) dy -= Math.PI * 2;
+      while (dy < -Math.PI) dy += Math.PI * 2;
+      bot.object.rotation.y += dy * Math.min(1, dt * 9);
+      bot.anim?.update(dt, bot.moveSpeed ?? 0, brain.target ? dy : 0);
 
       // --- выстрел: луч по цели, попадание с вероятностью точности сложности
       if (cmd.fire) {
         this.shots.push({ pos: [brain.pos[0], brain.pos[1] + 1.5, brain.pos[2]], side: brain.side });
         const tgt = brain.target;
         if (tgt) {
-          const dmg = BOT_WEAPON.damage;
-          // точность: на дистанции попадать труднее (как настоящий разброс)
           const dist = Math.hypot(tgt.pos[0] - brain.pos[0], tgt.pos[2] - brain.pos[2]);
-          const hitChance = this.skill === 'veteran' ? 0.75 : this.skill === 'sergeant' ? 0.55 : 0.3;
-          const falloff = Math.max(0.25, 1 - dist / (BOT_WEAPON.range * 1.6));
-          if (Math.random() < hitChance * falloff) {
-            const isPlayer = tgt === playerBrain;
+          const isPlayer = tgt === playerBrain;
+          // БАЛАНС (balance.ts): вероятность попадания падает с дистанцией, урон по игроку
+          // небольшой и с потолком, плюс HitGate не даёт «умереть за пару тычек».
+          const chance = hitChance(this.skill, dist);
+          const dmg = isPlayer
+            ? damageToPlayer(this.skill, this.playerMaxHp, this.underFire >= BALANCE.revealTime)
+            : BOT_WEAPON.damage;
+          const landed = Math.random() < chance;
+          if (landed && isPlayer && !this.hitGate.allow(this.clock)) {
+            // попадание «съедено» grace-периодом — но визуально выстрел был (трассер ниже)
+          } else if (landed) {
             this.hits.push({ target: isPlayer ? 'player' : this.aliveIndexOf(tgt), damage: dmg, from: [...brain.pos] });
+            if (isPlayer) this.underFire += dt;
             if (!isPlayer) {
               // урон своему боту — через Bots.hit (там зоны и рэгдолл)
               const victim = this.bots.list[this.aliveIndexOf(tgt)];
