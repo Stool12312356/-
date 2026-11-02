@@ -99,7 +99,9 @@ export type ToWorker =
   /** убрать одну панель дома из физики (она уничтожена) */
   | { type: 'removePanel'; bodyId: number; panel: number }
   /** луч из камеры: куда упирается перекрестие (для сведения ствола и прицела) */
-  | { type: 'ray'; id: number; origin: [number, number, number]; dir: [number, number, number]; max: number };
+  | { type: 'ray'; id: number; origin: [number, number, number]; dir: [number, number, number]; max: number }
+  /** урон игроку от ботов (бьёт в то же состояние, что взрывы и падения) */
+  | { type: 'hurt'; damage: number };
 
 export interface PlayerState {
   pos: [number, number, number]; vel: [number, number, number]; grounded: boolean; stance: 0 | 1 | 2;

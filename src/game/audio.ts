@@ -114,8 +114,13 @@ export class Audio {
   }
 
   /** Выстрел: щелчок пороха + низкий «бум» + хвост эха. */
-  shot(kind: 'rifle' | 'pistol' | 'sniper' | 'mg' | 'rpg') {
+  shot(kind: 'rifle' | 'pistol' | 'sniper' | 'mg' | 'rpg',
+       at?: [number, number, number], listener?: [number, number, number]) {
     if (!this.ready) return;
+    // дальние выстрелы ботов: тише и с панорамой (иначе 16 стволов вокруг = каша)
+    const vol = at && listener ? this.attenuation(at, listener, 55) : 1;
+    if (vol < 0.04) return;
+    const pan = at && listener ? this.pan(at, listener) : undefined;
     const now = performance.now();
     if (now - this.lastShot < 28) return;        // защита от дребезга на автоогне
     this.lastShot = now;
@@ -126,10 +131,10 @@ export class Audio {
       mg: { f: 1200, d: 0.2, g: 0.42 },
       rpg: { f: 500, d: 0.5, g: 0.55 },
     }[kind];
-    this.burst({ dur: p.d, freq: p.f, q: 0.7, gain: p.g, sweepTo: p.f * 0.25 });
-    this.tone(kind === 'rpg' ? 70 : 110, p.d * 0.8, 0.16);
+    this.burst({ dur: p.d, freq: p.f, q: 0.7, gain: p.g * vol, sweepTo: p.f * 0.25, pan });
+    this.tone(kind === 'rpg' ? 70 : 110, p.d * 0.8, 0.16 * vol);
     // эхо от домов: тихий повтор через 90 мс
-    this.burst({ dur: p.d * 1.4, freq: p.f * 0.5, q: 0.6, gain: p.g * 0.22, at: 0.09 });
+    this.burst({ dur: p.d * 1.4, freq: p.f * 0.5, q: 0.6, gain: p.g * 0.22 * vol, at: 0.09, pan });
   }
 
   /** Попадание по материалу: у каждого свой характер (ТЗ: «по дереву и бетону по-разному»). */

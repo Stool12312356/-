@@ -12,6 +12,7 @@ import { Audio, listenerPos } from './game/audio';
 import { Bots } from './game/bots';
 import { Match, type SoldierRef } from './game/match';
 import { buildCapturePoints, spawnFor } from './game/maps';
+import { Squads } from './game/squads';
 import { spawnVoxelHouse, spawnSpecial, type PlacedBuilding } from './game/structure';
 import { BUILDINGS, SPAWN } from './game/world';
 import { SURFACES, pointBlankRange, EXPLOSION, EXPLOSION_SMALL } from './game/weapons';
@@ -63,6 +64,8 @@ let lastHitMarker = 0;
 const audio = new Audio();
 /** Режим «Штурм» (ТЗ п.7): точки захвата, билеты, время. Логика — в game/match.ts */
 let match: Match | null = null;
+/** управление бойцами: мозги ботов + урон (game/squads.ts) */
+let squads: Squads | null = null;
 /** сколько бойцов на сторону в одной волне */
 const WAVE = 8;
 let waveT = 0;
@@ -106,11 +109,16 @@ async function boot() {
   match = new Match(buildCapturePoints('spalny'));
   buildPointMarkers();
   spawnWave();
+  squads = new Squads(bt, match, phys, fx);
+  squads.onKill = (victim, killer) => {
+    audio.hit('dirt', [victim.object.position.x, victim.object.position.y + 1, victim.object.position.z], listenerPos(camera));
+    if (killer === 0) addFeed('Противник уничтожен');
+  };
   bt.onDeath = (b) => {
-    // смерть бойца = минус билет его стороне (в ТЗ так и есть: билеты — это жизни)
+    // смерть бойца = минус билет его стороне (в ТЗ билеты — это жизни).
+    // ВАЖНО: Bots.hit вызывает kill() ровно один раз (dead-флаг), поэтому и билет
+    // списывается один раз — двойного списания нет.
     match?.casualty(b.side ? 1 : 0);
-    // противник погиб — прибавка к счёту игрока в фиде
-    if (b.side) addFeed('Противник уничтожен');
   };
   phys.onImpact(onImpact);
   phys.post({ type: 'spawnPlayer', pos: SPAWN });
@@ -242,6 +250,27 @@ function spawnBuildings() {
     };
     console.log(`${d.kind}: ${b.model.size.map(v => v.toFixed(1)).join('×')} м, вокселей ${b.model.stats.voxels}`);
   }
+}
+
+/**
+ * Видно ли из точки A точку B (линия огня ботов). Проверяем по вокселям домов
+ * шагом 0.5 м: попадание в живой воксель = стена. Террейн ниже уровня глаз не мешает.
+ */
+function lineOfSight(a: [number, number, number], b: [number, number, number]): boolean {
+  const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
+  const len = Math.hypot(dx, dy, dz);
+  const steps = Math.min(240, Math.ceil(len / 0.5));
+  for (let i = 1; i < steps; i++) {
+    const t = i / steps;
+    const x = a[0] + dx * t, y = a[1] + dy * t, z = a[2] + dz * t;
+    if (y < heightAt(x, z) - 0.3) continue;      // ниже земли — не препятствие (холм)
+    for (const bld of buildings) {
+      const h = bld.house;
+      if (!h.solidAt(x, y, z)) continue;
+      return false;
+    }
+  }
+  return true;
 }
 
 function onImpact(i: Impact) {
@@ -470,6 +499,21 @@ function frame(now: number) {
       refs.push({ side: 0, alive: phys.player.hp > 0, pos: [pp[0], pp[1], pp[2]], holding: pOnPoint && spd2 < 1.2 });
     }
     for (const msg of match.update(dt, refs)) addFeed(msg);
+    // БОЙ: боты ходят к точкам, видят цель через свободную линию огня и стреляют.
+    // Урон по игроку идёт в физику (то же тело, что получает урон от взрывов).
+    if (squads && phys.player) {
+      const pp = phys.player.pos;
+      squads.update(dt, lineOfSight, [pp[0], pp[1], pp[2]], phys.player.hp > 0,
+        [camera.position.x, camera.position.y, camera.position.z]);
+      let dmg = 0;
+      for (const h of squads.hits) if (h.target === 'player') dmg += h.damage;
+      if (dmg > 0) {
+        phys.post({ type: 'hurt', damage: dmg });
+        audio.hit('dirt', [pp[0], pp[1] + 1.2, pp[2]], listenerPos(camera));
+      }
+      // звук выстрелов ботов: слышно по расстоянию, панорама от слушателя
+      for (const sh of squads.shots) audio.shot('rifle', sh.pos, listenerPos(camera));
+    }
     updateScoreHud();
     updatePointMarkers();
     if (match.state !== 'running' && !matchEnded) {

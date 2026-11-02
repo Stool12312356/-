@@ -95,6 +95,10 @@ export class Effects {
   }
 
   /** Вызывать каждый кадр. Лёгкая вспышка у ствола. */
+  /** живые трассеры ботов (обновляются в update) */
+  private botTrails: { a: [number, number, number]; b: [number, number, number]; color: string; t: number }[] = [];
+  private botTrailPool: THREE.Line[] = [];
+
   flash(pos: THREE.Vector3) {
     this.muzzle.position.copy(pos); this.muzzle.intensity = 26; this.muzzleT = 0.06;
   }
@@ -127,6 +131,42 @@ export class Effects {
     (this.tracerGeo.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
     (this.tracerGeo.getAttribute('color') as THREE.BufferAttribute).needsUpdate = true;
     void camera;
+  }
+
+  /**
+   * Короткий ЛУЧ БОТА (не пуля игрока): нарисовать сегмент на пару кадров.
+   * Пуля игрока живёт в воркере физики (там баллистика), а выстрел бота — это
+   * «попал/промахнулся» с вероятностью по сложности, поэтому рисуем прямой отрезок.
+   */
+  botTrail(a: [number, number, number], b: [number, number, number], color = '#ffe9a8') {
+    const life = 0.07;
+    this.botTrails.push({ a, b, color, t: life });
+  }
+
+  /** Отрисовка трассеров ботов: один Line на выстрел, не больше 24 одновременно. */
+  private drawBotTrails() {
+    // убираем линии, которых больше нет в списке
+    while (this.botTrailPool.length > this.botTrails.length) {
+      this.botTrailPool.pop()!.removeFromParent();
+    }
+    for (let i = 0; i < this.botTrails.length && i < 24; i++) {
+      const t = this.botTrails[i];
+      let ln = this.botTrailPool[i];
+      if (!ln) {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+        ln = new THREE.Line(g, new THREE.LineBasicMaterial({ color: t.color, transparent: true, opacity: 0.85, depthWrite: false }));
+        this.botTrailPool[i] = ln;
+        this.scene.add(ln);
+      }
+      const pos = ln.geometry.getAttribute('position') as THREE.BufferAttribute;
+      pos.setXYZ(0, t.a[0], t.a[1], t.a[2]);
+      pos.setXYZ(1, t.b[0], t.b[1], t.b[2]);
+      pos.needsUpdate = true;
+      ln.geometry.setDrawRange(0, 2);
+      ln.visible = true;
+    }
+    for (let i = this.botTrails.length; i < this.botTrailPool.length; i++) this.botTrailPool[i].visible = false;
   }
 
   /** Попадание: искры + пробоина. Цвет зависит от материала. */
@@ -248,6 +288,17 @@ export class Effects {
   get fireCount() { return this.fires.length; }
 
   update(dt: number) {
+    // трассеры ботов: короткие отрезки, живут 0.07 с
+    for (let i = this.botTrails.length - 1; i >= 0; i--) {
+      const t = this.botTrails[i];
+      t.t -= dt;
+      if (t.t > 0) continue;
+      this.botTrails.splice(i, 1);
+      // вернуть линию в пул, а не создавать новую (иначе 30 ботов = 30 геометрий в секунду)
+      const ln = this.botTrailPool.pop();
+      if (ln) ln.removeFromParent();
+    }
+    this.drawBotTrails();
     // огонь: пульсирует, гаснет, оставляет дым
     for (let i = this.fires.length - 1; i >= 0; i--) {
       const f = this.fires[i];

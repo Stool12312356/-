@@ -328,6 +328,7 @@ function loop() {
     case 'spawnPlayer': spawnPlayer(m.pos); break;
     case 'impulse': { const rb = bodies.get(m.id); rb?.applyImpulse({ x: m.imp[0], y: m.imp[1], z: m.imp[2] }, true); break; }
     case 'explosion': explosion(m.pos, m.radius, m.impulse); break;
+    case 'hurt': if (m.damage > 0) { ps.hp -= m.damage; ps.hurtAt = PLAYER.hpRegenDelay; } break;
     case 'shoot': tracers.push({ ...m.tracer }); break;
     case 'removePanel': removePanel(m.bodyId, m.panel); break;
     case 'ray': {
