@@ -106,6 +106,8 @@ export interface Impact {
 
 export type ToWorker =
   | { type: 'init' }
+  /** вода карты (ТЗ п.4.5): уровень, прямоугольник, течение, глубина */
+  | { type: 'water'; water: { level: number; x0: number; z0: number; x1: number; z1: number; flow?: [number, number]; depth?: number } | null }
   | { type: 'addBodies'; bodies: BodyDesc[] }
   | { type: 'removeBody'; id: number }
   | { type: 'input'; input: PlayerInput }
@@ -139,6 +141,10 @@ export interface PlayerState {
   stamina: number; hp: number; sliding: boolean; eye: number;
   /** угол склона под ногами, градусы (для HUD и отладки) */
   slope?: number;
+  /** ВОДА (ТЗ п.4.5): игрок в воде / под водой, остаток воздуха, с */
+  swimming?: boolean;
+  submerged?: boolean;
+  oxygen?: number;
 }
 export type FromWorker =
   | { type: 'ready' }

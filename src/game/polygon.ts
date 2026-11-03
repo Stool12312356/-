@@ -58,9 +58,9 @@ export const POLYGON_LAYOUT = {
   keepClear: { x0: -60, z0: -6, x1: 40, z1: 2 },
 };
 
-export function buildPolygon(scene: THREE.Scene, lib: AssetLibrary, phys: PhysicsClient) {
+export function buildPolygon(scene: THREE.Scene, lib: AssetLibrary, phys: PhysicsClient, size = 400) {
   // --- рельеф ---
-  const t = buildTerrain(); scene.add(t.mesh);
+  const t = buildTerrain(size); scene.add(t.mesh);
   phys.add({ kind: 'static', pos: [0, 0, 0], friction: 0.9, shapes: [{ t: 'trimesh', verts: t.verts, idx: t.idx }] });
 
   const staticBox = (x: number, y: number, z: number, w: number, h: number, d: number, color: string, quat?: THREE.Quaternion) => {

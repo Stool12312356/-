@@ -4,6 +4,7 @@ import type { ToWorker, FromWorker, BodyDesc, Shape, PlayerInput, PlayerState, T
 import { SURFACES, BALLISTICS, penetrationResult } from '../game/weapons';
 import { PHYS_HZ, GRAVITY, PLAYER } from '../shared/constants';
 import { stepVehicle as stepVehicleLocal } from '../game/vehicleRig';
+import { oxygenStep, OXYGEN_TIME, type WaterDef } from '../game/water';
 
 const DT = 1 / PHYS_HZ;
 let world: RAPIER.World;
@@ -23,6 +24,10 @@ const stanceH = [PLAYER.heightStand, PLAYER.heightCrouch, 0.7];
 const stanceEye = [PLAYER.eyeStand, PLAYER.eyeCrouch, PLAYER.eyeProne];
 const stanceSpeed = [PLAYER.walk, PLAYER.crouchSpeed, PLAYER.proneSpeed];
 let pBody: RAPIER.RigidBody | null = null, pCol: RAPIER.Collider | null = null, cc: RAPIER.KinematicCharacterController;
+// ВОДА (ТЗ п.4.5): водоём приходит сообщением 'water' при старте карты.
+let water: WaterDef | null = null;
+let oxygen = OXYGEN_TIME;
+const psWater = { swimming: false, submerged: false };
 let input: PlayerInput = { yaw: 0, pitch: 0, fwd: 0, right: 0, jump: false, sprint: false, crouch: false, prone: false };
 const ps = { feet: [0, 0, 0] as [number, number, number], vel: [0, 0, 0] as [number, number, number], grounded: false, stance: 0 as 0 | 1 | 2, stamina: PLAYER.staminaMax, exhausted: false, hp: PLAYER.hp, sliding: false, hurtAt: 0, hpLimit: PLAYER.hp, spawn: [0, 2, 0] as [number, number, number], airTopY: 0, wasGrounded: true, pushVel: [0, 0, 0] as [number, number, number], slopeDeg: 0, groundNormal: { x: 0, y: 1, z: 0 } as { x: number; y: number; z: number } };
 
@@ -66,7 +71,20 @@ function stepPlayer() {
   let ix = input.right, iz = -input.fwd; // вперёд = -Z в локальных координатах
   const len = Math.hypot(ix, iz); if (len > 1) { ix /= len; iz /= len; }
   const wx = ix * cos + iz * sin, wz = -ix * sin + iz * cos;
-  let speed = stanceSpeed[st];
+  // --- ВОДА (ТЗ п.4.5): в воде персонаж плавает, а не идёт ---
+  // Проверяем по груди: если уровень воды выше ступней + 0.6 м, человек плывёт.
+  const wdef = water;
+  let inWaterNow = false, submergedNow = false;
+  if (wdef && ps.feet[0] >= wdef.x0 && ps.feet[0] <= wdef.x1 && ps.feet[2] >= wdef.z0 && ps.feet[2] <= wdef.z1) {
+    if (wdef.level > ps.feet[1] + 0.6) inWaterNow = true;
+    if (wdef.level > ps.feet[1] + 1.55) submergedNow = true;
+  }
+  psWater.swimming = inWaterNow; psWater.submerged = submergedNow;
+  // кислород: под водой убывает, на воздухе восстанавливается (ТЗ п.4.5)
+  const airStep = oxygenStep(oxygen, DT, submergedNow);
+  oxygen = airStep.o2;
+  if (airStep.damage > 0) { ps.hp -= airStep.damage; ps.hurtAt = PLAYER.hpRegenDelay; }
+  let speed = inWaterNow ? PLAYER.walk * 0.55 : stanceSpeed[st];
   const moving = len > 0.01;
   if (st === 0 && input.sprint && input.fwd > 0 && moving && !ps.exhausted && ps.stamina > 0) {
     speed = PLAYER.sprint; ps.stamina = Math.max(0, ps.stamina - PLAYER.staminaDrain * DT); if (ps.stamina <= 0) ps.exhausted = true;
@@ -79,6 +97,20 @@ function stepPlayer() {
   void k; void accel;
   // вертикаль
   ps.vel[1] += GRAVITY * DT;
+  if (inWaterNow) {
+    // Архимед для человека: объём ~0.075 м³, погружение считаем по груди.
+    // Плюс вязкое сопротивление воды — иначе прыжок в реку «пробивал» её насквозь.
+    const sub = Math.max(0, Math.min(1, ((wdef?.level ?? 0) - ps.feet[1]) / 1.8));
+    const buoy = 1000 * GRAVITY * 0.075 * sub;   // Н, вверх
+    ps.vel[1] += (buoy / 75) * DT;                // масса тела 75 кг
+    ps.vel[1] *= Math.exp(-2.4 * DT);
+    ps.vel[0] *= Math.exp(-1.1 * DT);
+    ps.vel[2] *= Math.exp(-1.1 * DT);
+    // течение сносит пловца (река на карте «Пригород»)
+    if (wdef?.flow) { ps.pushVel[0] += wdef.flow[0] * 1.6 * DT; ps.pushVel[2] += wdef.flow[1] * 1.6 * DT; }
+    // на поверхности не даём утонуть ниже ватерлинии: держим «по грудь»
+    if (!submergedNow && wdef && ps.feet[1] < wdef.level - 1.35 && ps.vel[1] < 0) ps.vel[1] = 0;
+  }
   if (ps.grounded && ps.vel[1] < 0) ps.vel[1] = 0; // на земле держит snap-to-ground; постоянный прижим мешал бы подъёму по склонам
   if (input.jump && ps.grounded && st === 0) { ps.vel[1] = PLAYER.jump; ps.grounded = false; }
   // --- сползание по крутому склону ---
@@ -443,7 +475,7 @@ function snapshot() {
   for (const id of dynIds) { const rb = bodies.get(id)!; if (!rb.isSleeping()) awake.push(id); }
   const ids = new Int32Array(awake.length), tf = new Float32Array(awake.length * 7);
   awake.forEach((id, i) => { const rb = bodies.get(id)!; const t = rb.translation(), r = rb.rotation(); ids[i] = id; tf.set([t.x, t.y, t.z, r.x, r.y, r.z, r.w], i * 7); });
-  const player: PlayerState | null = pBody ? { pos: [...ps.feet] as any, vel: [...ps.vel] as any, grounded: ps.grounded, stance: ps.stance, stamina: ps.stamina, hp: ps.hp, sliding: ps.sliding, eye: stanceEye[ps.stance], slope: ps.slopeDeg } : null;
+  const player: PlayerState | null = pBody ? { pos: [...ps.feet] as any, vel: [...ps.vel] as any, grounded: ps.grounded, stance: ps.stance, stamina: ps.stamina, hp: ps.hp, sliding: ps.sliding, eye: stanceEye[ps.stance], slope: ps.slopeDeg, swimming: psWater.swimming, submerged: psWater.submerged, oxygen } : null;
   const msg: FromWorker = { type: 'snapshot', t: performance.now(), ids, tf, player, awake: awake.length, total: dynIds.size, stepMs };
   (self as any).postMessage(msg, [ids.buffer, tf.buffer]);
 }
@@ -459,6 +491,7 @@ function loop() {
   const m = e.data;
   switch (m.type) {
     case 'init': break;
+    case 'water': water = m.water as WaterDef | null; oxygen = OXYGEN_TIME; break;
     case 'addBodies': m.bodies.forEach(addBody); break;
     case 'removeBody': { const rb = bodies.get(m.id); if (rb) { world.removeRigidBody(rb); bodies.delete(m.id); dynIds.delete(m.id); } break; }
     case 'input': input = m.input; break;

@@ -176,6 +176,16 @@ for (const map of maps) {
   for (let gx = Math.ceil(minX / 20) * 20; gx <= maxX; gx += 20) line(X(gx), TOP + PAD, X(gx), H - PAD, GRID);
   for (let gz = Math.ceil(minZ / 20) * 20; gz <= maxZ; gz += 20) line(PAD, Y(gz), W - PAD, Y(gz), GRID);
 
+  // --- ВОДА (ТЗ п.4.5): река/залив. Рисуем ПОД дорогами: мост ложится поверх воды.
+  const WATER = [38, 86, 118];
+  if (map.water) {
+    const w = map.water;
+    rect(X(w.x0), Y(w.z0), X(w.x1), Y(w.z1), WATER);
+    // рябь: короткие горизонтальные штрихи, чтобы вода читалась не как «бетон»
+    for (let z = w.z0 + 6; z < w.z1; z += 14) line(X(w.x0) + 2, Y(z), X(w.x1) - 2, Y(z), [56, 110, 146], 0);
+    place('РЕКА', X((w.x0 + w.x1) / 2), Y(w.z0) + 20, [120, 180, 220], 1);
+  }
+
   // --- УЛИЦЫ (по карте): асфальт с бордюром; дворовые проезды — темнее и уже
   const ROAD = [96, 104, 116], LANE = [74, 81, 91], CURB = [150, 158, 170], TREEC = [70, 122, 92];
   for (const st of map.streets ?? []) {
@@ -301,6 +311,7 @@ for (const map of maps) {
   swatch(ROAD, 'УЛИЦЫ');
   swatch(TREEC, 'ДЕРЕВЬЯ');
   swatch(DCOL.playground, 'ДВОР');
+  if (map.water) swatch(WATER, 'ВОДА');
   // масштабная линейка: 50 м
   const barLen = 50 * SCALE;
   line(W - PAD - barLen, H - 22, W - PAD, H - 22, INK, 1);

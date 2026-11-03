@@ -8,10 +8,14 @@
 // не оставив игрока в пустоте без пола.
 import * as THREE from 'three';
 import type { PhysicsClient } from '../physics/client.ts';
-import { buildTerrain } from './terrain.ts';
+import { buildTerrain, MAP_SIZE } from './terrain.ts';
 
-export function buildGround(scene: THREE.Scene, phys: PhysicsClient) {
-  const t = buildTerrain();
+/**
+ * @param size размер мира в метрах (ТЗ п.9: 400 у «Спального», 800 у «Пригорода»).
+ *             По умолчанию — базовые 400 м, чтобы старые карты не менялись.
+ */
+export function buildGround(scene: THREE.Scene, phys: PhysicsClient, size = MAP_SIZE) {
+  const t = buildTerrain(size);
   scene.add(t.mesh);
   phys.add({ kind: 'static', pos: [0, 0, 0], friction: 0.9, shapes: [{ t: 'trimesh', verts: t.verts, idx: t.idx }] });
   return t;

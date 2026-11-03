@@ -170,6 +170,16 @@ export const VEHICLE_SPAWNS: Record<string, { id: string; pos: [number, number, 
     { id: 'btr80', pos: [-84, 0.8, 40], yaw: 0.0 },
     { id: 'bmp2', pos: [82, 0.6, -24], yaw: Math.PI / 2 },
   ],
+  // «Пригород»: 4×4 км, техника — главное (ТЗ п.9.3). Свои машины у колхоза, враг —
+  // на военной базе. Река между ними: переправа по мосту (x −62…−24) или вброд.
+  prigorod: [
+    { id: 'uaz469', pos: [-310, 0.6, 16], yaw: 0 },
+    { id: 'gaz66', pos: [-310, 0.8, 26], yaw: 0 },
+    { id: 'ural4320', pos: [-300, 0.8, 40], yaw: 0 },
+    { id: 'btr80', pos: [300, 0.8, -60], yaw: Math.PI },
+    { id: 'bmp2', pos: [292, 0.6, -80], yaw: Math.PI },
+    { id: 't72', pos: [280, 0.9, -100], yaw: Math.PI },
+  ],
   zavod: [
     { id: 'uaz469', pos: [-34, 0.6, -18], yaw: 0.2 },
     { id: 'btr80', pos: [-26, 0.8, -24], yaw: 1.0 },

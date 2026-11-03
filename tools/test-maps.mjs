@@ -212,7 +212,10 @@ check('getMap с мусором даёт первую карту', getMap('не�
     // дворовые проезды внутри квартала дома пересекать не должны (улицы по периметру — тоже)
     const badHits = streets.flatMap(st => boxes.filter(b => streetHitsBox(st, b)).map(b => `${st.name ?? 'проезд'}×${b.name}`));
     check(`${map.id}: улицы не проходят сквозь дома`, badHits.length === 0, badHits.slice(0, 3).join(', '));
-    if (map.houses.length) check(`${map.id}: есть улицы по периметру`, streets.filter(st => !st.lane).length >= 4, `${streets.filter(st => !st.lane).length}`);
+    // «кольцо улиц по периметру» — свойство городского квартала; у «Пригорода» (4×4 км)
+    // дороги другие: шоссе, просёлки, мост — там это правило неприменимо.
+    if (map.houses.length && (map.size ?? 400) <= 400)
+      check(`${map.id}: есть улицы по периметру`, streets.filter(st => !st.lane).length >= 4, `${streets.filter(st => !st.lane).length}`);
 
     const items = map.dressing ?? [];
     if (items.length) {
@@ -226,7 +229,9 @@ check('getMap с мусором даёт первую карту', getMap('не�
         ['playground', 'garage', 'car'].every(k => items.some(i => i.kind === k)),
         `${items.length} предметов`);
       // деревья не растут на дорогах
-      const onStreet = items.filter(it => streets.some(st => it.pos[0] > st.x0 && it.pos[0] < st.x1 && it.pos[2] > st.z0 && it.pos[2] < st.z1));
+      // мост стоит НА переправе по определению — он часть дороги, а не «дерево на асфальте»
+      const onStreet = items.filter(it => it.kind !== 'bridge'
+        && streets.some(st => it.pos[0] > st.x0 && it.pos[0] < st.x1 && it.pos[2] > st.z0 && it.pos[2] < st.z1));
       check(`${map.id}: деревья не стоят на асфальте`, onStreet.length === 0,
         onStreet.slice(0, 3).map(i => `${i.kind}@${i.pos[0]},${i.pos[2]}`).join(' '));
     }

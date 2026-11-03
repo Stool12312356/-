@@ -23,6 +23,7 @@ import { SURFACES, pointBlankRange, EXPLOSION, EXPLOSION_SMALL } from './game/we
 import { VEHICLE_SPAWNS, vehicleById } from './game/vehicles';
 import { spawnDressing } from './game/dressing';
 import { Weather } from './game/weather';
+import { WaterSurface } from './game/water';
 import { spawnStreets } from './game/streets';
 import type { PlayerInput, Impact } from './shared/types';
 
@@ -114,14 +115,23 @@ async function boot() {
   // торчал музей. Пользователь: «убери технику и стенды с предметами из спального
   // района и если также на заводском тоже оттуда убери — это уже играбельные карты.
   // И добавь отдельную карту полигона». Теперь выставка живёт только здесь.
-  if (TRAINING) buildPolygon(scene, lib, phys);
-  else buildGround(scene, phys);
+  // размер мира — из карты (ТЗ п.9: 400 м у города/завода, 800 м у «Пригорода»)
+  const WORLD = CURRENT_MAP.size ?? 400;
+  if (TRAINING) buildPolygon(scene, lib, phys, WORLD);
+  else buildGround(scene, phys, WORLD);
   // УЛИЦЫ И ДВОР (по плану квартала): асфальт, бордюры, проезды, деревья, площадка,
   // гаражи, машины, забор. Раньше на их месте был чистый снег — район читался как
   // «дома в поле» (видно на скриншотах пользователя).
   if (CURRENT_MAP.streets?.length) {
     const st = spawnStreets(scene, phys, CURRENT_MAP.streets);
     console.log(`улицы: ${st.count}`);
+  }
+  // ВОДА (ТЗ п.4.5): река на «Пригороде». Визуал — плоскость с волнами Герстнера в
+  // шейдере, физика — сообщением в воркер (плавучесть, кислород, течение).
+  if (CURRENT_MAP.water) {
+    waterSurface = new WaterSurface(scene, CURRENT_MAP.water);
+    phys.setWater(CURRENT_MAP.water);
+    console.log(`вода: ${CURRENT_MAP.water.x1 - CURRENT_MAP.water.x0} × ${CURRENT_MAP.water.z1 - CURRENT_MAP.water.z0} м, уровень ${CURRENT_MAP.water.level}`);
   }
   if (CURRENT_MAP.dressing?.length) {
     const dr = spawnDressing(scene, phys, CURRENT_MAP.dressing as never[]);
@@ -303,6 +313,8 @@ function nearestVehicle(maxDist = 3.2): number | null {
 
 /** В машине ли игрок (id) и какую машину ведём. */
 let drivingId: number | null = null;
+/** Вода карты (ТЗ п.4.5): визуал волн; null, если на карте её нет. */
+let waterSurface: WaterSurface | null = null;
 function toggleVehicle() {
   if (drivingId != null) {
     // выйти: рядом с машиной, чтобы не оказаться внутри корпуса
@@ -858,6 +870,15 @@ function frame(now: number) {
   // Погода живёт до старта матча: снег идёт и в меню, иначе первый кадр после
   // «Играть» показывал бы пустое небо без частиц.
   weather.update(dt, camera);
+  waterSurface?.update(dt);
+  // HUD: кислород под водой (ТЗ п.4.5) и предупреждение «тонешь»
+  if (waterSurface && phys.player) {
+    const o2 = phys.player.oxygen ?? 0;
+    const el = $('veh');
+    const inVeh = drivingId !== null;
+    if (phys.player.submerged && el && !inVeh) el.textContent = `КИСЛОРОД ${Math.ceil(o2)} с`;
+    else if (phys.player.swimming && el && !inVeh) el.textContent = 'ВПЛАВЬ';
+  }
   // тень солнца должна ездить за игроком, иначе в 200 м от центра она обрезается
   sun.position.set(camera.position.x + 60, 90, camera.position.z + 40);
   sun.target.position.set(camera.position.x, 0, camera.position.z);

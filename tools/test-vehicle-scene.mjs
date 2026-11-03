@@ -2,7 +2,7 @@
 // Проверка на данных карты (как test-maps): высота террейна, габариты домов, спавны.
 import { VEHICLE_SPAWNS, VEHICLES, vehicleById, VEHICLE_SURFACES } from '../src/game/vehicles.ts';
 import { MAPS } from '../src/game/maps.ts';
-import { heightAt } from '../src/game/terrain.ts';
+import { heightAt, setWorldSize } from '../src/game/terrain.ts';
 import { buildVoxelHouse } from '../src/game/voxelgen.ts';
 import { buildSpecial } from '../src/game/barracks.ts';
 
@@ -38,6 +38,9 @@ for (const map of MAPS) {
     const spec = vehicleById(vs.id);
     check(`${map.id}/${vs.id}: модель есть в данных`, !!spec && VEHICLES.includes(spec));
     // высота земли под машиной: колёса должны стоять на грунте, а не висеть/тонуть
+    // ВАЖНО: рельеф зависит от размера карты (ТЗ п.9: 400 м у города, 800 у «Пригорода»),
+    // поэтому размер регистрируем до проверки высот — иначе земля «в холмах».
+    setWorldSize(map.size ?? 400);
     const gy = heightAt(vs.pos[0], vs.pos[2]);
     check(`${map.id}/${vs.id}: стоит на земле`, Math.abs(vs.pos[1] - gy) < 1.6,
       `y=${vs.pos[1].toFixed(2)}, земля ${gy.toFixed(2)}`);
@@ -48,8 +51,11 @@ for (const map of MAPS) {
     const onPoint = map.points.find(p => Math.hypot(p.pos[0] - vs.pos[0], p.pos[2] - vs.pos[2]) < p.radius * 0.8);
     check(`${map.id}/${vs.id}: не на точке захвата`, !onPoint, onPoint ? `на точке «${onPoint.name}»` : '');
     // рядом с базой своей стороны (ТЗ: техника у баз)
-    const nearOwn = Math.hypot(map.spawns.own[0] - vs.pos[0], map.spawns.own[2] - vs.pos[2]) < 45;
-    const nearFoe = Math.hypot(map.spawns.foe[0] - vs.pos[0], map.spawns.foe[2] - vs.pos[2]) < 45;
+    // на больших картах (4×4 км) базы дальше друг от друга, поэтому радиус «у базы»
+    // масштабируется вместе с картой: 45 м для 400-метровой, 90 м для 800-метровой
+    const nearR = Math.round(45 * ((map.size ?? 400) / 400));
+    const nearOwn = Math.hypot(map.spawns.own[0] - vs.pos[0], map.spawns.own[2] - vs.pos[2]) < nearR;
+    const nearFoe = Math.hypot(map.spawns.foe[0] - vs.pos[0], map.spawns.foe[2] - vs.pos[2]) < nearR;
     check(`${map.id}/${vs.id}: у базы`, nearOwn || nearFoe, nearOwn ? 'своя база' : nearFoe ? 'база врага' : 'далеко от обеих');
   }
 }

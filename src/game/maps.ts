@@ -50,6 +50,13 @@ export interface MapDef {
    *                 из спального района... и добавь отдельную карту полигона».
    */
   mode?: 'combat' | 'training';
+  /**
+   * Размер игрового мира, м (ТЗ п.9: 2×2 км у города/завода, 4×4 у «Пригорода»,
+   * 3×3 у порта). Влияет на сетку террейна и физику земли.
+   */
+  size?: number;
+  /** Физика воды (ТЗ п.4.5): река/залив с уровнем и течением. */
+  water?: { level: number; x0: number; z0: number; x1: number; z1: number; flow?: [number, number]; depth?: number };
   houses: HouseDef[];
   specials: SpecialDef[];
   points: MapPointDef[];
@@ -277,7 +284,106 @@ const POLIGON: MapDef = {
   playerSpawn: [-56, 0.05, -2],
 };
 
-export const MAPS: MapDef[] = [SPALNY, ZAVOD, POLIGON];
+
+/**
+ * «ПРИГОРОД» (ТЗ п.9.3) — 4×4 км, самый большой полигон для техники и авиации.
+ *
+ * По ТЗ на карте: поля, колхоз, река, мост, военная база, дачный посёлок.
+ * Игровая зона — 800 м (в два раза больше города), поэтому:
+ *   • река пересекает карту с севера на юг по x ≈ −60…−30, мост — единственная
+ *     переправа для техники (ТЗ: мост как тактическая точка);
+ *   • военная база на востоке (казарма, проходная, техника) — база врага;
+ *   • колхоз на западе: два барака-склада и мастерская;
+ *   • дачный посёлок на юге: маленькие дома-панельки по 1 секции;
+ *   • поля — это dressing (плетни, стога нет — зима), а дороги — просёлки.
+ *
+ * Вода задаётся данными `water` (см. water.ts): уровень 0, глубина 3.2 м, течение
+ * вдоль Z. Без моста реку пешком можно переплыть (кислород/плавучесть работают), а
+ * техника — только по мосту или вброд у мелководья.
+ */
+const PRIGOROD: MapDef = {
+  id: 'prigorod',
+  name: 'Пригород',
+  subtitle: 'поля, колхоз, река с мостом, военная база · 4×4 км',
+  size: 800,
+  houses: [
+    // --- дачный посёлок (юг): маленькие дома по одной секции
+    { kind: 'khrushchevka', pos: [-180, 0, 210], rotY: 0, sections: 1 },
+    { kind: 'khrushchevka', pos: [-150, 0, 250], rotY: Math.PI / 2, sections: 1 },
+    { kind: 'khrushchevka', pos: [-120, 0, 205], rotY: 0, sections: 1 },
+    { kind: 'khrushchevka', pos: [-100, 0, 248], rotY: Math.PI / 2, sections: 1 },
+    { kind: 'khrushchevka', pos: [-190, 0, 258], rotY: 0, sections: 1 },
+    // --- военная база (восток): две брежневки-общежития
+    { kind: 'brezhnevka', pos: [210, 0, -60], rotY: Math.PI / 2, sections: 2 },
+    { kind: 'brezhnevka', pos: [210, 0, 20], rotY: Math.PI / 2, sections: 2 },
+  ],
+  specials: [
+    // --- колхоз (запад): склады-бараки и мастерская
+    { kind: 'barracks', pos: [-250, 0, -20], rotY: 0, sections: 2, label: 'Склад колхоза' },
+    { kind: 'barracks', pos: [-250, 0, 20], rotY: 0, sections: 2, label: 'Коровник' },
+    { kind: 'workshop', pos: [-200, 0, 80], rotY: Math.PI / 2, sections: 1, label: 'МТС' },
+    // --- военная база: казарма и КПП
+    { kind: 'barracks', pos: [200, 0, -140], rotY: 0, sections: 3, label: 'Казарма' },
+    { kind: 'checkpoint', pos: [150, 0, -40], rotY: Math.PI / 2, sections: 2, label: 'КПП базы' },
+  ],
+  points: [
+    { name: 'Мост через реку', pos: [-40, 0, 0], radius: 14 },      // тактическая точка ТЗ
+    { name: 'Колхозный двор', pos: [-235, 0, 0], radius: 12 },
+    { name: 'Дачи', pos: [-145, 0, 230], radius: 12 },
+    { name: 'Военная база', pos: [200, 0, -70], radius: 13 },
+    { name: 'Брод', pos: [-60, 0, 130], radius: 10 },               // мелководье: техника проходит
+  ],
+  streets: [
+    // шоссе вдоль реки (север-юг) и просёлки к базе и колхозу
+    { name: 'Шоссе', x0: -24, z0: -300, x1: -10, z1: 300 },
+    { name: 'Просёлок к базе', x0: -10, z0: -20, x1: 140, z1: -8 },
+    { name: 'Просёлок к колхозу', x0: -110, z0: -8, x1: -24, z1: 4, lane: true },
+    { name: 'Дорожка к дачам', x0: -110, z0: 4, x1: -98, z1: 230, lane: true },
+    { name: 'Мост', x0: -62, z0: -6, x1: -24, z1: 6 },
+  ],
+  /**
+   * РЕКА (ТЗ п.4.5): уровень 0, глубина 3.2 м, течение на юг. Мост стоит поперёк
+   * (x −62…−24, z −6…6), поэтому переправа есть, но она одна — как в ТЗ.
+   */
+  water: { level: 0, x0: -70, z0: -300, x1: -26, z1: 300, flow: [0, 0.9], depth: 3.2 },
+  dressing: [
+    // --- мост: настил и перила (переправа для техники)
+    { kind: 'bridge', pos: [-48, 0, 0], rotY: 0 },
+    // --- колхоз: плетни, скирды (зимой — снежные бугры), техника
+    { kind: 'car', pos: [-260, 0, -2], rotY: 0, color: '#4a5a3a' },
+    { kind: 'bus', pos: [-230, 0, 40], rotY: Math.PI / 2 },
+    { kind: 'garage', pos: [-280, 0, 60], rotY: 0 },
+    { kind: 'garage', pos: [-280, 0, 68], rotY: 0 },
+    { kind: 'fence', pos: [-220, 0, -34], rotY: 0 },
+    { kind: 'fence', pos: [-217.6, 0, -34], rotY: 0 },
+    { kind: 'fence', pos: [-215.2, 0, -34], rotY: 0 },
+    // --- военная база: ряд гаражей, вышка-фонарь, машины
+    { kind: 'garage', pos: [160, 0, -100], rotY: Math.PI / 2 },
+    { kind: 'garage', pos: [160, 0, -92], rotY: Math.PI / 2 },
+    { kind: 'garage', pos: [160, 0, -84], rotY: Math.PI / 2 },
+    { kind: 'car', pos: [175, 0, -30], rotY: 0, color: '#3a4a3a' },
+    { kind: 'lamp', pos: [120, 0, -24], rotY: 0 },
+    { kind: 'lamp', pos: [190, 0, -24], rotY: 0 },
+    // --- дачи: колодец, детская площадка, лавки, плетни
+    { kind: 'well', pos: [-135, 0, 232], rotY: 0 },
+    { kind: 'playground', pos: [-165, 0, 268], rotY: 0 },
+    { kind: 'bench', pos: [-180, 0, 200], rotY: 0 },
+    { kind: 'bench', pos: [-150, 0, 240], rotY: Math.PI },
+    { kind: 'fence', pos: [-170, 0, 195], rotY: 0 },
+    { kind: 'fence', pos: [-167.6, 0, 195], rotY: 0 },
+    // --- поля: редкие деревья по межам (аллеи вдоль шоссе)
+    ...Array.from({ length: 12 }, (_, i) => ({ kind: 'tree_snow', pos: [-2, 0, -280 + i * 48] as [number, number, number], rotY: 0 })),
+    ...Array.from({ length: 10 }, (_, i) => ({ kind: 'tree_snow', pos: [-34, 0, -260 + i * 55] as [number, number, number], rotY: 0 })),
+    ...Array.from({ length: 8 }, (_, i) => ({ kind: 'tree', pos: [100 + i * 20, 0, 40] as [number, number, number], rotY: 0 })),
+    ...[-150, -130, -110, -90, -70, -50, -30, -10].filter(x => x < -56 || x > -40).map(x => ({ kind: 'tree' as const, pos: [x, 0, 178] as [number, number, number], rotY: 0 })),
+    ...Array.from({ length: 6 }, (_, i) => ({ kind: 'tree_snow', pos: [-270, 0, -80 + i * 40] as [number, number, number], rotY: 0 })),
+  ],
+  // своя сторона — запад (колхоз), враг — военная база на востоке
+  spawns: { own: [-300, 0.05, 0], foe: [300, 0.05, -40] },
+  playerSpawn: [-300, 0.05, 0],
+};
+
+export const MAPS: MapDef[] = [SPALNY, ZAVOD, PRIGOROD, POLIGON];
 
 /** Играбельные (боевые) карты: только они попадают в выбор режима. */
 export const COMBAT_MAPS = MAPS.filter(m => (m.mode ?? 'combat') === 'combat');

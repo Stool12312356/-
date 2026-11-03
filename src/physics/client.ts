@@ -3,6 +3,14 @@ import * as THREE from 'three';
 
 /** Мост main-thread <-> physics worker. Хранит два последних снапшота и интерполирует для рендера. */
 export class PhysicsClient {
+  /**
+   * ВОДА (ТЗ п.4.5). Воркер не знает про карту, поэтому водоём передаётся ему
+   * данными один раз при старте: уровень, прямоугольник, течение, глубина.
+   */
+  setWater(w: { level: number; x0: number; z0: number; x1: number; z1: number; flow?: [number, number]; depth?: number } | null) {
+    this.post({ type: 'water', water: w } as never);
+  }
+
   worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
   ready: Promise<void>;
   private objects = new Map<number, THREE.Object3D>();

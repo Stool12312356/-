@@ -12,7 +12,8 @@ import type { PhysicsClient } from '../physics/client.ts';
 import { heightAt } from './terrain.ts';
 
 export type DressingKind =
-  | 'tree' | 'tree_snow' | 'bench' | 'playground' | 'garage' | 'car' | 'bus' | 'kiosk' | 'fence' | 'bin' | 'lamp';
+  | 'tree' | 'tree_snow' | 'bench' | 'playground' | 'garage' | 'car' | 'bus' | 'kiosk' | 'fence' | 'bin' | 'lamp'
+  | 'bridge' | 'haystack' | 'well';
 
 export interface DressingItem {
   kind: DressingKind;
@@ -125,6 +126,31 @@ function build(kind: DressingKind, color?: string): THREE.Group {
       cyl(0.32, 0.9, '#3f5a3a', 0);
       break;
     }
+    case 'bridge': {
+      // мост 40 × 12: настил, перила, опоры. Нужен, чтобы техника перешла реку (ТЗ п.9.3).
+      box(40, 0.5, 12, '#6b6257', 0.3);
+      for (const zs of [-1, 1]) {
+        box(40, 0.12, 0.2, '#3c3a36', 1.3).position.z = zs * 5.8;
+        for (let i = -4; i <= 4; i++) box(0.2, 1.2, 0.2, '#3c3a36', 0.8).position.set(i * 4.4, 0, zs * 5.8);
+      }
+      // опоры в воде
+      for (const xs of [-14, 0, 14]) for (const zs of [-4, 4]) box(1.2, 3.4, 1.2, '#8a8478', -3.2).position.set(xs, 0, zs);
+      break;
+    }
+    case 'haystack': {
+      // стог/скирда: зимой присыпан снегом
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(2.6, 3.2, 9), m('#b9a97a'));
+      cone.position.y = 1.6; cone.castShadow = true; g.add(cone);
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(2.62, 1.1, 9), m('#eef3f7', 0.95));
+      cap.position.y = 2.7; g.add(cap);
+      break;
+    }
+    case 'well': {
+      cyl(1.1, 0.9, '#7a736a', 0);
+      for (const s2 of [-1, 1]) box(0.16, 2.2, 0.16, '#5a4a3a', 0.9).position.x = s2 * 1.0;
+      box(2.4, 0.2, 2.4, '#5a4a3a', 2.9);
+      break;
+    }
     case 'lamp': {
       cyl(0.09, 6.2, '#4a4f55');
       const head = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.18, 0.4), m('#6a7078', 0.6, 0.4));
@@ -156,7 +182,7 @@ export function spawnDressing(
     obj.rotation.y = it.rotY ?? 0;
     obj.traverse(o => { const mm = o as THREE.Mesh; if (mm.isMesh) { mm.castShadow = true; mm.receiveShadow = true; } });
     group.add(obj);
-    if (collider && ['garage', 'car', 'bus', 'kiosk', 'fence'].includes(it.kind)) {
+    if (collider && ['garage', 'car', 'bus', 'kiosk', 'fence', 'bridge', 'well', 'haystack'].includes(it.kind)) {
       const b = new THREE.Box3().setFromObject(obj);
       const s = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3());
       phys.add({

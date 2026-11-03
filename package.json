@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "node tools/test-vehicles.mjs && node tools/test-vehicle-scene.mjs && node tools/test-ballistics.mjs && node tools/test-buildings.mjs && node tools/test-destruction.mjs && node tools/test-slide.mjs && node tools/test-viewmodel.mjs && node tools/test-voxelhouse.mjs && node tools/test-entrance.mjs && node tools/test-apartment.mjs && node tools/test-furnish.mjs && node tools/test-props.mjs && node tools/test-special.mjs && node tools/test-barracks-walk.mjs && node tools/test-modes.mjs && node tools/test-botai.mjs && node tools/test-classes.mjs && node tools/test-gadgets.mjs && node tools/test-balance.mjs && node tools/test-anim.mjs && node tools/test-maps.mjs && node tools/test-build.mjs && node tools/test-winter.mjs && node tools/test-weather.mjs && node tools/test-walk.mjs && node tools/test-rpg.mjs && node tools/test-scope.mjs && node tools/test-normals.mjs && node tools/test-damage-visual.mjs && node tools/preview-scope.mjs && node tools/test-perf.mjs",
+    "test": "node tools/test-vehicles.mjs && node tools/test-vehicle-scene.mjs && node tools/test-ballistics.mjs && node tools/test-buildings.mjs && node tools/test-destruction.mjs && node tools/test-slide.mjs && node tools/test-viewmodel.mjs && node tools/test-voxelhouse.mjs && node tools/test-entrance.mjs && node tools/test-apartment.mjs && node tools/test-furnish.mjs && node tools/test-props.mjs && node tools/test-special.mjs && node tools/test-barracks-walk.mjs && node tools/test-modes.mjs && node tools/test-botai.mjs && node tools/test-classes.mjs && node tools/test-gadgets.mjs && node tools/test-balance.mjs && node tools/test-anim.mjs && node tools/test-maps.mjs && node tools/test-build.mjs && node tools/test-winter.mjs && node tools/test-weather.mjs && node tools/test-water.mjs && node tools/test-walk.mjs && node tools/test-rpg.mjs && node tools/test-scope.mjs && node tools/test-normals.mjs && node tools/test-damage-visual.mjs && node tools/preview-scope.mjs && node tools/test-perf.mjs",
     "dev": "node tools/build-manifest.mjs || echo manifest: используются текущие ассеты && vite",
     "build": "tsc -p . && vite build",
     "preview": "vite preview --host 0.0.0.0",
@@ -41,7 +41,8 @@
     "test:winter": "node tools/test-winter.mjs",
     "textures:snow": "node tools/make-snow.mjs",
     "preview:rooms": "node tools/preview-rooms.mjs",
-    "test:weather": "node tools/test-weather.mjs"
+    "test:weather": "node tools/test-weather.mjs",
+    "test:water": "node tools/test-water.mjs"
   },
   "keywords": [],
   "author": "",
