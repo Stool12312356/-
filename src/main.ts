@@ -746,7 +746,8 @@ function frame(now: number) {
   const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now; fps += (1 / Math.max(dt, 1e-3) - fps) * 0.05;
   const inp: PlayerInput = {
     yaw, pitch, fwd: (keys.has('KeyW') ? 1 : 0) - (keys.has('KeyS') ? 1 : 0), right: (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0),
-    jump: keys.has('Space'), sprint: keys.has('ShiftLeft') || keys.has('ShiftRight'), crouch: toggledCrouch || keys.has('ControlLeft'), prone: toggledProne,
+    jump: keys.has('Space'), sprint: keys.has('ShiftLeft') || keys.has('ShiftRight'), crouch: toggledCrouch || keys.has('ControlLeft') || keys.has('ControlRight'), prone: toggledProne,
+    dive: keys.has('ControlLeft') || keys.has('ControlRight'),
   };
   if (started) {
     // За рулём пехотинцу управление не шлём: иначе игрок «выходит» из машины своим ходом
@@ -886,8 +887,8 @@ function frame(now: number) {
     const o2 = phys.player.oxygen ?? 0;
     const el = $('veh');
     const inVeh = drivingId !== null;
-    if (phys.player.submerged && el && !inVeh) el.textContent = `КИСЛОРОД ${Math.ceil(o2)} с`;
-    else if (phys.player.swimming && el && !inVeh) el.textContent = 'ВПЛАВЬ';
+    if (phys.player.submerged && el && !inVeh) el.textContent = `КИСЛОРОД ${Math.ceil(o2)} с · Space — вверх`;
+    else if (phys.player.swimming && el && !inVeh) el.textContent = 'ВПЛАВЬ · Ctrl — нырнуть · Space — вверх';
   }
   // тень солнца должна ездить за игроком, иначе в 200 м от центра она обрезается
   sun.position.set(camera.position.x + 60, 90, camera.position.z + 40);

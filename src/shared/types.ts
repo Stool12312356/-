@@ -74,6 +74,8 @@ export const GROUP = {
 export interface PlayerInput {
   yaw: number; pitch: number; fwd: number; right: number;
   jump: boolean; sprint: boolean; crouch: boolean; prone: boolean;
+  /** Удерживаемое погружение (Ctrl); отдельно от переключаемого приседа C. */
+  dive?: boolean;
 }
 /** Один шаг трассировки снаряда делает воркер: он владеет миром. */
 export interface Tracer {

@@ -145,6 +145,7 @@ export class WaterSurface {
     const geo = new THREE.PlaneGeometry(w, d, Math.ceil(w / 3), Math.ceil(d / 3));
     this.mat = new THREE.ShaderMaterial({
       transparent: true,
+      side: THREE.DoubleSide, // водная поверхность видна и из-под воды
       uniforms: {
         uTime: { value: 0 },
         uLevel: { value: def.level },

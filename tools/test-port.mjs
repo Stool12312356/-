@@ -16,6 +16,7 @@ assert.ok(port.specials.filter(x => x.label?.includes('Склад')).length >= 2
 assert.ok(VEHICLE_SPAWNS.port.length >= 2);
 const bodies = [], scene = new THREE.Scene(), phys = { add: b => bodies.push(b) };
 const waterSurface = new WaterSurface(scene, port.water);
+assert.equal(waterSurface.mesh.material.side, THREE.DoubleSide, 'водную поверхность видно из-под воды');
 assert.ok(waterSurface.mesh.geometry.attributes.position.count > 4, 'волны используют сетку, а не четыре вершины');
 assert.ok(waterSurface.mesh.material.vertexShader.includes('modelViewMatrix * vec4(p, 1.0)'), 'деформация волн попадает в экранные координаты');
 const t = buildGround(scene, phys, port.size, port.water);

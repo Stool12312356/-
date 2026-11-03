@@ -80,8 +80,10 @@ function stepPlayer() {
     if (ps.hp <= 0) { playerVehicle = -1; spawnPlayer(ps.spawn); }
     return;
   }
-  // стойка
-  const want: 0 | 1 | 2 = input.prone ? 2 : input.crouch ? 1 : 0;
+  // В воде Ctrl управляет погружением, а не высотой капсулы приседа.
+  const waterAtFeet = !!water && ps.feet[0] >= water.x0 && ps.feet[0] <= water.x1 &&
+    ps.feet[2] >= water.z0 && ps.feet[2] <= water.z1 && ps.feet[1] + 0.6 < water.level;
+  const want: 0 | 1 | 2 = waterAtFeet ? 0 : input.prone ? 2 : input.crouch ? 1 : 0;
   setStance(want);
   const st = ps.stance;
   // горизонтальная скорость
@@ -95,7 +97,7 @@ function stepPlayer() {
   let inWaterNow = false, submergedNow = false;
   if (wdef && ps.feet[0] >= wdef.x0 && ps.feet[0] <= wdef.x1 && ps.feet[2] >= wdef.z0 && ps.feet[2] <= wdef.z1) {
     if (wdef.level > ps.feet[1] + 0.6) inWaterNow = true;
-    if (wdef.level > ps.feet[1] + 1.55) submergedNow = true;
+    if (wdef.level > ps.feet[1] + stanceEye[st]) submergedNow = true;
   }
   psWater.swimming = inWaterNow; psWater.submerged = submergedNow;
   // кислород: под водой убывает, на воздухе восстанавливается (ТЗ п.4.5)
@@ -126,11 +128,13 @@ function stepPlayer() {
     ps.vel[2] *= Math.exp(-1.1 * DT);
     // течение сносит пловца (река на карте «Пригород»)
     if (wdef?.flow) { ps.pushVel[0] += wdef.flow[0] * 1.6 * DT; ps.pushVel[2] += wdef.flow[1] * 1.6 * DT; }
-    // на поверхности не даём утонуть ниже ватерлинии: держим «по грудь»
-    if (!submergedNow && wdef && ps.feet[1] < wdef.level - 1.35 && ps.vel[1] < 0) ps.vel[1] = 0;
+    // Ctrl — активное погружение, Space — всплытие. Без ввода Архимед
+    // возвращает пловца к поверхности; ограничиваем скорость для устойчивости.
+    const verticalInput = (input.jump ? 1 : 0) - (input.dive ? 1 : 0);
+    ps.vel[1] = Math.max(-2.5, Math.min(2.5, ps.vel[1] + verticalInput * 7 * DT));
   }
   if (ps.grounded && ps.vel[1] < 0) ps.vel[1] = 0; // на земле держит snap-to-ground; постоянный прижим мешал бы подъёму по склонам
-  if (input.jump && ps.grounded && st === 0) { ps.vel[1] = PLAYER.jump; ps.grounded = false; }
+  if (!inWaterNow && input.jump && ps.grounded && st === 0) { ps.vel[1] = PLAYER.jump; ps.grounded = false; }
   // --- сползание по крутому склону ---
   // Раньше на земле вертикальная скорость обнулялась каждый кадр, поэтому персонаж
   // «стоял» на 55° как приклеенный: разогнаться вниз было нечем. Теперь сползание — это
@@ -181,7 +185,8 @@ function stepPlayer() {
   // (флаг sliding теперь ставится в блоке сползания выше)
   // падение
   if (!grounded) { if (ps.wasGrounded) ps.airTopY = ps.feet[1]; else ps.airTopY = Math.max(ps.airTopY, ps.feet[1]); }
-  if (grounded && !ps.wasGrounded) {
+  if (inWaterNow) ps.airTopY = ps.feet[1];
+  if (grounded && !ps.wasGrounded && !inWaterNow) {
     const drop = ps.airTopY - ps.feet[1];
     if (drop > PLAYER.fallDamageFrom) ps.hp -= (drop - PLAYER.fallDamageFrom) * 14;
     if (drop > PLAYER.fallDamageFrom) ps.hurtAt = PLAYER.hpRegenDelay;

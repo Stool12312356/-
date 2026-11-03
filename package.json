@@ -49,7 +49,8 @@
     "test:amphibious": "node tools/test-amphibious.mjs",
     "test:amphibious-worker": "vite build && node tools/test-amphibious-worker.mjs",
     "test:tank-water": "node tools/test-tank-water.mjs",
-    "test:tank-water-worker": "vite build && node tools/test-tank-water-worker.mjs"
+    "test:tank-water-worker": "vite build && node tools/test-tank-water-worker.mjs",
+    "test:swimming-worker": "vite build && node tools/test-swimming-worker.mjs"
   },
   "keywords": [],
   "author": "",
