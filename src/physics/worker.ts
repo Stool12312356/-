@@ -4,6 +4,7 @@ import type { ToWorker, FromWorker, BodyDesc, Shape, PlayerInput, PlayerState, T
 import { SURFACES, BALLISTICS, penetrationResult } from '../game/weapons';
 import { PHYS_HZ, GRAVITY, PLAYER } from '../shared/constants';
 import { stepVehicle as stepVehicleLocal } from '../game/vehicleRig';
+import { amphibiousAcceleration } from '../game/vehicleWater';
 import { oxygenStep, OXYGEN_TIME, blastAt, type WaterDef } from '../game/water';
 
 const DT = 1 / PHYS_HZ;
@@ -63,6 +64,18 @@ function setStance(s: 0 | 1 | 2) {
 }
 function stepPlayer() {
   if (!pBody || !pCol) return;
+  // За рулём положение уже обновлено в stepVehicles. Не перезаписываем его
+  // контроллером ходьбы, иначе пассажир остаётся позади движущегося корпуса.
+  if (playerVehicle >= 0 && vehicles.has(playerVehicle)) {
+    const submerged = !!water && ps.feet[0] >= water.x0 && ps.feet[0] <= water.x1 &&
+      ps.feet[2] >= water.z0 && ps.feet[2] <= water.z1 && ps.feet[1] + stanceEye[ps.stance] < water.level;
+    psWater.swimming = false; psWater.submerged = submerged;
+    const air = oxygenStep(oxygen, DT, submerged);
+    oxygen = air.o2;
+    if (air.damage > 0) { ps.hp -= air.damage; ps.hurtAt = PLAYER.hpRegenDelay; }
+    if (ps.hp <= 0) { playerVehicle = -1; spawnPlayer(ps.spawn); }
+    return;
+  }
   // стойка
   const want: 0 | 1 | 2 = input.prone ? 2 : input.crouch ? 1 : 0;
   setStance(want);
@@ -207,7 +220,7 @@ function vehicleContacts(v: VehicleRT) {
     const z = -w.pos[0] * s2 + w.pos[2] * c;
     const ox = v.pos[0] + x, oy = v.pos[1] + w.pos[1], oz = v.pos[2] + z;
     const ray = new RAPIER.Ray({ x: ox, y: oy, z: oz }, { x: 0, y: -1, z: 0 });
-    const hit = world.castRayAndGetNormal(ray, w.radius + w.travel + 0.6, true);
+    const hit = world.castRayAndGetNormal(ray, w.radius + w.travel + 0.6, true, undefined, undefined, pCol ?? undefined, v.rb);
     if (!hit) return { ground: null as number | null, normal: [0, 1, 0] as [number, number, number], surface: 'dirt' };
     const meta = colMeta.get(hit.collider.handle);
     const gy = oy - hit.timeOfImpact;
@@ -245,19 +258,32 @@ function stepVehicles() {
       spec: vehicleSpecOf(v.desc), pos: v.pos, vel: v.vel, yaw: v.yaw, yawRate: v.yawRate,
       steer: v.steer, gear: v.gear, damaged: v.damaged,
     } as any;
-    const r = stepVehicleLocal(st, DT, { throttle: v.throttle, steer: v.steerIn, handbrake: v.handbrake }, contacts);
+    const controls = { throttle: v.throttle, steer: v.steerIn, handbrake: v.handbrake };
+    const r = stepVehicleLocal(st, DT, controls, contacts);
+    // На дне и на мосту сначала работает колёсная подвеска: она уже удерживает
+    // полный вес, поэтому нельзя добавлять к ней ещё полный вес Архимеда.
+    const supported = contacts.some(c => c.ground != null);
+    const waterStep = amphibiousAcceleration(water ?? undefined, {
+      specId: v.desc.specId, size: v.desc.size, pos: v.pos, vel: v.vel, yaw: v.yaw, yawRate: v.yawRate,
+    }, { ...controls, throttle: v.damaged.engine ? controls.throttle * 0.35 : controls.throttle }, supported);
+    v.vel[0] += waterStep.acceleration[0] * DT;
+    v.vel[1] += waterStep.acceleration[1] * DT;
+    v.vel[2] += waterStep.acceleration[2] * DT;
     v.vel[1] += (r.force[1] / v.desc.mass - 9.81) * DT;
     v.vel[0] += (r.force[0] / v.desc.mass) * DT;
     v.vel[2] += (r.force[2] / v.desc.mass) * DT;
     v.vel[0] *= 0.995; v.vel[2] *= 0.995;
     v.pos[0] += v.vel[0] * DT; v.pos[1] += v.vel[1] * DT; v.pos[2] += v.vel[2] * DT;
-    v.yawRate += r.torqueY * DT;
+    v.yawRate += (waterStep.submerged > 0 && !supported ? waterStep.yawAcceleration : r.torqueY) * DT;
     v.yaw += v.yawRate * DT;
     v.steer = st.steer;
     // корпус не проваливается сквозь землю и не улетает: держим на поверхности
-    const gy = contacts.find(c => c.ground != null)?.ground ?? null;
-    const minY = (gy ?? v.pos[1]) + v.desc.wheels[0].radius * 0.5;
-    if (v.pos[1] < minY) { v.pos[1] = minY; if (v.vel[1] < 0) v.vel[1] = 0; }
+    const heights = contacts.flatMap(c => c.ground == null ? [] : [c.ground]);
+    const gy = heights.length ? Math.max(...heights) : null;
+    if (gy != null) {
+      const minY = gy + v.desc.wheels[0].radius * 0.5;
+      if (v.pos[1] < minY) { v.pos[1] = minY; if (v.vel[1] < 0) v.vel[1] = 0; }
+    }
     v.rb.setNextKinematicTranslation({ x: v.pos[0], y: v.pos[1], z: v.pos[2] });
     v.rb.setNextKinematicRotation({ x: 0, y: Math.sin(v.yaw / 2), z: 0, w: Math.cos(v.yaw / 2) });
 
@@ -274,7 +300,7 @@ function stepVehicles() {
     if (speed > 3) {
       const ray = new RAPIER.Ray({ x: v.pos[0], y: v.pos[1] + 0.6, z: v.pos[2] },
         { x: Math.sin(v.yaw), y: 0, z: Math.cos(v.yaw) });
-      const hit = world.castRay(ray, v.desc.size[2] / 2 + 0.4, true, undefined, undefined, vehicles.get(v.desc.id)!.rb as any);
+      const hit = world.castRay(ray, v.desc.size[2] / 2 + 0.4, true, undefined, undefined, pCol ?? undefined, v.rb);
       if (hit) {
         const meta = colMeta.get(hit.collider.handle);
         const other = meta?.bodyId ?? -1;
