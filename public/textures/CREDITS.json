@@ -1,0 +1,41 @@
+{
+  "note": "Текстуры скачаны из свободных источников (CC0/MIT) и уменьшены до 512px. Список — для атрибуции.",
+  "textures": [
+    {
+      "name": "brick",
+      "file": "brick.jpg",
+      "source": "mrdoob/three.js/examples/textures/brick_diffuse.jpg",
+      "license": "three.js examples (MIT)"
+    },
+    {
+      "name": "wood",
+      "file": "wood.jpg",
+      "source": "mrdoob/three.js/examples/textures/hardwood2_diffuse.jpg",
+      "license": "three.js examples (MIT)"
+    },
+    {
+      "name": "grass",
+      "file": "grass.jpg",
+      "source": "mrdoob/three.js/examples/textures/terrain/grasslight-big.jpg",
+      "license": "three.js examples (MIT)"
+    },
+    {
+      "name": "asphalt",
+      "file": "asphalt.jpg",
+      "source": "KhronosGroup/glTF-Sample-Assets/Models/TrafficCone/glTF/asphalt_02_diff_1k.jpg",
+      "license": "Khronos glTF-Sample-Assets (CC0)"
+    },
+    {
+      "name": "stone",
+      "file": "stone.jpg",
+      "source": "playcanvas/engine/examples/assets/textures/bricks076a/color.webp",
+      "license": "PlayCanvas engine examples (MIT)"
+    },
+    {
+      "name": "ground",
+      "file": "ground.jpg",
+      "source": "playcanvas/engine/examples/assets/textures/ground092c/color.webp",
+      "license": "PlayCanvas engine examples (MIT)"
+    }
+  ]
+}

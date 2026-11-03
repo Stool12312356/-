@@ -1,0 +1,170 @@
+[
+  {
+    "file": "tools/_render/walk6-01-street.png",
+    "name": "street",
+    "pos": [
+      -1.5,
+      1.7,
+      -9.5
+    ],
+    "target": [
+      6,
+      4.5,
+      5.25
+    ]
+  },
+  {
+    "file": "tools/_render/walk6-02-in-entrance.png",
+    "name": "in-entrance",
+    "pos": [
+      1.75,
+      0.02,
+      -1.42
+    ],
+    "target": [
+      1.75,
+      1.6,
+      5.4
+    ]
+  },
+  {
+    "file": "tools/_render/walk6-03-landing-floor2.png",
+    "name": "landing-floor2",
+    "pos": [
+      1.1,
+      3,
+      1.05
+    ],
+    "target": [
+      4.6,
+      4.4,
+      1.1500000000000004
+    ]
+  },
+  {
+    "file": "tools/_render/walk6-04-hall-look-stairs.png",
+    "name": "hall-look-stairs",
+    "pos": [
+      4.42,
+      3.02,
+      1.37
+    ],
+    "target": [
+      1.5,
+      4.3202697277069095,
+      3.5
+    ]
+  },
+  {
+    "file": "tools/_render/walk6-05-stairwell-up.png",
+    "name": "stairwell-up",
+    "pos": [
+      1.92,
+      3.02,
+      6.99
+    ],
+    "target": [
+      1.7999999999999998,
+      1.0199893474578858,
+      1.5
+    ]
+  },
+  {
+    "file": "tools/_render/walk6-06-room-hall.png",
+    "name": "room-hall",
+    "pos": [
+      4,
+      3.02,
+      1.42
+    ],
+    "target": [
+      4.766666666666667,
+      4.270000076293945,
+      4.905555555555556
+    ]
+  },
+  {
+    "file": "tools/_render/walk6-07-room-living.png",
+    "name": "room-living",
+    "pos": [
+      6.24,
+      3.02,
+      5.07
+    ],
+    "target": [
+      7.191428571428571,
+      4.269999837875366,
+      2.975
+    ]
+  },
+  {
+    "file": "tools/_render/walk6-08-room-bedroom.png",
+    "name": "room-bedroom",
+    "pos": [
+      9.74,
+      3.02,
+      5.1
+    ],
+    "target": [
+      10.454166666666666,
+      4.270000076293945,
+      3.1416666666666666
+    ]
+  },
+  {
+    "file": "tools/_render/walk6-09-room-kitchen.png",
+    "name": "room-kitchen",
+    "pos": [
+      1.33,
+      3.02,
+      7.13
+    ],
+    "target": [
+      2.143,
+      4.270000791549682,
+      8.370000000000001
+    ]
+  },
+  {
+    "file": "tools/_render/walk6-10-room-bath.png",
+    "name": "room-bath",
+    "pos": [
+      4.88,
+      3.02,
+      8.46
+    ],
+    "target": [
+      5.03,
+      4.270000076293945,
+      8.966666666666667
+    ]
+  },
+  {
+    "file": "tools/_render/walk6-11-room-kids.png",
+    "name": "room-kids",
+    "pos": [
+      6.8,
+      3.02,
+      9.06
+    ],
+    "target": [
+      7.395,
+      4.270815467834472,
+      8.195
+    ]
+  },
+  {
+    "file": "tools/_render/walk6-12-room-study.png",
+    "name": "room-study",
+    "pos": [
+      9.73,
+      3.02,
+      7.44
+    ],
+    "target": [
+      10.635,
+      4.269999837875366,
+      8.26
+    ]
+  }
+]

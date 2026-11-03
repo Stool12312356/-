@@ -1,0 +1,2321 @@
+{
+ "generated": "2026-11-02T17:49:03.353Z",
+ "items": [
+  {
+   "id": "aks74u",
+   "name": "АКС-74У",
+   "category": "weapon",
+   "faction": "ussr",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "rifle",
+    "p": {
+     "len": 0.73,
+     "mag": "curved",
+     "stock": "folded"
+    }
+   }
+  },
+  {
+   "id": "m4a1",
+   "name": "M4 + руки (FPS-аниматоры Draw/Fire/Reload)",
+   "category": "weapon",
+   "faction": "nato",
+   "note": "американская винтовка с рукавами; анимации относятся ТОЛЬКО к этой модели",
+   "placeholder": false,
+   "source": "m4_-_fps_weapon_animations_pack_v.1.glb",
+   "file": "assets/game/m4_-_fps_weapon_animations_pack_v.1.glb",
+   "collider": "assets/colliders/m4a1.json",
+   "forward": "-x",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": -1.5707963267948966,
+    "offset": [
+     0.1272,
+     -1.3271,
+     0
+    ]
+   },
+   "size": [
+    1.01,
+    0.422,
+    1.885
+   ],
+   "tris": 14814,
+   "animations": [
+    "Draw",
+    "Reload",
+    "Fire",
+    "Reload_Empty",
+    "Holster"
+   ]
+  },
+  {
+   "id": "awm_l96",
+   "name": "Снайперская винтовка (AWM/L96-тип)",
+   "category": "weapon",
+   "faction": "nato",
+   "note": "НЕ СВД",
+   "placeholder": false,
+   "source": "sniper.glb",
+   "file": "assets/game/sniper.glb",
+   "collider": "assets/colliders/awm_l96.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.007445,
+    "rotY": 3.141592653589793,
+    "offset": [
+     -0.0109,
+     -0.0584,
+     0.3234
+    ]
+   },
+   "size": [
+    0.083,
+    0.24,
+    1.25
+   ],
+   "tris": 13087,
+   "animations": []
+  },
+  {
+   "id": "pgm_ur",
+   "name": "PGM Ultima Ratio",
+   "category": "weapon",
+   "faction": "nato",
+   "note": "НЕ СВД",
+   "placeholder": false,
+   "source": "pgm_ultima_ratio__game-ready_sniper_rifle.glb",
+   "file": "assets/game/pgm_ultima_ratio__game-ready_sniper_rifle.glb",
+   "collider": "assets/colliders/pgm_ur.json",
+   "forward": "-x",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.240918,
+    "rotY": -1.5707963267948966,
+    "offset": [
+     -0.029,
+     -0.0125,
+     -0.0045
+    ]
+   },
+   "size": [
+    0.194,
+    0.337,
+    1.2
+   ],
+   "tris": 23899,
+   "animations": []
+  },
+  {
+   "id": "t90a",
+   "name": "Т-90А",
+   "category": "vehicle",
+   "faction": "ussr",
+   "mass": 46500,
+   "hp": 1500,
+   "locomotion": "tracked",
+   "placeholder": false,
+   "source": "t-90a.glb",
+   "file": "assets/game/t-90a.glb",
+   "collider": "assets/colliders/t90a.json",
+   "forward": "+x",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1.002905,
+    "rotY": 1.5707963267948966,
+    "offset": [
+     0.0454,
+     0,
+     0.7937
+    ]
+   },
+   "size": [
+    3.735,
+    2.793,
+    9.7
+   ],
+   "tris": 18101,
+   "animations": []
+  },
+  {
+   "id": "bmp2",
+   "name": "БМП-2",
+   "category": "vehicle",
+   "faction": "ussr",
+   "mass": 14300,
+   "hp": 900,
+   "locomotion": "tracked",
+   "placeholder": false,
+   "source": "bmp-2.glb",
+   "file": "assets/game/bmp-2.glb",
+   "collider": "assets/colliders/bmp2.json",
+   "forward": "+x",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.999778,
+    "rotY": 1.5707963267948966,
+    "offset": [
+     0.003,
+     -0.0162,
+     0.5712
+    ]
+   },
+   "size": [
+    3.369,
+    3.689,
+    6.75
+   ],
+   "tris": 11738,
+   "animations": []
+  },
+  {
+   "id": "mi24",
+   "name": "Ми-24",
+   "category": "aircraft",
+   "faction": "ussr",
+   "mass": 8500,
+   "hp": 900,
+   "locomotion": "heli",
+   "placeholder": false,
+   "source": "hind_attack_helicopter.glb",
+   "file": "assets/game/hind_attack_helicopter.glb",
+   "collider": "assets/colliders/mi24.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.01,
+    "rotY": 3.141592653589793,
+    "offset": [
+     0.0048,
+     0.0518,
+     -2.3592
+    ]
+   },
+   "size": [
+    7.931,
+    4.198,
+    18.682
+   ],
+   "tris": 35315,
+   "animations": []
+  },
+  {
+   "id": "m1a2",
+   "name": "M1A2 Abrams",
+   "category": "vehicle",
+   "faction": "nato",
+   "mass": 62000,
+   "hp": 1600,
+   "locomotion": "tracked",
+   "placeholder": false,
+   "source": "m1a2_sep_v2.glb",
+   "file": "assets/game/m1a2_sep_v2.glb",
+   "collider": "assets/colliders/m1a2.json",
+   "forward": "+x",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.997669,
+    "rotY": 1.5707963267948966,
+    "offset": [
+     -0.0361,
+     -0.0093,
+     0.674
+    ]
+   },
+   "size": [
+    4.222,
+    4.569,
+    9.8
+   ],
+   "tris": 17272,
+   "animations": []
+  },
+  {
+   "id": "m2",
+   "name": "M2 Bradley",
+   "category": "vehicle",
+   "faction": "nato",
+   "mass": 30000,
+   "hp": 950,
+   "locomotion": "tracked",
+   "placeholder": false,
+   "source": "m2_bradley.glb",
+   "file": "assets/game/m2_bradley.glb",
+   "collider": "assets/colliders/m2.json",
+   "forward": "+x",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1.000076,
+    "rotY": 1.5707963267948966,
+    "offset": [
+     -0.0259,
+     0.0171,
+     0.2958
+    ]
+   },
+   "size": [
+    3.337,
+    5.589,
+    6.6
+   ],
+   "tris": 18592,
+   "animations": []
+  },
+  {
+   "id": "mh6",
+   "name": "MH-6 Little Bird",
+   "category": "aircraft",
+   "faction": "nato",
+   "mass": 700,
+   "hp": 400,
+   "locomotion": "heli",
+   "placeholder": false,
+   "source": "mh-6_little_bird_low_poly.glb",
+   "file": "assets/game/mh-6_little_bird_low_poly.glb",
+   "collider": "assets/colliders/mh6.json",
+   "forward": "yaw -43°",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 3.3,
+    "rotY": -0.7504915783575616,
+    "offset": [
+     -0.138,
+     1.531,
+     -0.0006
+    ]
+   },
+   "size": [
+    7.721,
+    3.071,
+    9.189
+   ],
+   "tris": 9776,
+   "animations": []
+  },
+  {
+   "id": "barrel",
+   "name": "Бочка",
+   "category": "prop",
+   "faction": "civil",
+   "note": "только файл, начинающийся со слова barrel (не «подствольник» gp-25)",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "barrel",
+    "p": {}
+   }
+  },
+  {
+   "id": "crate",
+   "name": "Деревянный ящик",
+   "category": "prop",
+   "faction": "civil",
+   "placeholder": true,
+   "placeholderSpec": {
+    "builder": "crate",
+    "p": {
+     "color": "#8a6a3a",
+     "size": [
+      0.9,
+      0.9,
+      0.9
+     ]
+    }
+   }
+  },
+  {
+   "id": "akm",
+   "name": "АКМ",
+   "category": "weapon",
+   "faction": "ussr",
+   "viewmodel": "rig",
+   "placeholder": false,
+   "source": "akmn.glb",
+   "file": "assets/game/akmn.glb",
+   "collider": "assets/colliders/akm.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.989545,
+    "rotY": 3.141592653589793,
+    "offset": [
+     -0.0073,
+     -0.0092,
+     -0.0924
+    ]
+   },
+   "size": [
+    0.074,
+    0.256,
+    0.88
+   ],
+   "tris": 45726,
+   "animations": []
+  },
+  {
+   "id": "ak74",
+   "name": "АК-74 (дерево)",
+   "category": "weapon",
+   "faction": "ussr",
+   "note": "из пака ak-74_pack_game_asset",
+   "viewmodel": "rig",
+   "placeholder": false,
+   "source": "ak74_wood.glb",
+   "file": "assets/game/ak74_wood.glb",
+   "collider": "assets/colliders/ak74.json",
+   "forward": "-z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 0,
+    "offset": [
+     0.6967,
+     -0.0009,
+     0.197
+    ]
+   },
+   "size": [
+    0.068,
+    0.261,
+    0.941
+   ],
+   "tris": 18575,
+   "animations": []
+  },
+  {
+   "id": "ak74m",
+   "name": "АК-74М (пластик)",
+   "category": "weapon",
+   "faction": "ussr",
+   "note": "из пака",
+   "viewmodel": "rig",
+   "placeholder": false,
+   "source": "ak74m.glb",
+   "file": "assets/game/ak74m.glb",
+   "collider": "assets/colliders/ak74m.json",
+   "forward": "-z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 0,
+    "offset": [
+     0.5242,
+     -0.0009,
+     0.197
+    ]
+   },
+   "size": [
+    0.068,
+    0.261,
+    0.941
+   ],
+   "tris": 19591,
+   "animations": []
+  },
+  {
+   "id": "ak74m_1p29",
+   "name": "АК-74М + прицел 1П29",
+   "category": "weapon",
+   "faction": "ussr",
+   "note": "из пака",
+   "viewmodel": "rig",
+   "placeholder": false,
+   "source": "ak74m_1p29.glb",
+   "file": "assets/game/ak74m_1p29.glb",
+   "collider": "assets/colliders/ak74m_1p29.json",
+   "forward": "-z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 0,
+    "offset": [
+     0.3477,
+     -0.0398,
+     0.197
+    ]
+   },
+   "size": [
+    0.088,
+    0.339,
+    0.941
+   ],
+   "tris": 28642,
+   "animations": []
+  },
+  {
+   "id": "ak74_rail",
+   "name": "АК-74 + боковая планка",
+   "category": "weapon",
+   "faction": "ussr",
+   "note": "из пака",
+   "viewmodel": "rig",
+   "placeholder": false,
+   "source": "ak74_wood_rail.glb",
+   "file": "assets/game/ak74_wood_rail.glb",
+   "collider": "assets/colliders/ak74_rail.json",
+   "forward": "-z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 0,
+    "offset": [
+     -0.0106,
+     -0.0009,
+     0.197
+    ]
+   },
+   "size": [
+    0.068,
+    0.261,
+    0.941
+   ],
+   "tris": 19029,
+   "animations": []
+  },
+  {
+   "id": "ak74_beryl",
+   "name": "АК-74 (телескопический приклад + коллиматор)",
+   "category": "weapon",
+   "faction": "ussr",
+   "note": "из пака",
+   "viewmodel": "rig",
+   "placeholder": false,
+   "source": "ak74_beryl.glb",
+   "file": "assets/game/ak74_beryl.glb",
+   "collider": "assets/colliders/ak74_beryl.json",
+   "forward": "-z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 0,
+    "offset": [
+     -0.1587,
+     -0.041,
+     0.197
+    ]
+   },
+   "size": [
+    0.081,
+    0.342,
+    0.941
+   ],
+   "tris": 28575,
+   "animations": []
+  },
+  {
+   "id": "ak74_tactical",
+   "name": "АК-74 тактический (планки + рукоять)",
+   "category": "weapon",
+   "faction": "ussr",
+   "note": "из пака",
+   "viewmodel": "rig",
+   "placeholder": false,
+   "source": "ak74_tactical.glb",
+   "file": "assets/game/ak74_tactical.glb",
+   "collider": "assets/colliders/ak74_tactical.json",
+   "forward": "-z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 0,
+    "offset": [
+     -0.3274,
+     -0.041,
+     0.1967
+    ]
+   },
+   "size": [
+    0.081,
+    0.342,
+    0.942
+   ],
+   "tris": 35354,
+   "animations": []
+  },
+  {
+   "id": "att_1p29",
+   "name": "Прицел 1П29",
+   "category": "attachment",
+   "faction": "ussr",
+   "note": "из пака АК",
+   "mount": "side_rail",
+   "placeholder": false,
+   "source": "att_1p29.glb",
+   "file": "assets/game/att_1p29.glb",
+   "collider": "assets/colliders/att_1p29.json",
+   "forward": "-z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 0,
+    "offset": [
+     -0.989,
+     -0.1248,
+     0.463
+    ]
+   },
+   "size": [
+    0.077,
+    0.169,
+    0.206
+   ],
+   "tris": 8597,
+   "animations": []
+  },
+  {
+   "id": "att_side_rail",
+   "name": "Боковая планка (side rail)",
+   "category": "attachment",
+   "faction": "ussr",
+   "note": "из пака АК",
+   "mount": "receiver_left",
+   "placeholder": false,
+   "source": "att_side_rail.glb",
+   "file": "assets/game/att_side_rail.glb",
+   "collider": "assets/colliders/att_side_rail.json",
+   "forward": "-z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 0,
+    "offset": [
+     -0.7388,
+     -0.0657,
+     0.3048
+    ]
+   },
+   "size": [
+    0.004,
+    0.026,
+    0.12
+   ],
+   "tris": 454,
+   "animations": []
+  },
+  {
+   "id": "att_pica_optic",
+   "name": "Коллиматор/оптика на Picatinny-кронштейне",
+   "category": "attachment",
+   "faction": "ussr",
+   "note": "из пака АК",
+   "mount": "side_rail",
+   "placeholder": false,
+   "source": "att_pica_optic.glb",
+   "file": "assets/game/att_pica_optic.glb",
+   "collider": "assets/colliders/att_pica_optic.json",
+   "forward": "-z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 0,
+    "offset": [
+     -0.7335,
+     -0.126,
+     0.4527
+    ]
+   },
+   "size": [
+    0.129,
+    0.172,
+    0.166
+   ],
+   "tris": 10434,
+   "animations": []
+  },
+  {
+   "id": "svd",
+   "name": "СВД",
+   "category": "weapon",
+   "faction": "ussr",
+   "viewmodel": "rig",
+   "placeholder": false,
+   "source": "low-poly_dragunov_svd.glb",
+   "file": "assets/game/low-poly_dragunov_svd.glb",
+   "collider": "assets/colliders/svd.json",
+   "forward": "-z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.174367,
+    "rotY": 0,
+    "offset": [
+     -0.0094,
+     0.0316,
+     0.1984
+    ]
+   },
+   "size": [
+    0.062,
+    0.182,
+    1.225
+   ],
+   "tris": 3605,
+   "animations": []
+  },
+  {
+   "id": "pkm",
+   "name": "ПКМ",
+   "category": "weapon",
+   "faction": "ussr",
+   "viewmodel": "rig",
+   "placeholder": false,
+   "source": "low-poly_pkm.glb",
+   "file": "assets/game/low-poly_pkm.glb",
+   "collider": "assets/colliders/pkm.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.997995,
+    "rotY": 3.141592653589793,
+    "offset": [
+     -0.014,
+     0.1875,
+     0.0887
+    ]
+   },
+   "size": [
+    0.337,
+    0.504,
+    1.16
+   ],
+   "tris": 32180,
+   "animations": []
+  },
+  {
+   "id": "rpk",
+   "name": "РПК",
+   "category": "weapon",
+   "faction": "ussr",
+   "viewmodel": "rig",
+   "placeholder": false,
+   "source": "low-poly_rpk.glb",
+   "file": "assets/game/low-poly_rpk.glb",
+   "collider": "assets/colliders/rpk.json",
+   "forward": "+x",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.000946,
+    "rotY": 1.5707963267948966,
+    "offset": [
+     -0.0113,
+     0.0242,
+     0.1003
+    ]
+   },
+   "size": [
+    0.055,
+    0.302,
+    1.04
+   ],
+   "tris": 6938,
+   "animations": []
+  },
+  {
+   "id": "rpg7",
+   "name": "РПГ-7",
+   "category": "weapon",
+   "faction": "ussr",
+   "placeholder": false,
+   "source": "low_-_poly_rpg_-_7_gun.glb",
+   "file": "assets/game/low_-_poly_rpg_-_7_gun.glb",
+   "collider": "assets/colliders/rpg7.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.018042,
+    "rotY": 3.141592653589793,
+    "offset": [
+     0,
+     -0.0941,
+     0.1601
+    ]
+   },
+   "size": [
+    0.12,
+    0.195,
+    0.95
+   ],
+   "tris": 3796,
+   "animations": []
+  },
+  {
+   "id": "pm",
+   "name": "ПМ",
+   "category": "weapon",
+   "faction": "ussr",
+   "viewmodel": "rig",
+   "placeholder": false,
+   "source": "low-poly_pm_makarov.glb",
+   "file": "assets/game/low-poly_pm_makarov.glb",
+   "collider": "assets/colliders/pm.json",
+   "forward": "+x",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.088118,
+    "rotY": 1.5707963267948966,
+    "offset": [
+     0.001,
+     0.0241,
+     0.0059
+    ]
+   },
+   "size": [
+    0.027,
+    0.126,
+    0.16
+   ],
+   "tris": 2294,
+   "animations": []
+  },
+  {
+   "id": "gp25",
+   "name": "ГП-25 (подствольный модуль)",
+   "category": "attachment",
+   "faction": "ussr",
+   "note": "навешивается под ствол",
+   "mount": "underbarrel",
+   "placeholder": false,
+   "source": "low-poly_gp-25_underbarrel_grenade_launcher.glb",
+   "file": "assets/game/low-poly_gp-25_underbarrel_grenade_launcher.glb",
+   "collider": "assets/colliders/gp25.json",
+   "forward": "-z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.734678,
+    "rotY": 0,
+    "offset": [
+     0.007,
+     0.0157,
+     0.1191
+    ]
+   },
+   "size": [
+    0.053,
+    0.119,
+    0.32
+   ],
+   "tris": 3199,
+   "animations": []
+  },
+  {
+   "id": "mortar_m30",
+   "name": "Миномёт M30",
+   "category": "weapon",
+   "faction": "ussr",
+   "placeholder": false,
+   "source": "m30_mortar_warno.glb",
+   "file": "assets/game/m30_mortar_warno.glb",
+   "collider": "assets/colliders/mortar_m30.json",
+   "forward": "-x",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.422531,
+    "rotY": -1.5707963267948966,
+    "offset": [
+     0,
+     -0.65,
+     0.0005
+    ]
+   },
+   "size": [
+    1.503,
+    1.3,
+    0.816
+   ],
+   "tris": 3645,
+   "animations": []
+  },
+  {
+   "id": "rgd5",
+   "name": "РГД-5",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": false,
+   "source": "low-poly_rgd-5.glb",
+   "file": "assets/game/low-poly_rgd-5.glb",
+   "collider": "assets/colliders/rgd5.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.023811,
+    "rotY": 3.141592653589793,
+    "offset": [
+     0.0013,
+     0.057,
+     0
+    ]
+   },
+   "size": [
+    0.063,
+    0.115,
+    0.057
+   ],
+   "tris": 762,
+   "animations": []
+  },
+  {
+   "id": "f1",
+   "name": "Ф-1",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": false,
+   "source": "f-1.glb",
+   "file": "assets/game/f-1.glb",
+   "collider": "assets/colliders/f1.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.000252,
+    "rotY": 3.141592653589793,
+    "offset": [
+     -0.0051,
+     0.0393,
+     0
+    ]
+   },
+   "size": [
+    0.066,
+    0.13,
+    0.056
+   ],
+   "tris": 3726,
+   "animations": []
+  },
+  {
+   "id": "c4",
+   "name": "C4",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": false,
+   "source": "c4_explosive.glb",
+   "file": "assets/game/c4_explosive.glb",
+   "collider": "assets/colliders/c4.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.048176,
+    "rotY": 3.141592653589793,
+    "offset": [
+     0,
+     0.0272,
+     0.0002
+    ]
+   },
+   "size": [
+    0.098,
+    0.124,
+    0.3
+   ],
+   "tris": 33390,
+   "animations": []
+  },
+  {
+   "id": "claymore",
+   "name": "Claymore (вместо МОН-50)",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": false,
+   "source": "claymore_explosive.glb",
+   "file": "assets/game/claymore_explosive.glb",
+   "collider": "assets/colliders/claymore.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.0011,
+    "rotY": 3.141592653589793,
+    "offset": [
+     0,
+     0.0035,
+     0.007
+    ]
+   },
+   "size": [
+    0.22,
+    0.281,
+    0.096
+   ],
+   "tris": 256,
+   "animations": []
+  },
+  {
+   "id": "mine01",
+   "name": "Мина mine-01 (вместо ТМ-62)",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": false,
+   "source": "mine-01.glb",
+   "file": "assets/game/mine-01.glb",
+   "collider": "assets/colliders/mine01.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.151321,
+    "rotY": 3.141592653589793,
+    "offset": [
+     0,
+     -0.0002,
+     0
+    ]
+   },
+   "size": [
+    0.32,
+    0.128,
+    0.32
+   ],
+   "tris": 240,
+   "animations": []
+  },
+  {
+   "id": "medkit",
+   "name": "Аптечка",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": false,
+   "source": "tactical_first_aid_kit.glb",
+   "file": "assets/game/tactical_first_aid_kit.glb",
+   "collider": "assets/colliders/medkit.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.072511,
+    "rotY": 3.141592653589793,
+    "offset": [
+     -0.0088,
+     0.1213,
+     -0.0027
+    ]
+   },
+   "size": [
+    0.18,
+    0.25,
+    0.163
+   ],
+   "tris": 3632,
+   "animations": []
+  },
+  {
+   "id": "ammobox",
+   "name": "Ящик боеприпасов",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": false,
+   "source": "ammo_box.glb",
+   "file": "assets/game/ammo_box.glb",
+   "collider": "assets/colliders/ammobox.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.0125,
+    "rotY": 3.141592653589793,
+    "offset": [
+     0,
+     0.0027,
+     0.0006
+    ]
+   },
+   "size": [
+    0.406,
+    0.3,
+    0.201
+   ],
+   "tris": 6413,
+   "animations": []
+  },
+  {
+   "id": "drone_scout",
+   "name": "Дрон-разведчик",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": false,
+   "source": "drone.glb",
+   "file": "assets/game/drone.glb",
+   "collider": "assets/colliders/drone_scout.json",
+   "forward": "+x",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.165,
+    "rotY": 1.5707963267948966,
+    "offset": [
+     0.1401,
+     -2.2297,
+     -0.3753
+    ]
+   },
+   "size": [
+    1.085,
+    0.544,
+    1.599
+   ],
+   "tris": 864,
+   "animations": []
+  },
+  {
+   "id": "fpv_drone",
+   "name": "FPV-дрон камикадзе",
+   "category": "gadget",
+   "faction": "ussr",
+   "placeholder": false,
+   "source": "fpv_drone.glb",
+   "file": "assets/game/fpv_drone.glb",
+   "collider": "assets/colliders/fpv_drone.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.03,
+    "rotY": 3.141592653589793,
+    "offset": [
+     -0.0093,
+     0.0057,
+     0.0086
+    ]
+   },
+   "size": [
+    0.323,
+    0.105,
+    0.298
+   ],
+   "tris": 15312,
+   "animations": []
+  },
+  {
+   "id": "btr80",
+   "name": "БТР-80",
+   "category": "vehicle",
+   "faction": "ussr",
+   "mass": 13600,
+   "hp": 800,
+   "locomotion": "wheeled",
+   "placeholder": false,
+   "source": "btr-80ak.glb",
+   "file": "assets/game/btr-80ak.glb",
+   "collider": "assets/colliders/btr80.json",
+   "forward": "+x",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.993584,
+    "rotY": 1.5707963267948966,
+    "offset": [
+     -0.0143,
+     -0.0045,
+     -0.318
+    ]
+   },
+   "size": [
+    2.894,
+    3.221,
+    7.65
+   ],
+   "tris": 17486,
+   "animations": []
+  },
+  {
+   "id": "brdm2",
+   "name": "БРДМ-2",
+   "category": "vehicle",
+   "faction": "ussr",
+   "mass": 7000,
+   "hp": 500,
+   "locomotion": "wheeled",
+   "placeholder": false,
+   "source": "brdm-2.glb",
+   "file": "assets/game/brdm-2.glb",
+   "collider": "assets/colliders/brdm2.json",
+   "forward": "+x",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.999253,
+    "rotY": 1.5707963267948966,
+    "offset": [
+     -0.0071,
+     0.0341,
+     0.1269
+    ]
+   },
+   "size": [
+    2.325,
+    4.08,
+    5.75
+   ],
+   "tris": 8352,
+   "animations": []
+  },
+  {
+   "id": "zsu234",
+   "name": "ЗСУ-23-4 «Шилка»",
+   "category": "vehicle",
+   "faction": "ussr",
+   "mass": 19000,
+   "hp": 600,
+   "locomotion": "tracked",
+   "placeholder": false,
+   "source": "zsu-23-4v1_shilka_ussr.glb",
+   "file": "assets/game/zsu-23-4v1_shilka_ussr.glb",
+   "collider": "assets/colliders/zsu234.json",
+   "forward": "+x",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.094045,
+    "rotY": 1.5707963267948966,
+    "offset": [
+     0.0065,
+     0.0044,
+     0.0035
+    ]
+   },
+   "size": [
+    3.099,
+    3.836,
+    6.54
+   ],
+   "tris": 6522,
+   "animations": []
+  },
+  {
+   "id": "uaz469",
+   "name": "УАЗ-469",
+   "category": "vehicle",
+   "faction": "ussr",
+   "mass": 1700,
+   "hp": 300,
+   "locomotion": "wheeled",
+   "placeholder": false,
+   "source": "uaz_001.glb",
+   "file": "assets/game/uaz_001.glb",
+   "collider": "assets/colliders/uaz469.json",
+   "forward": "-x",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.001044,
+    "rotY": -1.5707963267948966,
+    "offset": [
+     -0.0451,
+     -0.0013,
+     -0.0015
+    ]
+   },
+   "size": [
+    2.029,
+    1.963,
+    4.03
+   ],
+   "tris": 10618,
+   "animations": []
+  },
+  {
+   "id": "gaz66",
+   "name": "ГАЗ-66",
+   "category": "vehicle",
+   "faction": "ussr",
+   "mass": 3400,
+   "hp": 350,
+   "locomotion": "wheeled",
+   "placeholder": false,
+   "source": "gaz_66.glb",
+   "file": "assets/game/gaz_66.glb",
+   "collider": "assets/colliders/gaz66.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 38.295932,
+    "rotY": 3.141592653589793,
+    "offset": [
+     -0.0197,
+     -0.0242,
+     -0.2967
+    ]
+   },
+   "size": [
+    2.662,
+    2.519,
+    5.8
+   ],
+   "tris": 54110,
+   "animations": []
+  },
+  {
+   "id": "ural4320",
+   "name": "Урал-4320",
+   "category": "vehicle",
+   "faction": "ussr",
+   "mass": 8000,
+   "hp": 400,
+   "locomotion": "wheeled",
+   "placeholder": false,
+   "source": "ural-4320.glb",
+   "file": "assets/game/ural-4320.glb",
+   "collider": "assets/colliders/ural4320.json",
+   "forward": "+x",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.960476,
+    "rotY": 1.5707963267948966,
+    "offset": [
+     0.0028,
+     0.0074,
+     -0.0539
+    ]
+   },
+   "size": [
+    2.713,
+    2.88,
+    7.3
+   ],
+   "tris": 9902,
+   "animations": []
+  },
+  {
+   "id": "kamaz",
+   "name": "КамАЗ-5330",
+   "category": "vehicle",
+   "faction": "civil",
+   "mass": 9000,
+   "hp": 400,
+   "locomotion": "wheeled",
+   "placeholder": false,
+   "source": "kamaz_5330.glb",
+   "file": "assets/game/kamaz_5330.glb",
+   "collider": "assets/colliders/kamaz.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1.058946,
+    "rotY": 3.141592653589793,
+    "offset": [
+     0.0258,
+     -0.0031,
+     0.7723
+    ]
+   },
+   "size": [
+    3.027,
+    3.55,
+    7.5
+   ],
+   "tris": 19620,
+   "animations": []
+  },
+  {
+   "id": "liaz",
+   "name": "ЛиАЗ-677",
+   "category": "vehicle",
+   "faction": "civil",
+   "mass": 9500,
+   "hp": 300,
+   "locomotion": "wheeled",
+   "placeholder": false,
+   "source": "liaz_-_677.glb",
+   "file": "assets/game/liaz_-_677.glb",
+   "collider": "assets/colliders/liaz.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1.002217,
+    "rotY": 3.141592653589793,
+    "offset": [
+     0.0001,
+     0.0011,
+     -0.2801
+    ]
+   },
+   "size": [
+    3.079,
+    3.087,
+    10.7
+   ],
+   "tris": 106415,
+   "animations": []
+  },
+  {
+   "id": "tatra_t3",
+   "name": "Трамвай Tatra T3",
+   "category": "vehicle",
+   "faction": "civil",
+   "mass": 18000,
+   "hp": 400,
+   "locomotion": "rail",
+   "placeholder": false,
+   "source": "tatra_t3_reworked.glb",
+   "file": "assets/game/tatra_t3_reworked.glb",
+   "collider": "assets/colliders/tatra_t3.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.888303,
+    "rotY": 3.141592653589793,
+    "offset": [
+     0,
+     -0.7248,
+     0.0658
+    ]
+   },
+   "size": [
+    2.483,
+    4.949,
+    14
+   ],
+   "tris": 141136,
+   "animations": []
+  },
+  {
+   "id": "volga24",
+   "name": "ГАЗ-24 «Волга»",
+   "category": "vehicle",
+   "faction": "civil",
+   "mass": 1420,
+   "hp": 220,
+   "locomotion": "wheeled",
+   "placeholder": false,
+   "source": "gaz_24.glb",
+   "file": "assets/game/gaz_24.glb",
+   "collider": "assets/colliders/volga24.json",
+   "forward": "-z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.557214,
+    "rotY": 0,
+    "offset": [
+     0,
+     0.0061,
+     0.0025
+    ]
+   },
+   "size": [
+    1.864,
+    1.515,
+    4.73
+   ],
+   "tris": 5532,
+   "animations": []
+  },
+  {
+   "id": "vaz2105",
+   "name": "ВАЗ-2105",
+   "category": "vehicle",
+   "faction": "civil",
+   "mass": 1000,
+   "hp": 200,
+   "locomotion": "wheeled",
+   "placeholder": false,
+   "source": "vaz-2105.glb",
+   "file": "assets/game/vaz-2105.glb",
+   "collider": "assets/colliders/vaz2105.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.600466,
+    "rotY": 3.141592653589793,
+    "offset": [
+     0.0003,
+     0.0028,
+     -0.085
+    ]
+   },
+   "size": [
+    1.767,
+    1.439,
+    4.13
+   ],
+   "tris": 45784,
+   "animations": []
+  },
+  {
+   "id": "mi8",
+   "name": "Ми-8",
+   "category": "aircraft",
+   "faction": "ussr",
+   "mass": 7000,
+   "hp": 800,
+   "locomotion": "heli",
+   "placeholder": false,
+   "source": "mi-8.glb",
+   "file": "assets/game/mi-8.glb",
+   "collider": "assets/colliders/mi8.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.967,
+    "rotY": 3.141592653589793,
+    "offset": [
+     -0.7984,
+     0.0335,
+     -4.0219
+    ]
+   },
+   "size": [
+    21.305,
+    5.786,
+    25.842
+   ],
+   "tris": 17393,
+   "animations": []
+  },
+  {
+   "id": "su25",
+   "name": "Су-25 «Грач»",
+   "category": "aircraft",
+   "faction": "ussr",
+   "mass": 14000,
+   "hp": 700,
+   "locomotion": "plane",
+   "placeholder": false,
+   "source": "su-25.glb",
+   "file": "assets/game/su-25.glb",
+   "collider": "assets/colliders/su25.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.0489,
+    "rotY": 3.141592653589793,
+    "offset": [
+     0.0035,
+     0.0661,
+     -0.4137
+    ]
+   },
+   "size": [
+    14.356,
+    4.683,
+    15.614
+   ],
+   "tris": 16077,
+   "animations": []
+  },
+  {
+   "id": "assault_boat",
+   "name": "Надувная лодка (штурмовая)",
+   "category": "boat",
+   "faction": "ussr",
+   "mass": 250,
+   "hp": 80,
+   "placeholder": false,
+   "source": "assault_boat.glb",
+   "file": "assets/game/assault_boat.glb",
+   "collider": "assets/colliders/assault_boat.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.01,
+    "rotY": 3.141592653589793,
+    "offset": [
+     -0.0001,
+     0.1788,
+     0.0351
+    ]
+   },
+   "size": [
+    1.803,
+    0.859,
+    4.024
+   ],
+   "tris": 40036,
+   "animations": []
+  },
+  {
+   "id": "pubg_boat",
+   "name": "Катер",
+   "category": "boat",
+   "faction": "ussr",
+   "mass": 3000,
+   "hp": 300,
+   "placeholder": false,
+   "source": "pubg_boat.glb",
+   "file": "assets/game/pubg_boat.glb",
+   "collider": "assets/colliders/pubg_boat.json",
+   "forward": "+x",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 1.5707963267948966,
+    "offset": [
+     2.2456,
+     0.9009,
+     -0.0197
+    ]
+   },
+   "size": [
+    2.461,
+    2.364,
+    9.67
+   ],
+   "tris": 6553,
+   "animations": []
+  },
+  {
+   "id": "soldier_ussr",
+   "name": "Солдат (зимний камуфляж)",
+   "category": "character",
+   "faction": "ussr",
+   "note": "T-поза, перекрашен",
+   "recolor": "winter",
+   "placeholder": false,
+   "source": "soldier.glb",
+   "file": "assets/game/soldier.glb",
+   "collider": "assets/colliders/soldier_ussr.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 16.044658,
+    "rotY": 3.141592653589793,
+    "offset": [
+     0,
+     -0.0005,
+     -0.0434
+    ]
+   },
+   "size": [
+    1.885,
+    1.8,
+    0.593
+   ],
+   "tris": 6304,
+   "animations": []
+  },
+  {
+   "id": "soldier_opfor",
+   "name": "Противник (зимний камуфляж)",
+   "category": "character",
+   "faction": "opfor",
+   "note": "T-поза, перекрашен",
+   "recolor": "winter",
+   "placeholder": false,
+   "source": "forest_soldier_outdated.glb",
+   "file": "assets/game/forest_soldier_outdated.glb",
+   "collider": "assets/colliders/soldier_opfor.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.756288,
+    "rotY": 3.141592653589793,
+    "offset": [
+     -0.0003,
+     0.3464,
+     -0.1437
+    ]
+   },
+   "size": [
+    1.038,
+    1.793,
+    0.671
+   ],
+   "tris": 77138,
+   "animations": []
+  },
+  {
+   "id": "lenin",
+   "name": "Памятник Ленину",
+   "category": "building",
+   "faction": "civil",
+   "placeholder": false,
+   "source": "lenin_monument.glb",
+   "file": "assets/game/lenin_monument.glb",
+   "collider": "assets/colliders/lenin.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1.993151,
+    "rotY": 3.141592653589793,
+    "offset": [
+     0,
+     0.0399,
+     -0.0705
+    ]
+   },
+   "size": [
+    2.815,
+    8,
+    3.132
+   ],
+   "tris": 1635,
+   "animations": []
+  },
+  {
+   "id": "busstop",
+   "name": "Автобусная остановка",
+   "category": "building",
+   "faction": "civil",
+   "placeholder": false,
+   "source": "old_soviet_bus_stop.glb",
+   "file": "assets/game/old_soviet_bus_stop.glb",
+   "collider": "assets/colliders/busstop.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.0125,
+    "rotY": 3.141592653589793,
+    "offset": [
+     0,
+     1.1439,
+     -0.0039
+    ]
+   },
+   "size": [
+    1.253,
+    2.302,
+    3.089
+   ],
+   "tris": 4364,
+   "animations": []
+  },
+  {
+   "id": "kiosk",
+   "name": "Киоск «Пивная»",
+   "category": "building",
+   "faction": "civil",
+   "placeholder": false,
+   "source": "beer_pub_kiosk_pivnaya.glb",
+   "file": "assets/game/beer_pub_kiosk_pivnaya.glb",
+   "collider": "assets/colliders/kiosk.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 0.75,
+    "rotY": 3.141592653589793,
+    "offset": [
+     0,
+     -0.0057,
+     0.0296
+    ]
+   },
+   "size": [
+    3.787,
+    1.883,
+    1.991
+   ],
+   "tris": 51,
+   "animations": []
+  },
+  {
+   "id": "garage_a",
+   "name": "Гараж A (с воротами, крышей)",
+   "category": "building",
+   "faction": "civil",
+   "note": "из пака гаражей",
+   "placeholder": false,
+   "source": "garage_a.glb",
+   "file": "assets/game/garage_a.glb",
+   "collider": "assets/colliders/garage_a.json",
+   "forward": "+x",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 1.5707963267948966,
+    "offset": [
+     3.6973,
+     0,
+     0.0178
+    ]
+   },
+   "size": [
+    3.415,
+    2.469,
+    5.615
+   ],
+   "tris": 1946,
+   "animations": []
+  },
+  {
+   "id": "garage_b",
+   "name": "Гараж B",
+   "category": "building",
+   "faction": "civil",
+   "note": "из пака гаражей",
+   "placeholder": false,
+   "source": "garage_b.glb",
+   "file": "assets/game/garage_b.glb",
+   "collider": "assets/colliders/garage_b.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 3.141592653589793,
+    "offset": [
+     0.2235,
+     0.0037,
+     0.0919
+    ]
+   },
+   "size": [
+    6.091,
+    2.741,
+    3.641
+   ],
+   "tris": 2918,
+   "animations": []
+  },
+  {
+   "id": "garage_c",
+   "name": "Гараж C",
+   "category": "building",
+   "faction": "civil",
+   "note": "из пака гаражей",
+   "placeholder": false,
+   "source": "garage_c.glb",
+   "file": "assets/game/garage_c.glb",
+   "collider": "assets/colliders/garage_c.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 3.141592653589793,
+    "offset": [
+     0.6991,
+     0.0132,
+     4.3161
+    ]
+   },
+   "size": [
+    7.12,
+    2.048,
+    3.503
+   ],
+   "tris": 3054,
+   "animations": []
+  },
+  {
+   "id": "garage_d",
+   "name": "Гараж D",
+   "category": "building",
+   "faction": "civil",
+   "note": "из пака гаражей",
+   "placeholder": false,
+   "source": "garage_d.glb",
+   "file": "assets/game/garage_d.glb",
+   "collider": "assets/colliders/garage_d.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 3.141592653589793,
+    "offset": [
+     0.5977,
+     0,
+     -8.0395
+    ]
+   },
+   "size": [
+    6.775,
+    2.469,
+    4.904
+   ],
+   "tris": 1862,
+   "animations": []
+  },
+  {
+   "id": "wtree_a",
+   "name": "Зимняя ель A",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака зимних деревьев",
+   "placeholder": false,
+   "source": "wtree_a.glb",
+   "file": "assets/game/wtree_a.glb",
+   "collider": "assets/colliders/wtree_a.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 3.141592653589793,
+    "offset": [
+     73.91,
+     -0.0462,
+     -151.6404
+    ]
+   },
+   "size": [
+    8.57,
+    17.555,
+    9.122
+   ],
+   "tris": 127,
+   "animations": []
+  },
+  {
+   "id": "wtree_b",
+   "name": "Зимняя ель B",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака зимних деревьев",
+   "placeholder": false,
+   "source": "wtree_b.glb",
+   "file": "assets/game/wtree_b.glb",
+   "collider": "assets/colliders/wtree_b.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 3.141592653589793,
+    "offset": [
+     57.6095,
+     -0.0258,
+     -141.3481
+    ]
+   },
+   "size": [
+    6.235,
+    9.963,
+    6.612
+   ],
+   "tris": 119,
+   "animations": []
+  },
+  {
+   "id": "wtree_c",
+   "name": "Зимняя ель C",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака зимних деревьев",
+   "placeholder": false,
+   "source": "wtree_c.glb",
+   "file": "assets/game/wtree_c.glb",
+   "collider": "assets/colliders/wtree_c.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 3.141592653589793,
+    "offset": [
+     60.4306,
+     -0.2065,
+     -140.0749
+    ]
+   },
+   "size": [
+    7.204,
+    10.681,
+    7.102
+   ],
+   "tris": 112,
+   "animations": []
+  },
+  {
+   "id": "wtree_d",
+   "name": "Зимняя ель D",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака зимних деревьев",
+   "placeholder": false,
+   "source": "wtree_d.glb",
+   "file": "assets/game/wtree_d.glb",
+   "collider": "assets/colliders/wtree_d.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 3.141592653589793,
+    "offset": [
+     94.9465,
+     -0.96,
+     -168.7924
+    ]
+   },
+   "size": [
+    8.991,
+    15.155,
+    9.547
+   ],
+   "tris": 88,
+   "animations": []
+  },
+  {
+   "id": "wtree_e",
+   "name": "Зимняя ель E",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака зимних деревьев",
+   "placeholder": false,
+   "source": "wtree_e.glb",
+   "file": "assets/game/wtree_e.glb",
+   "collider": "assets/colliders/wtree_e.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 3.141592653589793,
+    "offset": [
+     90.1406,
+     0.1222,
+     -167.518
+    ]
+   },
+   "size": [
+    8.551,
+    12.129,
+    7.539
+   ],
+   "tris": 85,
+   "animations": []
+  },
+  {
+   "id": "wtree_f",
+   "name": "Зимняя ель F",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака зимних деревьев",
+   "placeholder": false,
+   "source": "wtree_f.glb",
+   "file": "assets/game/wtree_f.glb",
+   "collider": "assets/colliders/wtree_f.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 3.141592653589793,
+    "offset": [
+     64.9082,
+     -1.6342,
+     -159.6549
+    ]
+   },
+   "size": [
+    7.504,
+    10.823,
+    8.214
+   ],
+   "tris": 67,
+   "animations": []
+  },
+  {
+   "id": "wtree_g",
+   "name": "Зимняя ель G",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака зимних деревьев",
+   "placeholder": false,
+   "source": "wtree_g.glb",
+   "file": "assets/game/wtree_g.glb",
+   "collider": "assets/colliders/wtree_g.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 3.141592653589793,
+    "offset": [
+     69.3146,
+     -1.6714,
+     -146.992
+    ]
+   },
+   "size": [
+    7.511,
+    12.129,
+    7.917
+   ],
+   "tris": 85,
+   "animations": []
+  },
+  {
+   "id": "wtree_h",
+   "name": "Зимняя ель H",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака зимних деревьев",
+   "placeholder": false,
+   "source": "wtree_h.glb",
+   "file": "assets/game/wtree_h.glb",
+   "collider": "assets/colliders/wtree_h.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 3.141592653589793,
+    "offset": [
+     58.985,
+     -1.4433,
+     -165.376
+    ]
+   },
+   "size": [
+    11.911,
+    15.287,
+    13.57
+   ],
+   "tris": 53,
+   "animations": []
+  },
+  {
+   "id": "wtree_i",
+   "name": "Зимняя ель I",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака зимних деревьев",
+   "placeholder": false,
+   "source": "wtree_i.glb",
+   "file": "assets/game/wtree_i.glb",
+   "collider": "assets/colliders/wtree_i.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 3.141592653589793,
+    "offset": [
+     52.0209,
+     -2.4462,
+     -154.5387
+    ]
+   },
+   "size": [
+    5.199,
+    9.152,
+    5.646
+   ],
+   "tris": 73,
+   "animations": []
+  },
+  {
+   "id": "wshrub_a",
+   "name": "Зимний куст A",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака",
+   "placeholder": false,
+   "source": "wshrub_a.glb",
+   "file": "assets/game/wshrub_a.glb",
+   "collider": "assets/colliders/wshrub_a.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 3.141592653589793,
+    "offset": [
+     38.5338,
+     -1.9161,
+     -155.8051
+    ]
+   },
+   "size": [
+    6.692,
+    5.089,
+    6.216
+   ],
+   "tris": 46,
+   "animations": []
+  },
+  {
+   "id": "wshrub_b",
+   "name": "Зимний куст B",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака",
+   "placeholder": false,
+   "source": "wshrub_b.glb",
+   "file": "assets/game/wshrub_b.glb",
+   "collider": "assets/colliders/wshrub_b.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 3.141592653589793,
+    "offset": [
+     41.3195,
+     -2.1753,
+     -148.0025
+    ]
+   },
+   "size": [
+    7.217,
+    4.4,
+    7.043
+   ],
+   "tris": 42,
+   "animations": []
+  },
+  {
+   "id": "wshrub_c",
+   "name": "Зимний куст C",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака",
+   "placeholder": false,
+   "source": "wshrub_c.glb",
+   "file": "assets/game/wshrub_c.glb",
+   "collider": "assets/colliders/wshrub_c.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 3.141592653589793,
+    "offset": [
+     32.3563,
+     -1.0659,
+     -146.8674
+    ]
+   },
+   "size": [
+    6.019,
+    5.891,
+    7.166
+   ],
+   "tris": 45,
+   "animations": []
+  },
+  {
+   "id": "whedge_a",
+   "name": "Зимняя изгородь A",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака",
+   "placeholder": false,
+   "source": "whedge_a.glb",
+   "file": "assets/game/whedge_a.glb",
+   "collider": "assets/colliders/whedge_a.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 3.141592653589793,
+    "offset": [
+     67.0838,
+     2.0065,
+     -173.9245
+    ]
+   },
+   "size": [
+    29.225,
+    7.874,
+    15.224
+   ],
+   "tris": 383,
+   "animations": []
+  },
+  {
+   "id": "whedge_b",
+   "name": "Зимняя изгородь B",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака",
+   "placeholder": false,
+   "source": "whedge_b.glb",
+   "file": "assets/game/whedge_b.glb",
+   "collider": "assets/colliders/whedge_b.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 3.141592653589793,
+    "offset": [
+     82.0301,
+     1.3207,
+     -160.2604
+    ]
+   },
+   "size": [
+    16.076,
+    7.585,
+    29.933
+   ],
+   "tris": 314,
+   "animations": []
+  },
+  {
+   "id": "wforest",
+   "name": "Участок зимнего леса",
+   "category": "prop",
+   "faction": "civil",
+   "note": "из пака",
+   "placeholder": false,
+   "source": "wforest.glb",
+   "file": "assets/game/wforest.glb",
+   "collider": "assets/colliders/wforest.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 3.141592653589793,
+    "offset": [
+     77.1931,
+     1.569,
+     -177.2763
+    ]
+   },
+   "size": [
+    46.395,
+    19.284,
+    41.226
+   ],
+   "tris": 1086,
+   "animations": []
+  },
+  {
+   "id": "snow_ground",
+   "name": "Снежная поверхность",
+   "category": "terrain",
+   "faction": "civil",
+   "note": "из пака (Snow)",
+   "placeholder": false,
+   "source": "snow_ground.glb",
+   "file": "assets/game/snow_ground.glb",
+   "collider": "assets/colliders/snow_ground.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 3.141592653589793,
+    "offset": [
+     57.0888,
+     1.2634,
+     -153.9061
+    ]
+   },
+   "size": [
+    88.236,
+    4.441,
+    86.227
+   ],
+   "tris": 46952,
+   "animations": []
+  },
+  {
+   "id": "snow_melting",
+   "name": "Подтаявший снег",
+   "category": "terrain",
+   "faction": "civil",
+   "note": "из пака (Snow_Melting)",
+   "placeholder": false,
+   "source": "snow_melting.glb",
+   "file": "assets/game/snow_melting.glb",
+   "collider": "assets/colliders/snow_melting.json",
+   "forward": "+z",
+   "forwardVerified": true,
+   "normalize": {
+    "scale": 1,
+    "rotY": 3.141592653589793,
+    "offset": [
+     57.041,
+     -0.8741,
+     -155.3332
+    ]
+   },
+   "size": [
+    65.748,
+    2.243,
+    54.033
+   ],
+   "tris": 28530,
+   "animations": []
+  },
+  {
+   "id": "khrushchevka",
+   "name": "Хрущёвка (5 эт., разрушаемая, с мебелью)",
+   "category": "building",
+   "faction": "civil",
+   "placeholder": false,
+   "procedural": "panel5"
+  },
+  {
+   "id": "brezhnevka",
+   "name": "Брежневка (9 эт., разрушаемая, с мебелью)",
+   "category": "building",
+   "faction": "civil",
+   "placeholder": false,
+   "procedural": "panel9"
+  }
+ ],
+ "exclude": {
+  "pm": [
+   "^918 mag empty_1$",
+   "^918 mag_2$"
+  ]
+ },
+ "unmappedFiles": []
+}

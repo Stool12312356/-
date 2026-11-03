@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Красный Шторм — M2</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0d1014; }
+  body { font-family: "Segoe UI", Roboto, system-ui, sans-serif; color: #e8e6e3; }
+  #game { display: block; width: 100vw; height: 100vh; }
+
+  #hud { display: none; position: fixed; inset: 0; pointer-events: none; }
+  /* прицел: 4 риски, расходятся на величину разброса (--gap) */
+  #crosshair { position: absolute; left: 50%; top: 50%; width: 0; height: 0; --gap: 9px; opacity: .9; }
+  #crosshair i { position: absolute; background: #fff; box-shadow: 0 0 2px #000, 0 0 6px rgba(0,0,0,.5); }
+  #crosshair i:nth-child(1) { width: 2px; height: 9px; left: -1px; bottom: calc(var(--gap)); }
+  #crosshair i:nth-child(2) { width: 2px; height: 9px; left: -1px; top: calc(var(--gap)); }
+  #crosshair i:nth-child(3) { height: 2px; width: 9px; top: -1px; right: calc(var(--gap)); }
+  #crosshair i:nth-child(4) { height: 2px; width: 9px; top: -1px; left: calc(var(--gap)); }
+  #crosshair b { position: absolute; width: 2px; height: 2px; background: #fff; left: -1px; top: -1px; border-radius: 50%; }
+  #hits { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px; opacity: 0; }
+  #hits::before, #hits::after { content: ''; position: absolute; width: 12px; height: 3px; background: #ff4b3a; box-shadow: 0 0 3px #000; }
+  #hits::before { left: 0; top: 4px; transform: rotate(45deg); }
+  #hits::after { right: 0; top: 4px; transform: rotate(-45deg); }
+  #ammo { position: absolute; right: 22px; bottom: 20px; font: 600 18px/1.2 ui-monospace, Consolas, monospace;
+          color: #f0e9dc; text-shadow: 0 2px 4px #000; letter-spacing: .04em; }
+  #aim { position: absolute; left: 50%; bottom: 78px; transform: translateX(-50%); font: 12px/1.4 ui-monospace, Consolas, monospace;
+         color: #d8cba8; text-shadow: 0 1px 3px #000; opacity: 0; transition: opacity .2s; letter-spacing: .1em; }
+  #feed { position: absolute; right: 18px; top: 96px; text-align: right; font-size: 12px; color: #e8d6a8; text-shadow: 0 1px 2px #000; }
+  #feed div { margin-bottom: 3px; animation: feedin .25s ease-out; }
+  @keyframes feedin { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: none; } }
+  #killfeed { position: absolute; left: 18px; top: 14px; font: 12px/1.5 ui-monospace, Consolas, monospace; color: #cbd3da; text-shadow: 0 1px 2px #000; }
+
+  #bottom { position: absolute; left: 18px; bottom: 18px; width: 260px; }
+  #hpbar { height: 10px; background: #2a2f36; border-radius: 2px; overflow: hidden; margin-bottom: 4px; }
+  #hp { height: 100%; width: 100%; background: linear-gradient(90deg, #b03a2e, #e67e22); transition: width .15s; }
+  #stambar { height: 5px; background: #23282e; border-radius: 2px; overflow: hidden; }
+  #stam { height: 100%; width: 100%; background: #5b8dd6; transition: width .1s; }
+  #hpt, #stance { font-size: 12px; letter-spacing: .04em; color: #cfd3d8; margin-top: 4px; }
+  #stance { color: #9aa3ad; }
+
+  #info { position: absolute; right: 16px; top: 14px; font: 12px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace;
+          white-space: pre; text-align: right; color: #b9c2cc; text-shadow: 0 1px 2px #000; }
+  #hint { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); font-size: 12px; color: #8d97a2; text-shadow: 0 1px 2px #000; }
+  #flash { position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, transparent 35%, rgba(190,30,20,.9) 100%); opacity: 0; }
+
+  #menu { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+          background: radial-gradient(circle at 50% 30%, #1c2530 0%, #0b0e12 70%); text-align: center; padding: 24px; }
+  #menu h1 { margin: 0; font-size: 40px; letter-spacing: .16em; font-weight: 800;
+             background: linear-gradient(180deg, #e04b3a, #8c2a20); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  #menu .sub { color: #8b949f; font-size: 13px; letter-spacing: .22em; text-transform: uppercase; }
+  #load { color: #b9c2cc; font-size: 14px; min-height: 20px; max-width: 640px; }
+  #menu button { font: inherit; font-size: 15px; padding: 11px 30px; border-radius: 3px; cursor: pointer;
+                 border: 1px solid #3b4653; background: #1b232c; color: #e8e6e3; letter-spacing: .08em; transition: .15s; }
+  #menu button:hover:not(:disabled) { background: #26313d; border-color: #5a6b7d; }
+  #menu button:disabled { opacity: .4; cursor: default; }
+  .ok { color: #7fd18b; } .ph { color: #e0a94b; }
+  .keys { margin-top: 6px; color: #79838e; font-size: 12px; line-height: 1.7; }
+
+  #reg { display: none; position: fixed; inset: 0; overflow: auto; background: rgba(8,10,13,.96); padding: 26px; z-index: 10;
+         font-size: 13px; --ok: #7fd18b; }
+  #reg table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+  #reg th, #reg td { border-bottom: 1px solid #232a33; padding: 5px 9px; text-align: left; white-space: nowrap; }
+  #reg th { position: sticky; top: 0; background: #10151b; font-weight: 600; color: #9fb3c8; }
+  #reg td.ok { color: #7fd18b; } #reg td.ph { color: #e0a94b; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div id="crosshair"><i></i><i></i><i></i><i></i><b></b></div>
+  <div id="hits"></div>
+  <div id="ammo">30 / 180 · АК-74</div>
+  <div id="aim"></div>
+  <div id="feed"></div>
+  <div id="killfeed"></div>
+  <div id="score" style="position:absolute;left:50%;top:14px;transform:translateX(-50%);font:13px/1.4 ui-monospace,Consolas,monospace;color:#f0e6d2;text-shadow:0 1px 3px #000;text-align:center;letter-spacing:.04em"></div>
+  <div id="house" style="position:absolute;left:18px;top:34px;font:12px/1.5 ui-monospace,Consolas,monospace;color:#e0c98a;text-shadow:0 1px 2px #000;opacity:0;transition:opacity .3s"></div>
+  <div id="bottom">
+    <div id="hpbar"><div id="hp"></div></div>
+    <div id="stambar"><div id="stam"></div></div>
+    <div id="hpt">HP 100</div>
+    <div id="stance">Стоя</div>
+  </div>
+  <div id="info"></div>
+  <div id="veh" style="position:absolute;left:50%;bottom:96px;transform:translateX(-50%);font:14px/1.4 ui-monospace,Consolas,monospace;color:#f2e4b8;text-shadow:0 1px 3px #000;letter-spacing:.04em"></div>
+  <div id="hint">ЛКМ / ПКМ — стрельба и прицел · R — перезарядка · 1–4 — оружие, Q — следующее · WASD · Shift — спринт · C — присед · Z — лёжа · E — сесть в технику · G — взрыв · F — ящик · B — респавн · H/J/K/L — гаджеты класса · N — погода · Tab — реестр</div>
+  <div id="flash"></div>
+</div>
+
+<div id="menu">
+  <div class="sub">Советский Союз · 1985</div>
+  <h1>КРАСНЫЙ ШТОРМ</h1>
+  <div class="sub">M10 · боты ходят, РПГ у штурмовика, план города, техника (УАЗ/БТР/БМП)</div>
+  <div id="load">Инициализация…</div>
+  <div id="maps"></div>
+  <div id="classes"></div>
+  <div>
+    <button id="play" disabled>В БОЙ</button>
+    <button id="regbtn" disabled>Реестр ассетов (Tab)</button>
+  </div>
+  <div class="keys">
+    Three.js · Rapier3D в Web Worker · 60 Гц фиксированный шаг<br />
+    Параметры для слабых ПК: ?lowtex · ?noshadow · ?lowres · ?nomodels
+  </div>
+</div>
+
+<div id="reg"></div>
+<style>
+  #classes { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 10px 0 4px; }
+  .cls { cursor: pointer; border: 1px solid #6b5a3a; background: #1a1712cc; color: #d8cdb4;
+    padding: 8px 10px; min-width: 132px; text-align: left; font: 12px/1.35 ui-monospace, Consolas, monospace;
+    transition: border-color .15s, background .15s; border-radius: 3px; }
+  .cls:hover { border-color: #b89a5a; background: #241f16dd; }
+  .cls.sel { border-color: #e8483c; background: #2a1a16ee; box-shadow: 0 0 0 1px #e8483c inset; }
+  #maps { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 8px 0 0; }
+  .map { cursor: pointer; border: 1px solid #4a5560; background: #14181ccc; color: #b7c2cc;
+    padding: 6px 10px; font: 11px/1.35 ui-monospace, Consolas, monospace; border-radius: 3px; }
+  .map:hover { border-color: #7f95a8; }
+  .map.sel { border-color: #7fb1e8; color: #e6f0fa; box-shadow: 0 0 0 1px #7fb1e8 inset; }
+  .map b { display: block; color: #e6f0fa; font-size: 12px; }
+  .map i { color: #8a97a3; font-style: normal; }
+  .cls b { display: block; color: #f0e6d2; font-size: 13px; margin-bottom: 2px; }
+  .cls i { color: #9a8f78; font-style: normal; font-size: 11px; }
+</style>
+
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>
