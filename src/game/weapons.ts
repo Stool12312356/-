@@ -92,7 +92,7 @@ export const EXPLOSION = {
 export const EXPLOSION_SMALL = { crater: 1.0, craterMax: 8, strength: 60 } as const;
 
 export const SURFACES: Record<Surface, SurfaceSpec> = {
-  concrete: { name: 'бетон', need: 2.2, loss: 1.4, ricochet: 18, dmgMul: 0.6, color: '#b9b5a8' },
+  concrete: { name: 'бетон', need: 5, loss: 1.4, ricochet: 18, dmgMul: 0.6, color: '#b9b5a8' },
   panel: { name: 'панель', need: 1.6, loss: 1.1, ricochet: 15, dmgMul: 0.9, color: '#a9adb2' },
   brick: { name: 'кирпич', need: 1.1, loss: 0.9, ricochet: 12, dmgMul: 1.1, color: '#8d5a44' },
   plaster: { name: 'штукатурка', need: 0.5, loss: 0.4, ricochet: 6, dmgMul: 1.6, color: '#cfc9bb' },
@@ -190,6 +190,14 @@ export function penetrationResult(penetration: number, surface: Surface, angleDe
   if (eff < need) return { penetrated: false, remain: 0 };
   const remain = eff - need - s.loss;
   return { penetrated: remain > 0, remain: Math.max(0, remain) };
+}
+
+/** Вероятность рикошета: угол задаётся к нормали (90° — касательное попадание). */
+export function ricochetChance(surface: Surface, angleDeg: number): number {
+  const limit = SURFACES[surface].ricochet;
+  if (limit <= 0) return 0;
+  const grazing = 90 - Math.max(0, Math.min(90, angleDeg));
+  return Math.max(0, (limit - grazing) / limit) * 0.8;
 }
 
 /** Дальность прямого выстрела (для подсказки в HUD): где пуля просядет более 0.5 м. */

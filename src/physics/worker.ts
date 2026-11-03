@@ -1,7 +1,7 @@
 // Физический мир в Web Worker: Rapier3D, фиксированный шаг 60 Гц.
 import RAPIER from '@dimforge/rapier3d-compat';
 import type { ToWorker, FromWorker, BodyDesc, Shape, PlayerInput, PlayerState, Tracer, Impact, Surface, VehicleDesc } from '../shared/types';
-import { SURFACES, BALLISTICS, penetrationResult } from '../game/weapons';
+import { SURFACES, BALLISTICS, penetrationResult, ricochetChance } from '../game/weapons';
 import { PHYS_HZ, GRAVITY, PLAYER } from '../shared/constants';
 import { stepVehicle as stepVehicleLocal } from '../game/vehicleRig';
 import { amphibiousAcceleration, boatWavePose, advanceTankFlood, tankFloodHeight, TANK_EVACUATION_TIME, type TankFlood } from '../game/vehicleWater';
@@ -498,7 +498,9 @@ function explosion(pos: [number, number, number], radius: number, impulse: numbe
 // одиночный луч «от точки до точки» пропускал бы стены. Подшаг 1/600 с даёт 1,5 м —
 // этого достаточно, чтобы заметить панель толщиной 0.32 м.
 const impactsOut: Impact[] = [];
-const _hitVec = { x: 0, y: 0, z: 0 };
+// Коллайдеры, в которых пуля сейчас находится после пробития. Их временно
+// исключаем из запроса, но соседние препятствия продолжаем проверять.
+const passingColliders = new WeakMap<Tracer, Set<number>>();
 
 function stepProjectile(tr: Tracer, dt: number) {
   const n = Math.max(1, Math.min(40, Math.ceil(dt / BALLISTICS.substep)));
@@ -519,7 +521,15 @@ function stepProjectile(tr: Tracer, dt: number) {
     const dir = { x: dx / seg, y: dy / seg, z: dz / seg };
     const ray = new RAPIER.Ray({ x: tr.pos[0], y: tr.pos[1], z: tr.pos[2] }, dir);
     // снаряд не должен попадать в собственный ствол/игрока — исключаем коллайдер игрока
-    const hit = world.castRayAndGetNormal(ray, seg, true, undefined, undefined, pCol ?? undefined);
+    let passing = passingColliders.get(tr);
+    if (passing?.size) {
+      for (const handle of passing) {
+        const collider = world.getCollider(handle);
+        if (!collider || !collider.containsPoint(ray.origin)) passing.delete(handle);
+      }
+    }
+    const hit = world.castRayAndGetNormal(ray, seg, true, undefined, undefined, pCol ?? undefined, undefined,
+      passing?.size ? collider => !passing!.has(collider.handle) : undefined);
     if (!hit) { tr.pos = [nx, ny, nz]; continue; }
 
     const meta = colMeta.get(hit.collider.handle);
@@ -544,16 +554,17 @@ function stepProjectile(tr: Tracer, dt: number) {
     impactsOut.push({ kind: 'bullet', tracer: tr.id, pos: point, normal, surface, penetrated, damage: dmg, bodyId: meta?.bodyId ?? -1, panel: meta?.panel ?? -1 });
 
     // рикошет: скользящее попадание по металлу/бетону — пуля уходит в сторону
-    const ric = angleDeg < s.ricochet && Math.random() < (s.ricochet - angleDeg) / s.ricochet * 0.8;
-    if (ric && !penetrated) {
+    const ric = !penetrated && Math.random() < ricochetChance(surface, angleDeg);
+    if (ric) {
       const d = { x: dir.x, y: dir.y, z: dir.z };
       const dot = d.x * normal[0] + d.y * normal[1] + d.z * normal[2];
-      tr.vel = [d.x - 2 * dot * normal[0], d.y - 2 * dot * normal[1], d.z - 2 * dot * normal[2]];
+      // Сохраняем скорость ДО замены на единичный вектор направления.
       const sp = Math.hypot(tr.vel[0], tr.vel[1], tr.vel[2]) * 0.65;
-      const l = Math.hypot(tr.vel[0], tr.vel[1], tr.vel[2]) || 1;
-      tr.vel = [tr.vel[0] / l * sp, tr.vel[1] / l * sp, tr.vel[2] / l * sp];
+      const reflected = [d.x - 2 * dot * normal[0], d.y - 2 * dot * normal[1], d.z - 2 * dot * normal[2]];
+      const l = Math.hypot(...reflected) || 1;
+      tr.vel = [reflected[0] / l * sp, reflected[1] / l * sp, reflected[2] / l * sp];
       tr.pos = [point[0] + normal[0] * 0.02, point[1] + normal[1] * 0.02, point[2] + normal[2] * 0.02];
-      tr.penetration = remain * 0.5;
+      tr.penetration *= 0.35;
       continue;
     }
     if (!penetrated) return false; // пуля осталась в стене/броне
@@ -561,7 +572,11 @@ function stepProjectile(tr: Tracer, dt: number) {
     const speed = Math.hypot(tr.vel[0], tr.vel[1], tr.vel[2]) * 0.55;
     const l = Math.hypot(tr.vel[0], tr.vel[1], tr.vel[2]) || 1;
     tr.vel = [tr.vel[0] / l * speed, tr.vel[1] / l * speed, tr.vel[2] / l * speed];
-    tr.pos = [point[0] + dir.x * 0.35, point[1] + dir.y * 0.35, point[2] + dir.z * 0.35];
+    // Не перепрыгиваем 35 см: внутри могут быть другие тонкие стены/предметы.
+    // Малый сдвиг пересекает входную поверхность; дальше летим с обычной скоростью.
+    tr.pos = [point[0] + dir.x * 0.001, point[1] + dir.y * 0.001, point[2] + dir.z * 0.001];
+    if (!passing) { passing = new Set<number>(); passingColliders.set(tr, passing); }
+    passing.add(hit.collider.handle);
     tr.penetration = remain;
   }
   return true;

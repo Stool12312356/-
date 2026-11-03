@@ -53,7 +53,8 @@
     "test:swimming-worker": "vite build && node tools/test-swimming-worker.mjs",
     "test:boats": "node tools/test-boats.mjs",
     "test:boats-worker": "vite build && node tools/test-boats-worker.mjs && node tools/test-boat-collision-worker.mjs",
-    "test:blast-worker": "vite build && node tools/test-blast-worker.mjs"
+    "test:blast-worker": "vite build && node tools/test-blast-worker.mjs",
+    "test:ballistics-worker": "vite build && node tools/test-ballistics-worker.mjs"
   },
   "keywords": [],
   "author": "",
