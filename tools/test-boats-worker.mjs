@@ -17,14 +17,15 @@ async function run(spec) {
   const worker = new Worker(new URL(`data:text/javascript,${encodeURIComponent(adapter)}`), {
     workerData: { bundle: pathToFileURL(resolve('dist/assets', bundle)).href },
   });
-  let vehicle, edgeBoat, player, resolveReady, rejectReady;
+  let vehicle, edgeBoat, player, resolveReady, rejectReady, waterTime = 0;
+  const positionsY = [], tilts = [];
   const ready = new Promise((r, j) => { resolveReady = r; rejectReady = j; });
   worker.on('error', rejectReady);
   worker.on('message', m => {
     if (m.type === 'ready') resolveReady();
-    if (m.type === 'vehicle' && m.id === 1) vehicle = m;
+    if (m.type === 'vehicle' && m.id === 1) { vehicle = m; positionsY.push(m.pos[1]); tilts.push(Math.abs(m.pitch ?? 0) + Math.abs(m.roll ?? 0)); }
     if (m.type === 'vehicle' && m.id === 4) edgeBoat = m;
-    if (m.type === 'snapshot') player = m.player;
+    if (m.type === 'snapshot') { player = m.player; waterTime = m.waterTime ?? 0; }
   });
   try {
     await ready;
@@ -36,6 +37,9 @@ async function run(spec) {
     worker.postMessage({ type: 'hurt', damage: 30 });
     await wait(1500);
     assert.ok(vehicle && Math.abs(vehicle.pos[1]) < 0.5, `${spec.id}: не держится на воде`);
+    assert.ok(Math.max(...positionsY) - Math.min(...positionsY) > 0.015, `${spec.id}: корпус поднимается и опускается на волнах`);
+    assert.ok(Math.max(...tilts) > 0.003, `${spec.id}: корпус наклоняется на волнах`);
+    assert.ok(waterTime > 1, 'воркер передаёт время волн для синхронизации рендера');
     assert.ok(player && Math.abs(player.pos[2] - vehicle.pos[2]) < 1, `${spec.id}: пассажир в лодке`);
     worker.postMessage({ type: 'drive', id: 1, throttle: 1, steer: 0, handbrake: false });
     const startZ = vehicle.pos[2];

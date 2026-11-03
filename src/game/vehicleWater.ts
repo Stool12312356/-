@@ -1,6 +1,6 @@
 // Плавучесть амфибии в кинематической модели техники. Вызывается из worker.ts
 // каждый физический шаг; отдельно от силы колёс, которые работают только на опоре.
-import { inWater, depthAt, type WaterDef } from './water.ts';
+import { inWater, depthAt, gerstnerHeight, type WaterDef } from './water.ts';
 
 export interface AmphibiousState {
   specId: string;
@@ -17,12 +17,13 @@ export function amphibiousAcceleration(
   controls: { throttle: number; steer: number; handbrake: boolean },
   /** Подвеска уже опирается на дно, берег или мост. */
   supported: boolean,
+  waveHeight = 0,
 ): { submerged: number; acceleration: [number, number, number]; yawAcceleration: number } {
   const none = { submerged: 0, acceleration: [0, 0, 0] as [number, number, number], yawAcceleration: 0 };
   const boat = v.specId === 'assault_boat' || v.specId === 'pubg_boat';
   if (!w || (!boat && v.specId !== 'btr80') || supported || !inWater(w, v.pos[0], v.pos[2])) return none;
   const height = Math.max(0.1, v.size[1]);
-  const submerged = Math.max(0, Math.min(1, (w.level - (v.pos[1] - height / 2)) / height));
+  const submerged = Math.max(0, Math.min(1, (w.level + waveHeight - (v.pos[1] - height / 2)) / height));
   if (submerged <= 0) return none;
   // Водоизмещение с запасом: при 62,5% погружения Архимед уравновешивает вес.
   // Вертикальный и горизонтальный демпферы не дают бесконечно раскачиваться.
@@ -39,6 +40,18 @@ export function amphibiousAcceleration(
     ],
     yawAcceleration: -Math.max(-1, Math.min(1, controls.steer)) * (boat ? 1 : 0.6) * submerged - v.yawRate * 2 * submerged,
   };
+}
+
+/** Высота и наклон волн по носу/корме и бортам; углы ограничены для стабильности. */
+export function boatWavePose(pos: [number, number, number], size: [number, number, number], yaw: number, time: number) {
+  const sample = (dx: number, dz: number) => gerstnerHeight(pos[0] + dx, pos[2] + dz, time);
+  const fx = Math.sin(yaw), fz = Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw);
+  const halfLength = Math.max(0.5, size[2] / 2), halfWidth = Math.max(0.5, size[0] / 2);
+  const front = sample(fx * halfLength, fz * halfLength), back = sample(-fx * halfLength, -fz * halfLength);
+  const right = sample(rx * halfWidth, rz * halfWidth), left = sample(-rx * halfWidth, -rz * halfWidth);
+  const clampAngle = (a: number) => Math.max(-0.12, Math.min(0.12, a));
+  return { height: sample(0, 0), pitch: clampAngle(-Math.atan2(front - back, halfLength * 2)),
+    roll: clampAngle(Math.atan2(right - left, halfWidth * 2)) };
 }
 
 /** Танк не является амфибией: после попадания в глубокую воду у экипажа 10 с. */

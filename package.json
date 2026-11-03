@@ -52,7 +52,7 @@
     "test:tank-water-worker": "vite build && node tools/test-tank-water-worker.mjs",
     "test:swimming-worker": "vite build && node tools/test-swimming-worker.mjs",
     "test:boats": "node tools/test-boats.mjs",
-    "test:boats-worker": "vite build && node tools/test-boats-worker.mjs"
+    "test:boats-worker": "vite build && node tools/test-boats-worker.mjs && node tools/test-boat-collision-worker.mjs"
   },
   "keywords": [],
   "author": "",

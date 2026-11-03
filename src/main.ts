@@ -771,7 +771,7 @@ function frame(now: number) {
     if (!s2) continue;
     v.pos = s2.pos; v.yaw = s2.yaw;
     v.obj.position.set(s2.pos[0], s2.pos[1], s2.pos[2]);
-    v.obj.rotation.y = s2.yaw;
+    v.obj.rotation.set(s2.pitch, s2.yaw, s2.roll, 'YXZ');
   }
   combat?.update(dt, phys.player ? Math.hypot(phys.player.vel[0], phys.player.vel[2]) : 0);
   // звук: панорама по взгляду + шаги (снег/бетон) с шагом 0.55 м
@@ -890,7 +890,7 @@ function frame(now: number) {
   // Погода живёт до старта матча: снег идёт и в меню, иначе первый кадр после
   // «Играть» показывал бы пустое небо без частиц.
   weather.update(dt, camera);
-  waterSurface?.update(dt);
+  waterSurface?.setTime(phys.waterTime);
   // HUD: кислород под водой (ТЗ п.4.5) и предупреждение «тонешь»
   if (waterSurface && phys.player) {
     const o2 = phys.player.oxygen ?? 0;

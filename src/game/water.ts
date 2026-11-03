@@ -116,16 +116,16 @@ export function blastAt(w: WaterDef | undefined, pos: [number, number, number], 
 }
 
 /** Волна Герстнера: высота в точке (та же формула, что в шейдере — для теста и звука). */
+/** Общие параметры CPU и шейдера, чтобы фазы волн не расходились со временем. */
+export const GERSTNER_WAVES = [
+  { a: 0.22, len: 9, sx: 1, sz: 0.2, sp: 1.1 },
+  { a: 0.14, len: 5.5, sx: -0.4, sz: 0.9, sp: 1.6 },
+  { a: 0.09, len: 3.1, sx: 0.7, sz: -0.7, sp: 2.2 },
+  { a: 0.05, len: 1.7, sx: 0.2, sz: 1, sp: 3.1 },
+] as const;
 export function gerstnerHeight(x: number, z: number, t: number, waveScale = 1): number {
   let y = 0;
-  // четыре волны с разной длиной/направлением: сумма даёт «живую» поверхность
-  const waves = [
-    { a: 0.22, len: 9, sx: 1, sz: 0.2, sp: 1.1 },
-    { a: 0.14, len: 5.5, sx: -0.4, sz: 0.9, sp: 1.6 },
-    { a: 0.09, len: 3.1, sx: 0.7, sz: -0.7, sp: 2.2 },
-    { a: 0.05, len: 1.7, sx: 0.2, sz: 1, sp: 3.1 },
-  ];
-  for (const w of waves) {
+  for (const w of GERSTNER_WAVES) {
     const k = (Math.PI * 2) / w.len;
     const ph = (x * w.sx + z * w.sz) * k + t * w.sp * k;
     y += (w.a * waveScale) * Math.sin(ph);
@@ -165,10 +165,10 @@ export class WaterSurface {
           // Герстнер-сумма (4 волны) — та же формула, что в water.ts (gerstnerHeight)
           float t = uTime;
           float y = 0.0;
-          y += 0.22 * sin((world.x * 1.0 + world.z * 0.2) * 0.698 + t * 0.77);
-          y += 0.14 * sin((world.x * -0.4 + world.z * 0.9) * 1.142 + t * 1.83);
-          y += 0.09 * sin((world.x * 0.7 + world.z * -0.7) * 2.027 + t * 4.46);
-          y += 0.05 * sin((world.x * 0.2 + world.z * 1.0) * 3.696 + t * 11.5);
+          ${GERSTNER_WAVES.map(w => {
+            const k = Math.PI * 2 / w.len;
+            return `y += ${w.a.toFixed(8)} * sin((world.x * ${w.sx.toFixed(8)} + world.z * ${w.sz.toFixed(8)}) * ${k.toFixed(8)} + t * ${(w.sp * k).toFixed(8)});`;
+          }).join('\n          ')}
           p.z += y;                     // плоскость повёрнута: локальная Z — это мировой Y
           vH = y; vXZ = world.xz + uFlow * t;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
@@ -203,4 +203,6 @@ export class WaterSurface {
   }
 
   update(dt: number) { this.mat.uniforms.uTime.value += dt; }
+  /** Синхронизирует видимые волны с часами физического воркера. */
+  setTime(time: number) { this.mat.uniforms.uTime.value = time; }
 }

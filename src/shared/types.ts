@@ -153,13 +153,13 @@ export type FromWorker =
   | { type: 'ready' }
   | { type: 'vehicleSunk'; id: number; passengerLost: boolean }
   | { type: 'ray'; id: number; dist: number | null; point?: [number, number, number] }
-  | { type: 'snapshot'; t: number; ids: Int32Array; tf: Float32Array; player: PlayerState | null; awake: number; total: number; stepMs: number }
+  | { type: 'snapshot'; t: number; waterTime?: number; ids: Int32Array; tf: Float32Array; player: PlayerState | null; awake: number; total: number; stepMs: number }
   /** трассеры после шага физики (для отрисовки) */
   | { type: 'tracers'; tracers: Tracer[] }
   /** попадания за шаг: пуля/осколок/взрыв */
   | { type: 'impacts'; impacts: Impact[] }
   /** состояние машины игрока (позиция для камеры и HUD) */
   | {
-      type: 'vehicle'; id: number; pos: [number, number, number]; yaw: number;
+      type: 'vehicle'; id: number; pos: [number, number, number]; yaw: number; pitch?: number; roll?: number;
       speed: number; /** км/ч */ wheelComp: number[]; slip: boolean; sinkRemaining?: number | null; sunk?: boolean; damaged: { track: boolean; engine: boolean; turret: boolean };
     };

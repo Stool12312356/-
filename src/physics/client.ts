@@ -17,6 +17,7 @@ export class PhysicsClient {
   private objects = new Map<number, THREE.Object3D>();
   private prev = new Map<number, Float32Array>(); private cur = new Map<number, Float32Array>();
   private tPrev = 0; private tCur = 0; private nextId = 1;
+  waterTime = 0;
   player: PlayerState | null = null; private playerPrev: PlayerState | null = null;
   stats = { awake: 0, total: 0, stepMs: 0 };
   /** битовая маска необязательных сообщений: трассеры и попадания шлются, только если включены */
@@ -41,7 +42,7 @@ export class PhysicsClient {
         else if (m.type === 'tracers') this.tracers = m.tracers;
         else if (m.type === 'ray') { if (m.id === this.raySeq) { this.rayDist = m.dist; this.rayPoint = m.point ?? null; } }
         else if (m.type === 'vehicle') {
-          this.vehicles.set(m.id, { pos: m.pos, yaw: m.yaw, speed: m.speed, slip: m.slip, damaged: m.damaged, sinkRemaining: m.sinkRemaining ?? null, sunk: m.sunk ?? false });
+          this.vehicles.set(m.id, { pos: m.pos, yaw: m.yaw, pitch: m.pitch ?? 0, roll: m.roll ?? 0, speed: m.speed, slip: m.slip, damaged: m.damaged, sinkRemaining: m.sinkRemaining ?? null, sunk: m.sunk ?? false });
         }
         else if (m.type === 'impacts') { for (const i of m.impacts) { this.impactQueue.push(i); this.impactCb?.(i); } if (this.impactQueue.length > 512) this.impactQueue.splice(0, 256); }
       };
@@ -70,7 +71,7 @@ export class PhysicsClient {
   enterVehicle(id: number) { this.post({ type: 'enterVehicle', id }); }
   damageVehicle(id: number, part: 'track' | 'engine' | 'turret') { this.post({ type: 'damageVehicle', id, part }); }
   /** последнее состояние машин (обновляется воркером каждый шаг) */
-  vehicles = new Map<number, { pos: [number, number, number]; yaw: number; speed: number; slip: boolean; damaged: { track: boolean; engine: boolean; turret: boolean }; sinkRemaining: number | null; sunk: boolean }>();
+  vehicles = new Map<number, { pos: [number, number, number]; yaw: number; pitch: number; roll: number; speed: number; slip: boolean; damaged: { track: boolean; engine: boolean; turret: boolean }; sinkRemaining: number | null; sunk: boolean }>();
 
   newId() { return this.nextId++; }
   post(m: ToWorker, transfer: Transferable[] = []) { this.worker.postMessage(m, transfer); }
@@ -99,6 +100,7 @@ export class PhysicsClient {
   private onSnap(m: Extract<FromWorker, { type: 'snapshot' }>) {
     this.prev = this.cur; this.cur = new Map(); this.tPrev = this.tCur; this.tCur = performance.now();
     for (let i = 0; i < m.ids.length; i++) this.cur.set(m.ids[i], m.tf.subarray(i * 7, i * 7 + 7));
+    this.waterTime = m.waterTime ?? 0;
     this.playerPrev = this.player; this.player = m.player; this.stats = { awake: m.awake, total: m.total, stepMs: m.stepMs };
     // тела, уснувшие между снапшотами: фиксируем их финальную позу точно
     for (const [id, p] of this.prev) if (!this.cur.has(id)) { const o = this.objects.get(id); if (o) { o.position.set(p[0], p[1], p[2]); o.quaternion.set(p[3], p[4], p[5], p[6]); } }

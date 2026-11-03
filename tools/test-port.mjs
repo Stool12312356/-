@@ -4,7 +4,7 @@ import { getMap } from '../src/game/maps.ts';
 import { buildGround } from '../src/game/ground.ts';
 import { heightAt, setTerrainWater, setWorldSize } from '../src/game/terrain.ts';
 import { spawnDressing } from '../src/game/dressing.ts';
-import { WaterSurface } from '../src/game/water.ts';
+import { WaterSurface, GERSTNER_WAVES } from '../src/game/water.ts';
 import { VEHICLE_SPAWNS } from '../src/game/vehicles.ts';
 const port = getMap('port');
 assert.equal(port.id, 'port');
@@ -16,6 +16,9 @@ assert.ok(port.specials.filter(x => x.label?.includes('Склад')).length >= 2
 assert.ok(VEHICLE_SPAWNS.port.length >= 2);
 const bodies = [], scene = new THREE.Scene(), phys = { add: b => bodies.push(b) };
 const waterSurface = new WaterSurface(scene, port.water);
+waterSurface.setTime(123.4);
+assert.equal(waterSurface.mesh.material.uniforms.uTime.value, 123.4, 'рендер использует часы физики');
+for (const wave of GERSTNER_WAVES) assert.ok(waterSurface.mesh.material.vertexShader.includes((wave.sp * 2 * Math.PI / wave.len).toFixed(8)), 'частота шейдера совпадает с CPU');
 assert.equal(waterSurface.mesh.material.side, THREE.DoubleSide, 'водную поверхность видно из-под воды');
 assert.ok(waterSurface.mesh.geometry.attributes.position.count > 4, 'волны используют сетку, а не четыре вершины');
 assert.ok(waterSurface.mesh.material.vertexShader.includes('modelViewMatrix * vec4(p, 1.0)'), 'деформация волн попадает в экранные координаты');

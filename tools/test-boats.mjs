@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { BOATS, BOAT_SPAWNS, VEHICLE_SPAWNS, vehicleById } from '../src/game/vehicles.ts';
 import { getMap } from '../src/game/maps.ts';
-import { amphibiousAcceleration } from '../src/game/vehicleWater.ts';
+import { gerstnerHeight } from '../src/game/water.ts';
+import { amphibiousAcceleration, boatWavePose } from '../src/game/vehicleWater.ts';
 const manifest = JSON.parse(fs.readFileSync('public/assets/manifest.json', 'utf8'));
 assert.deepEqual(BOATS.map(b => b.id).sort(), ['assault_boat', 'pubg_boat']);
 for (const boat of BOATS) {
@@ -13,6 +14,10 @@ for (const boat of BOATS) {
   assert.equal(boat.wheels.length, 0);
   const state = { specId: boat.id, size: boat.size, pos: [0, 0, 160], vel: [0, 0, 0], yaw: 0, yawRate: 0 };
   const water = getMap('port').water;
+  const wave = boatWavePose(state.pos, state.size, state.yaw, 1.2);
+  assert.equal(wave.height, gerstnerHeight(state.pos[0], state.pos[2], 1.2));
+  assert.ok(Math.abs(wave.pitch) <= 0.12 && Math.abs(wave.roll) <= 0.12, 'наклон корпуса ограничен');
+  assert.notEqual(wave.height, boatWavePose(state.pos, state.size, state.yaw, 2.2).height, 'волна меняется со временем');
   const controls = { throttle: 0, steer: 0, handbrake: false };
   for (let i = 0; i < 60 * 12; i++) {
     const a = amphibiousAcceleration(water, state, controls, false);

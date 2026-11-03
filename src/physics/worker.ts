@@ -4,7 +4,7 @@ import type { ToWorker, FromWorker, BodyDesc, Shape, PlayerInput, PlayerState, T
 import { SURFACES, BALLISTICS, penetrationResult } from '../game/weapons';
 import { PHYS_HZ, GRAVITY, PLAYER } from '../shared/constants';
 import { stepVehicle as stepVehicleLocal } from '../game/vehicleRig';
-import { amphibiousAcceleration, advanceTankFlood, tankFloodHeight, TANK_EVACUATION_TIME, type TankFlood } from '../game/vehicleWater';
+import { amphibiousAcceleration, boatWavePose, advanceTankFlood, tankFloodHeight, TANK_EVACUATION_TIME, type TankFlood } from '../game/vehicleWater';
 import { oxygenStep, OXYGEN_TIME, blastAt, type WaterDef } from '../game/water';
 
 const DT = 1 / PHYS_HZ;
@@ -27,6 +27,7 @@ const stanceSpeed = [PLAYER.walk, PLAYER.crouchSpeed, PLAYER.proneSpeed];
 let pBody: RAPIER.RigidBody | null = null, pCol: RAPIER.Collider | null = null, cc: RAPIER.KinematicCharacterController;
 // ВОДА (ТЗ п.4.5): водоём приходит сообщением 'water' при старте карты.
 let water: WaterDef | null = null;
+let waterTime = 0;
 let oxygen = OXYGEN_TIME;
 const psWater = { swimming: false, submerged: false };
 let input: PlayerInput = { yaw: 0, pitch: 0, fwd: 0, right: 0, jump: false, sprint: false, crouch: false, prone: false };
@@ -217,6 +218,8 @@ interface VehicleRT {
   damaged: { track: boolean; engine: boolean; turret: boolean };
   rb: RAPIER.RigidBody;
   flood: TankFlood | null;
+  hull: RAPIER.Cuboid | null;
+  pitch: number; roll: number;
 }
 const vehicles = new Map<number, VehicleRT>();
 /** в какой машине игрок (−1 — пешком) */
@@ -250,6 +253,8 @@ function addVehicle(v: VehicleDesc) {
     desc: v, pos: [...v.pos], vel: [0, 0, 0], yaw: v.yaw, yawRate: 0, steer: 0, gear: 1,
     throttle: 0, steerIn: 0, handbrake: false,
     damaged: { track: false, engine: false, turret: false }, flood: null, rb,
+    hull: v.drive === 'boat' ? new RAPIER.Cuboid(v.size[0] / 2, v.size[1] / 2, v.size[2] / 2) : null,
+    pitch: 0, roll: 0,
   });
 }
 
@@ -258,6 +263,30 @@ function removeVehicle(id: number) {
   if (!v) return;
   world.removeRigidBody(v.rb); vehicles.delete(id);
   if (playerVehicle === id) { playerVehicle = -1; if (pBody) ps.feet = [...v.pos]; }
+}
+
+/** Горизонтальный sweep всего корпуса: нос, корму и борта останавливают препятствия. */
+function moveBoat(v: VehicleRT, dt: number) {
+  if (!v.hull) return;
+  const q = { x: 0, y: Math.sin(v.yaw / 2), z: 0, w: Math.cos(v.yaw / 2) };
+  let remaining = dt;
+  // Два прохода позволяют скользить вдоль стены и остановиться в углу.
+  for (let i = 0; i < 2 && remaining > 1e-6; i++) {
+    const velocity = { x: v.vel[0], y: 0, z: v.vel[2] };
+    if (Math.hypot(velocity.x, velocity.z) < 1e-5) break;
+    const hit = world.castShape({ x: v.pos[0], y: v.pos[1], z: v.pos[2] }, q, velocity,
+      v.hull, 0.02, remaining, false, undefined, undefined, pCol ?? undefined, v.rb);
+    if (!hit) { v.pos[0] += velocity.x * remaining; v.pos[2] += velocity.z * remaining; break; }
+    const nx = hit.normal1.x, nz = hit.normal1.z;
+    const nlen = Math.hypot(nx, nz);
+    const dot = nlen > 1e-5 ? (velocity.x * nx + velocity.z * nz) / nlen : 0;
+    if (dot >= -1e-5) { v.pos[0] += velocity.x * remaining; v.pos[2] += velocity.z * remaining; break; }
+    const travel = Math.max(0, Math.min(remaining, hit.time_of_impact));
+    v.pos[0] += velocity.x * travel; v.pos[2] += velocity.z * travel;
+    remaining -= travel;
+    // Отбрасываем только скорость в стену, сохраняя составляющую вдоль неё.
+    v.vel[0] -= dot * nx / nlen; v.vel[2] -= dot * nz / nlen;
+  }
 }
 
 /** Шаг всех машин: ходовая, столкновения корпусом (таран) и высадка игрока. */
@@ -287,9 +316,14 @@ function stepVehicles() {
       if (passengerLost) { playerVehicle = -1; spawnPlayer(ps.spawn); }
       (self as any).postMessage({ type: 'vehicleSunk', id: v.desc.id, passengerLost } satisfies FromWorker);
     }
+    const waves = boat && water ? boatWavePose(v.pos, v.desc.size, v.yaw, waterTime) : null;
     const waterStep = amphibiousAcceleration(water ?? undefined, {
       specId: v.desc.specId, size: v.desc.size, pos: v.pos, vel: v.vel, yaw: v.yaw, yawRate: v.yawRate,
-    }, { ...controls, throttle: v.damaged.engine ? controls.throttle * 0.35 : controls.throttle }, supported);
+    }, { ...controls, throttle: v.damaged.engine ? controls.throttle * 0.35 : controls.throttle }, supported, waves?.height ?? 0);
+    if (waves && waterStep.submerged > 0) {
+      v.pitch += (waves.pitch - v.pitch) * Math.min(1, DT * 3);
+      v.roll += (waves.roll - v.roll) * Math.min(1, DT * 3);
+    } else { v.pitch *= Math.exp(-3 * DT); v.roll *= Math.exp(-3 * DT); }
     v.vel[0] += waterStep.acceleration[0] * DT;
     v.vel[1] += waterStep.acceleration[1] * DT;
     v.vel[2] += waterStep.acceleration[2] * DT;
@@ -301,7 +335,9 @@ function stepVehicles() {
       const speed = Math.hypot(v.vel[0], v.vel[2]);
       if (speed > v.desc.maxSpeed) { v.vel[0] *= v.desc.maxSpeed / speed; v.vel[2] *= v.desc.maxSpeed / speed; }
     }
-    v.pos[0] += v.vel[0] * DT; v.pos[1] += v.vel[1] * DT; v.pos[2] += v.vel[2] * DT;
+    if (boat) moveBoat(v, DT);
+    else { v.pos[0] += v.vel[0] * DT; v.pos[2] += v.vel[2] * DT; }
+    v.pos[1] += v.vel[1] * DT;
     if (boat && water) {
       // Лодка не умеет ездить по суше. Мягкая остановка на границах водоёма.
       const margin = 5.5;
@@ -347,7 +383,7 @@ function stepVehicles() {
     }
     // таран: если впереди препятствие и скорость высокая — импульс и урон (ТЗ 4.3)
     const speed = Math.hypot(v.vel[0], v.vel[2]);
-    if (speed > 3) {
+    if (!boat && speed > 3) {
       const ray = new RAPIER.Ray({ x: v.pos[0], y: v.pos[1] + 0.6, z: v.pos[2] },
         { x: Math.sin(v.yaw), y: 0, z: Math.cos(v.yaw) });
       const hit = world.castRay(ray, v.desc.size[2] / 2 + 0.4, true, undefined, undefined, pCol ?? undefined, v.rb);
@@ -372,7 +408,7 @@ function stepVehicles() {
       }
     }
     (self as any).postMessage({
-      type: 'vehicle', id: v.desc.id, pos: [...v.pos], yaw: v.yaw,
+      type: 'vehicle', id: v.desc.id, pos: [...v.pos], yaw: v.yaw, pitch: v.pitch, roll: v.roll,
       speed: speed * 3.6, wheelComp: r.wheels.map(w => w.compression), slip: r.wheels.some(w => w.slip),
       damaged: { ...v.damaged },
       sinkRemaining: v.flood && !v.flood.sunk ? Math.max(0, TANK_EVACUATION_TIME - v.flood.elapsed) : null,
@@ -558,13 +594,13 @@ function snapshot() {
   const ids = new Int32Array(awake.length), tf = new Float32Array(awake.length * 7);
   awake.forEach((id, i) => { const rb = bodies.get(id)!; const t = rb.translation(), r = rb.rotation(); ids[i] = id; tf.set([t.x, t.y, t.z, r.x, r.y, r.z, r.w], i * 7); });
   const player: PlayerState | null = pBody ? { pos: [...ps.feet] as any, vel: [...ps.vel] as any, grounded: ps.grounded, stance: ps.stance, stamina: ps.stamina, hp: ps.hp, sliding: ps.sliding, eye: stanceEye[ps.stance], slope: ps.slopeDeg, swimming: psWater.swimming, submerged: psWater.submerged, oxygen } : null;
-  const msg: FromWorker = { type: 'snapshot', t: performance.now(), ids, tf, player, awake: awake.length, total: dynIds.size, stepMs };
+  const msg: FromWorker = { type: 'snapshot', t: performance.now(), waterTime, ids, tf, player, awake: awake.length, total: dynIds.size, stepMs };
   (self as any).postMessage(msg, [ids.buffer, tf.buffer]);
 }
 function loop() {
   const now = performance.now(); acc += Math.min(0.1, (now - last) / 1000); last = now;
   let n = 0;
-  while (acc >= DT && n < 5) { const t0 = performance.now(); stepVehicles(); stepPlayer(); stepTracers(DT); world.step(eventQueue); stepMs = stepMs * 0.9 + (performance.now() - t0) * 0.1; acc -= DT; n++; }
+  while (acc >= DT && n < 5) { const t0 = performance.now(); if (water) waterTime += DT; stepVehicles(); stepPlayer(); stepTracers(DT); world.step(eventQueue); stepMs = stepMs * 0.9 + (performance.now() - t0) * 0.1; acc -= DT; n++; }
   if (n) snapshot();
   setTimeout(loop, 3);
 }
@@ -573,7 +609,7 @@ function loop() {
   const m = e.data;
   switch (m.type) {
     case 'init': break;
-    case 'water': water = m.water as WaterDef | null; oxygen = OXYGEN_TIME; break;
+    case 'water': water = m.water as WaterDef | null; waterTime = 0; oxygen = OXYGEN_TIME; break;
     case 'addBodies': m.bodies.forEach(addBody); break;
     case 'removeBody': { const rb = bodies.get(m.id); if (rb) { world.removeRigidBody(rb); bodies.delete(m.id); dynIds.delete(m.id); } break; }
     case 'input': input = m.input; break;
