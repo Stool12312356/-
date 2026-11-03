@@ -20,10 +20,13 @@ import { BUILDINGS, SPAWN, CURRENT_MAP } from './game/world';
 import { SURFACES, pointBlankRange, EXPLOSION, EXPLOSION_SMALL } from './game/weapons';
 import { VEHICLE_SPAWNS, vehicleById } from './game/vehicles';
 import { spawnDressing } from './game/dressing';
+import { Weather } from './game/weather';
 import { spawnStreets } from './game/streets';
 import type { PlayerInput, Impact } from './shared/types';
 
 const $ = (id: string) => document.getElementById(id)!;
+/** Исходная строка подсказок: её возвращаем после временных сообщений (погода и т.п.). */
+const HINT_DEFAULT = document.getElementById('hint')?.textContent ?? '';
 const Q0 = new URLSearchParams(location.search);
 const canvas = $('game') as HTMLCanvasElement;
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -38,12 +41,16 @@ scene.background = new THREE.Color('#cdd9e4'); scene.fog = new THREE.Fog('#cdd9e
 const camera = new THREE.PerspectiveCamera(75, 1, 0.05, 1200); scene.add(camera);
 // Снизу светит СНЕГ, а не земля: раньше нижний цвет был тёмно-коричневый, и зимой
 // предметы снизу выглядели грязно-жёлтыми.
-scene.add(new THREE.HemisphereLight('#dce9f7', '#b9c6d2', 1.15));
+const hemi = new THREE.HemisphereLight('#dce9f7', '#b9c6d2', 1.15); scene.add(hemi);
 const sun = new THREE.DirectionalLight('#fff1d6', 2.4); sun.position.set(60, 90, 40); sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048); const sc = sun.shadow.camera; sc.left = -80; sc.right = 80; sc.top = 80; sc.bottom = -80; sc.near = 1; sc.far = 300; sun.shadow.bias = -0.0004;
 scene.add(sun, sun.target);
 // PBR без окружения делает металл чёрным — именно из-за этого ГАЗ-66/Ми-8 были силуэтами
 setupEnvironment(renderer, scene);
+// ПОГОДА (ТЗ п.9): снегопад, метель, туман, ночь. Снег — одна геометрия с движением
+// в шейдере, поэтому 6000 снежинок не стоят ничего в JS. Клавиша N переключает по кругу,
+// в консоли — `__game.weather.set('storm')`.
+const weather = new Weather(scene, renderer, sun, hemi);
 function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
 addEventListener('resize', resize); resize();
 
@@ -591,6 +598,14 @@ addEventListener('keydown', e => {
     const g = gadgetForKey(gadgets.list, e.code);
     if (g) { e.preventDefault(); gadgets.use(g); }
   }
+  // N — следующая погода (ТЗ п.9: снегопад, туман, ночь). Подпись — в строку подсказок,
+  // отдельного тоста в HUD нет, а лезть в вёрстку ради одного сообщения не нужно.
+  if (e.code === 'KeyN') {
+    const label = weather.next();
+    const hint = document.getElementById('hint');
+    if (hint) { hint.textContent = `Погода: ${label}`; setTimeout(() => hint.textContent = HINT_DEFAULT, 2500); }
+    return;
+  }
   if (e.code === 'KeyE') { toggleVehicle(); return; }
   if (e.code === 'KeyF') throwCrate();
   if (e.code === 'KeyG') blast();
@@ -769,6 +784,7 @@ function frame(now: number) {
       $('house').style.opacity = '1';
     } else if ($('house')) $('house').style.opacity = '0';
   }
+  weather.update(dt, camera);
   renderer.render(scene, camera);
 }
 let lastHp = 100; let freecam: { pos: [number, number, number]; yaw: number; pitch: number } | null = null;
@@ -777,7 +793,8 @@ let lastHp = 100; let freecam: { pos: [number, number, number]; yaw: number; pit
   phys, lib, camera, scene, effects, combat, bots, buildings,
   setLook: (y: number, p: number) => { yaw = y; pitch = p; },
   start: () => { $('play').click(); },
-  keys, blast, throwCrate,
+  keys, blast, throwCrate, weather,
+  setWeather: (p: string) => weather.apply(p as never),
   cam: (pos: [number, number, number] | null, yaw = 0, pitch = 0) => { freecam = pos ? { pos, yaw, pitch } : null; },
   /** выстрел из текущего оружия (для тестов и отладки) */
   shoot: () => combat?.trigger(true),
