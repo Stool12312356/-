@@ -24,6 +24,7 @@ import { VEHICLE_SPAWNS, BOAT_SPAWNS, vehicleById } from './game/vehicles';
 import { spawnDressing } from './game/dressing';
 import { Weather } from './game/weather';
 import { WaterSurface } from './game/water';
+import { planBlast, type BlastProfile } from './game/blastEffects';
 import { spawnStreets } from './game/streets';
 import type { PlayerInput, Impact } from './shared/types';
 
@@ -150,14 +151,12 @@ async function boot() {
     resupply: (mags) => combat?.resupply(mags),
     explode: (p, radius, power) => {
       phys.post({ type: 'explosion', pos: p, radius, impulse: power === 'big' ? 700 : 380 });
-      effects?.explosion(p, radius);
-      effects?.fire(p, power === 'big' ? 1.2 : 0.8);
-      audio.explosion(p, listenerPos(camera));
-      const b = findHouseNear(p, 2);
-      if (b) b.house.damageAt(p, power === 'big' ? EXPLOSION.crater : EXPLOSION_SMALL.crater,
-        power === 'big' ? EXPLOSION.strength : EXPLOSION_SMALL.strength,
-        { max: power === 'big' ? EXPLOSION.craterMax : EXPLOSION_SMALL.craterMax });
-      for (const bld of buildings) bld.propSet.blast(p, 2.4, power === 'big' ? 260 : 140, scene);
+      const large = power === 'big';
+      applyBlastScene(p, { radius, damage: large ? 140 : 95,
+        craterRadius: large ? EXPLOSION.crater : EXPLOSION_SMALL.crater,
+        craterStrength: large ? EXPLOSION.strength : EXPLOSION_SMALL.strength,
+        maxVoxels: large ? EXPLOSION.craterMax : EXPLOSION_SMALL.craterMax,
+        propRadius: 2.4, propStrength: large ? 260 : 140 }, large ? 1.2 : 0.8);
     },
     origin: () => [camera.position.x, camera.position.y, camera.position.z],
     aim: () => { const d = lookDir(); return [d.x, d.y, d.z]; },
@@ -545,36 +544,36 @@ function lineOfSight(a: [number, number, number], b: [number, number, number]): 
   return true;
 }
 
+/** Общая обработка визуала и игрового урона; физический импульс уже отправлен воркеру. */
+function applyBlastScene(pos: [number, number, number], profile: BlastProfile, fireScale = 1) {
+  const plan = planBlast(CURRENT_MAP.water, pos, profile);
+  if (plan.underwater && CURRENT_MAP.water) effects?.waterExplosion(pos, plan.radius, CURRENT_MAP.water.level);
+  else { effects?.explosion(pos, plan.radius); effects?.fire(pos, fireScale); }
+  audio.explosion(pos, listenerPos(camera));
+  const b = findHouseNear(pos, plan.craterRadius + 1.6);
+  if (b) {
+    const broken = b.house.damageAt(pos, plan.craterRadius, plan.craterStrength, { max: plan.maxVoxels });
+    if (broken) addFeed(`Выбито ${broken} блоков`);
+    if (b.house.collapsed.size) { addFeed('СЕКЦИЯ ОБРУШЕНА'); audio.collapse(pos, listenerPos(camera)); }
+  }
+  for (const building of buildings) {
+    const broken = building.propSet.blast(pos, plan.propRadius, plan.propStrength, scene);
+    if (broken) addFeed(`Разбито предметов: ${broken}`);
+  }
+  const kills = bots?.blast(pos, plan.radius, plan.damage) ?? 0;
+  if (kills) addFeed(`Уничтожено бойцов: ${kills}`);
+}
+
 function onImpact(i: Impact) {
   if (!effects || !bots) return;
   effects.impact(i);
   const lp = listenerPos(camera);
   audio.hit(i.surface, i.pos, lp);
   if (i.kind === 'explosive') {
-    // РПГ: взрыв в точке попадания, отдельно бьём по ближайшему дому (средний уровень разрушений)
-    effects.explosion(i.pos, EXPLOSION.blast);
-    // огонь остаётся на месте взрыва несколько секунд (п.2)
-    effects.fire(i.pos, 1.1);
-    audio.explosion(i.pos, listenerPos(camera));
-    const best = findHouseNear(i.pos, 3);
-    if (best) {
-      // Кратер ограничен параметрами из weapons.ts (EXPLOSION). Было r = 3.4 и max 600:
-      // один выстрел выгрызал ~240 вокселей плюс запускал обрушение оторванных стен,
-      // и дом складывался за пару выстрелов. Теперь — брешь 1.4 м и не больше
-      // 26 вокселей: стену пробивает, дом не сносит.
-      const killed = best.house.damageAt(i.pos, EXPLOSION.crater, EXPLOSION.strength, { max: EXPLOSION.craterMax });
-      if (killed) addFeed(`Выбито ${killed} блоков`);
-      if (best.house.collapsed.size) {
-        addFeed('СЕКЦИЯ ОБРУШЕНА');
-        audio.collapse(i.pos, listenerPos(camera));
-      }
-    }
-    // Мебель и лестница тоже разрушаются: у них нет вокселей, поэтому взрыв
-    // обрабатывается отдельно для каждого дома рядом (см. props.ts).
-    for (const b of buildings) {
-      const broken = b.propSet.blast(i.pos, EXPLOSION.crater + 1.2, EXPLOSION.strength, scene);
-      if (broken) addFeed(`Разбито предметов: ${broken}`);
-    }
+    // Радиус снаряда из воркера; физический импульс там уже применён.
+    applyBlastScene(i.pos, { radius: i.blastRadius ?? EXPLOSION.blast, damage: i.damage,
+      craterRadius: EXPLOSION.crater, craterStrength: EXPLOSION.strength, maxVoxels: EXPLOSION.craterMax,
+      propRadius: EXPLOSION.crater + 1.2, propStrength: EXPLOSION.strength }, 1.1);
     aimMsg = 'ПОПАДАНИЕ РПГ'; aimT = 1.6;
     return;
   }
@@ -713,10 +712,9 @@ function blast() {
   // отладочный залп (G): радиус поражения оставляем большим (это «спецэффект» для теста),
   // но кратер в доме — маленький, чтобы не сносить полкарты одним нажатием
   phys.post({ type: 'explosion', pos: [hit.x, hit.y, hit.z], radius: 18, impulse: 900 });
-  effects?.explosion([hit.x, hit.y, hit.z], 18);
-  const bestG = findHouseNear([hit.x, hit.y, hit.z], 3);
-  if (bestG) bestG.house.damageAt([hit.x, hit.y, hit.z], EXPLOSION_SMALL.crater, EXPLOSION_SMALL.strength, { max: EXPLOSION_SMALL.craterMax });
-  for (const b of buildings) b.propSet.blast([hit.x, hit.y, hit.z], 2.6, 200, scene);
+  applyBlastScene([hit.x, hit.y, hit.z], { radius: 18, damage: 100,
+    craterRadius: EXPLOSION_SMALL.crater, craterStrength: EXPLOSION_SMALL.strength,
+    maxVoxels: EXPLOSION_SMALL.craterMax, propRadius: 2.6, propStrength: 200 });
 }
 
 let lastT = performance.now(), fps = 60, eyeY = 1.65, bob = 0, stepAcc = 0;

@@ -258,6 +258,30 @@ export class Effects {
     }
   }
 
+  /** Подводный взрыв: пузырь и расходящееся кольцо на поверхности, без огня. */
+  waterExplosion(pos: [number, number, number], radius: number, surfaceY: number) {
+    const bubbleGeo = new THREE.SphereGeometry(1, 16, 12);
+    const bubbleMat = new THREE.MeshBasicMaterial({ color: '#a4e0ef', transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide });
+    const bubble = new THREE.Mesh(bubbleGeo, bubbleMat);
+    bubble.position.set(...pos); this.scene.add(bubble);
+    const ringGeo = new THREE.RingGeometry(0.88, 1, 48);
+    const ringMat = new THREE.MeshBasicMaterial({ color: '#d6f3ff', transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = -Math.PI / 2; ring.position.set(pos[0], surfaceY + 0.12, pos[2]);
+    ring.renderOrder = 3; this.scene.add(ring);
+    const t0 = performance.now();
+    const anim = () => {
+      const k = Math.min(1, (performance.now() - t0) / 850);
+      bubble.scale.setScalar(0.4 + k * radius * 0.35);
+      bubbleMat.opacity = 0.5 * (1 - k);
+      ring.scale.setScalar(0.5 + k * radius);
+      ringMat.opacity = 0.8 * (1 - k);
+      if (k < 1) requestAnimationFrame(anim);
+      else { bubble.removeFromParent(); ring.removeFromParent(); bubbleGeo.dispose(); bubbleMat.dispose(); ringGeo.dispose(); ringMat.dispose(); }
+    };
+    requestAnimationFrame(anim);
+  }
+
   /**
    * Огонь на месте взрыва (п.2: «огонь после взрыва»).
    * Пламя — два вложенных икосаэдра (оранжевый и жёлтый), они пульсируют и растут,

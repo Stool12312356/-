@@ -101,6 +101,8 @@ export interface Impact {
   penetrated: boolean;
   /** урон, который надо нанести объекту (здание/бот/техника) */
   damage: number;
+  /** Радиус взрыва исходного снаряда (без усиления водой). */
+  blastRadius?: number;
   /** id тела в физике (-1 = статика) */
   bodyId: number;
   /** id панели дома (-1 если не дом) */

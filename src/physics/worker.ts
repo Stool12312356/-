@@ -532,7 +532,7 @@ function stepProjectile(tr: Tracer, dt: number) {
 
     if (tr.explosive) {
       // РПГ/ВОГ: взрыв в точке попадания, дальше снаряд не летит
-      impactsOut.push({ kind: 'explosive', tracer: tr.id, pos: point, normal, surface, penetrated: false, damage: tr.explosive.damage, bodyId: meta?.bodyId ?? -1, panel: meta?.panel ?? -1 });
+      impactsOut.push({ kind: 'explosive', tracer: tr.id, pos: point, normal, surface, penetrated: false, damage: tr.explosive.damage, blastRadius: tr.explosive.radius, bodyId: meta?.bodyId ?? -1, panel: meta?.panel ?? -1 });
       explosion(point, tr.explosive.radius, 260);
       return false;
     }

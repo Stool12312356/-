@@ -4,7 +4,8 @@
 import * as THREE from 'three';
 import type { AssetLibrary } from '../render/assets';
 import type { PhysicsClient } from '../physics/client';
-import { WalkAnim } from './anim';;
+import { WalkAnim } from './anim.ts';
+import { blastDamage } from './blastEffects.ts';
 
 export interface Bot {
   id: number;
@@ -80,6 +81,21 @@ export class Bots {
     bot.hp -= damage * mult;
     if (bot.hp <= 0) { this.kill(bot); return true; }
     return false;
+  }
+
+  /** Урон от ударной волны всем живым бойцам в радиусе, с плавным затуханием. */
+  blast(pos: [number, number, number], radius: number, damage: number): number {
+    let killed = 0;
+    for (const bot of this.list) {
+      if (bot.dead) continue;
+      const p = bot.object.position;
+      const distance = Math.hypot(p.x - pos[0], p.y + bot.height * 0.5 - pos[1], p.z - pos[2]);
+      const amount = blastDamage(distance, radius, damage);
+      if (amount <= 0) continue;
+      bot.hp -= amount;
+      if (bot.hp <= 0) { this.kill(bot); killed++; }
+    }
+    return killed;
   }
 
   /** Смерть: тело становится рэгдоллом (импульс от направления пули). */
