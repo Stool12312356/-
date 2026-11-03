@@ -20,7 +20,7 @@ import { Gadgets, gadgetForKey, type GadgetId } from './game/gadgets';
 import { spawnVoxelHouse, spawnSpecial, type PlacedBuilding } from './game/structure';
 import { BUILDINGS, SPAWN, CURRENT_MAP } from './game/world';
 import { SURFACES, pointBlankRange, EXPLOSION, EXPLOSION_SMALL } from './game/weapons';
-import { VEHICLE_SPAWNS, vehicleById } from './game/vehicles';
+import { VEHICLE_SPAWNS, BOAT_SPAWNS, vehicleById } from './game/vehicles';
 import { spawnDressing } from './game/dressing';
 import { Weather } from './game/weather';
 import { WaterSurface } from './game/water';
@@ -234,13 +234,20 @@ const vehicleObjs = new Map<number, { obj: THREE.Object3D; specId: string; pos: 
 function spawnVehicles() {
   // ВАЖНО: fallback на spalny убран. Иначе карта без техники (полигон) получала бы
   // машины спального района — «техника из другой карты» на стрельбище.
-  const list = VEHICLE_SPAWNS[CURRENT_MAP.id] ?? [];
+  const list = [...(VEHICLE_SPAWNS[CURRENT_MAP.id] ?? []), ...(BOAT_SPAWNS[CURRENT_MAP.id] ?? [])];
   if (!list.length) return;
   for (const vs of list) {
     const spec = vehicleById(vs.id);
     // объект: настоящая модель или её процедурная заглушка (чужую не подставляем)
     const inst = lib.has(spec.model) ? lib.make(spec.model) : null;
-    const obj = inst?.object ?? makeVehiclePlaceholder(spec);
+    // Центр коллайдера лодки находится посередине корпуса, а модель нормализована
+    // от дна. Сдвигаем только вложенный объект, не меняя позицию физического тела.
+    let obj = inst?.object ?? makeVehiclePlaceholder(spec);
+    if (spec.drive === 'boat') {
+      const wrapper = new THREE.Group();
+      obj.position.y = -spec.size[1] / 2;
+      wrapper.add(obj); obj = wrapper;
+    }
     obj.position.set(vs.pos[0], vs.pos[1], vs.pos[2]);
     obj.rotation.y = vs.yaw;
     scene.add(obj);
@@ -251,7 +258,7 @@ function spawnVehicles() {
     });
     vehicleObjs.set(id, { obj, specId: spec.id, pos: vs.pos, yaw: vs.yaw });
   }
-  addFeed(`Техника: ${list.length} машин у баз — подойди и нажми E`);
+  addFeed(`Техника: ${list.length} единиц — подойди и нажми E`);
 }
 
 /**
@@ -313,7 +320,7 @@ function nearestVehicle(maxDist = 3.2): number | null {
   let best: number | null = null, bd = maxDist;
   for (const [id, v] of vehicleObjs) {
     if (phys.vehicles.get(id)?.sunk) continue;
-    const d = Math.hypot(p[0] - v.pos[0], p[2] - v.pos[2]);
+    const d = Math.hypot(p[0] - v.pos[0], p[1] - v.pos[1], p[2] - v.pos[2]);
     if (d < bd) { bd = d; best = id; }
   }
   return best;
@@ -796,8 +803,10 @@ function frame(now: number) {
       const v = phys.vehicles.get(drivingId);
       if (v) {
         const nm = vehicleById(vehicleObjs.get(drivingId)?.specId ?? 'uaz469').name;
+        const isBoat = vehicleById(vehicleObjs.get(drivingId)?.specId ?? 'uaz469').drive === 'boat';
         $('veh').textContent = v.sinkRemaining != null
-          ? `ТАНК ТОНЕТ: ${Math.ceil(v.sinkRemaining)} с · E — выйти` : 'E — выйти';
+          ? `ТАНК ТОНЕТ: ${Math.ceil(v.sinkRemaining)} с · E — выйти`
+          : isBoat ? `${nm}: ${v.speed.toFixed(0)} км/ч · E — выйти` : 'E — выйти';
         $('info').textContent = `${nm}: ${v.speed.toFixed(0)} км/ч${v.slip ? ' · БУКСУЕТ' : ''}` +
           (v.damaged.track ? ' · ГУСЕНИЦА' : '') + (v.damaged.engine ? ' · ДВИГАТЕЛЬ' : '') + '\nE — выйти';
       }

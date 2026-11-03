@@ -11,6 +11,7 @@
 import fs from 'fs';
 import zlib from 'zlib';
 import { MAPS } from '../src/game/maps.ts';
+import { BOAT_SPAWNS } from '../src/game/vehicles.ts';
 import { buildVoxelHouse } from '../src/game/voxelgen.ts';
 import { buildSpecial } from '../src/game/barracks.ts';
 
@@ -281,6 +282,13 @@ for (const map of maps) {
     else rect(cx - 3, cy - 4, cx + 3, cy + 4, c);
   }
 
+  // Лодки отмечаем на воде по тем же координатам, что используются при запуске карты.
+  for (const boat of BOAT_SPAWNS[map.id] ?? []) {
+    const x = X(boat.pos[0]), y = Y(boat.pos[2]);
+    rect(x - 3, y - 6, x + 3, y + 6, [220, 205, 122]);
+    place(boat.id === 'pubg_boat' ? 'КАТЕР' : 'ЛОДКА', x, y, [220, 205, 122], 1);
+  }
+
   // путь между базами (пунктир) и сами базы
   const own = map.spawns.own, foe = map.spawns.foe;
   taken.push([0, 0, W, TOP], [0, H - 24, W, H]);
@@ -317,6 +325,7 @@ for (const map of maps) {
   swatch(TREEC, 'ДЕРЕВЬЯ');
   swatch(DCOL.playground, 'ДВОР');
   if (map.water) swatch(WATER, 'ВОДА');
+  if ((BOAT_SPAWNS[map.id] ?? []).length) swatch([220, 205, 122], 'ЛОДКИ');
   if (map.id === 'port') swatch(DCOL.crane, 'КРАН');
   // масштабная линейка: 50 м
   const barLen = 50 * SCALE;

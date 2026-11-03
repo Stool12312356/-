@@ -35,7 +35,7 @@ export interface VehicleDesc {
   size: [number, number, number];
   /** колёса: локальные позиции, радиус, подвеска, ведущее/рулевое */
   wheels: { pos: [number, number, number]; radius: number; travel: number; stiffness: number; damping: number; drive: boolean; steer: boolean }[];
-  drive: 'wheeled' | 'tracked';
+  drive: 'wheeled' | 'tracked' | 'boat';
   power: number;
   maxSpeed: number;
   steerMax: number;

@@ -9,7 +9,7 @@
 // на покрытии. Сам шаг физики (raycast по колёсам) делает physics/worker.ts,
 // потому что только он знает про мир.
 
-export type DriveType = 'wheeled' | 'tracked';
+export type DriveType = 'wheeled' | 'tracked' | 'boat';
 
 /** Покрытия из ТЗ: разное сцепление и сопротивление качению. */
 export interface SurfaceGrip {
@@ -193,7 +193,23 @@ export const VEHICLE_SPAWNS: Record<string, { id: string; pos: [number, number, 
   ],
 };
 
-export const vehicleById = (id: string) => VEHICLES.find(v => v.id === id) ?? VEHICLES[0];
+/** Отдельные характеристики лодок: без фиктивных колёс и подмены моделей. */
+export const BOATS: VehicleSpec[] = [
+  { id: 'assault_boat', name: 'Штурмовая лодка', model: 'assault_boat', drive: 'boat',
+    mass: 250, maxSpeed: 9, power: 1500, steerMax: 0.7, size: [1.8, 0.86, 4.02], armor: 0, crew: 4, wheels: [] },
+  { id: 'pubg_boat', name: 'Катер', model: 'pubg_boat', drive: 'boat',
+    mass: 3000, maxSpeed: 12, power: 18000, steerMax: 0.6, size: [2.46, 2.36, 9.67], armor: 0, crew: 6, wheels: [] },
+];
+
+/** Лодки стоят на воде, а не на площадках наземной техники. */
+export const BOAT_SPAWNS: Record<string, { id: string; pos: [number, number, number]; yaw: number }[]> = {
+  prigorod: [{ id: 'assault_boat', pos: [-48, 0, 60], yaw: 0 }],
+  port: [
+    { id: 'assault_boat', pos: [-200, 0, 122], yaw: 0 },
+    { id: 'pubg_boat', pos: [200, 0, 122], yaw: 0 },
+  ],
+};
+export const vehicleById = (id: string) => VEHICLES.find(v => v.id === id) ?? BOATS.find(v => v.id === id) ?? VEHICLES[0];
 
 // ---------------------------------------------------------------------------
 // МАТЕМАТИКА ХОДОВОЙ — без физического движка, поэтому проверяется тестом.

@@ -269,7 +269,10 @@ function stepVehicles() {
       steer: v.steer, gear: v.gear, damaged: v.damaged,
     } as any;
     const controls = { throttle: v.throttle, steer: v.steerIn, handbrake: v.handbrake };
-    const r = stepVehicleLocal(st, DT, controls, contacts);
+    // Лодка не имеет колёс: не применяем к ней ни тягу шин, ни тормоз на суше.
+    const boat = v.desc.drive === 'boat';
+    const r = boat ? { force: [0, 0, 0] as [number, number, number], torqueY: 0, wheels: [] }
+      : stepVehicleLocal(st, DT, controls, contacts);
     // На дне и на мосту сначала работает колёсная подвеска: она уже удерживает
     // полный вес, поэтому нельзя добавлять к ней ещё полный вес Архимеда.
     const supported = contacts.some(c => c.ground != null);
@@ -294,7 +297,20 @@ function stepVehicles() {
     v.vel[0] += (r.force[0] / v.desc.mass) * DT;
     v.vel[2] += (r.force[2] / v.desc.mass) * DT;
     v.vel[0] *= 0.995; v.vel[2] *= 0.995;
+    if (boat) {
+      const speed = Math.hypot(v.vel[0], v.vel[2]);
+      if (speed > v.desc.maxSpeed) { v.vel[0] *= v.desc.maxSpeed / speed; v.vel[2] *= v.desc.maxSpeed / speed; }
+    }
     v.pos[0] += v.vel[0] * DT; v.pos[1] += v.vel[1] * DT; v.pos[2] += v.vel[2] * DT;
+    if (boat && water) {
+      // Лодка не умеет ездить по суше. Мягкая остановка на границах водоёма.
+      const margin = 5.5;
+      const x = Math.max(water.x0 + margin, Math.min(water.x1 - margin, v.pos[0]));
+      const z = Math.max(water.z0 + margin, Math.min(water.z1 - margin, v.pos[2]));
+      if (x !== v.pos[0]) v.vel[0] = 0;
+      if (z !== v.pos[2]) v.vel[2] = 0;
+      v.pos[0] = x; v.pos[2] = z;
+    }
     if (v.flood) {
       // Предсказуемое погружение на дно за время эвакуации; без двигателя в воде.
       v.pos[1] = tankFloodHeight(v.flood);
@@ -306,9 +322,16 @@ function stepVehicles() {
     v.steer = st.steer;
     // корпус не проваливается сквозь землю и не улетает: держим на поверхности
     const heights = contacts.flatMap(c => c.ground == null ? [] : [c.ground]);
-    const gy = heights.length ? Math.max(...heights) : null;
+    let gy = heights.length ? Math.max(...heights) : null;
+    if (boat) {
+      // Луч начинается в корпусе и направлен вниз: настил моста над лодкой
+      // не превращается в «дно», а реальное дно не даёт корпусу провалиться.
+      const ray = new RAPIER.Ray({ x: v.pos[0], y: v.pos[1], z: v.pos[2] }, { x: 0, y: -1, z: 0 });
+      const hit = world.castRay(ray, 20, true, undefined, undefined, pCol ?? undefined, v.rb);
+      if (hit) gy = v.pos[1] - hit.timeOfImpact;
+    }
     if (gy != null) {
-      const minY = gy + v.desc.wheels[0].radius * 0.5;
+      const minY = gy + (boat ? v.desc.size[1] / 2 : v.desc.wheels[0].radius * 0.5);
       if (v.pos[1] < minY) { v.pos[1] = minY; if (v.vel[1] < 0) v.vel[1] = 0; }
     }
     v.rb.setNextKinematicTranslation({ x: v.pos[0], y: v.pos[1], z: v.pos[2] });
@@ -584,7 +607,7 @@ function loop() {
       const v = vehicles.get(m.id);
       if (!v) { playerVehicle = -1; break; }
       if (v.flood?.sunk) break;
-      const d = Math.hypot(ps.feet[0] - v.pos[0], ps.feet[2] - v.pos[2]);
+      const d = Math.hypot(ps.feet[0] - v.pos[0], ps.feet[1] - v.pos[1], ps.feet[2] - v.pos[2]);
       playerVehicle = d < 4 ? m.id : -1;
       if (playerVehicle >= 0) { ps.stance = 0; }
       break;
