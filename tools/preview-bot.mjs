@@ -98,8 +98,27 @@ function baseFactor(doc) {
   return out;
 }
 
+// ---------- текстура: настоящая выборка по UV ----------
+/** Декодируем альбедо в RGB-буфер 256×256 — так рендер показывает камуфляж, а не «средний цвет». */
+async function decodeTexture(doc, tex) {
+  if (!tex) return null;
+  try {
+    const { data, info } = await sharp(Buffer.from(tex.getImage())).resize(256, 256, { fit: 'fill' })
+      .removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    return { w: info.width, h: info.height, ch: info.channels, data };
+  } catch { return null; }
+}
+function sampleTex(t, u, v) {
+  if (!t) return null;
+  // UV в glTF: (0,0) — левый ВЕРХНИЙ угол изображения
+  const x = Math.min(t.w - 1, Math.max(0, Math.round((u % 1 + 1) % 1 * (t.w - 1))));
+  const y = Math.min(t.h - 1, Math.max(0, Math.round((v % 1 + 1) % 1 * (t.h - 1))));
+  const i = (y * t.w + x) * t.ch;
+  return [t.data[i] / 255, t.data[i + 1] / 255, t.data[i + 2] / 255];
+}
+
 // ---------- рендер ----------
-function render(tris, camYaw, zoom, bg) {
+function render(tris, camYaw, zoom, bg, tex = null) {
   const px = Buffer.alloc(W * H * 3);
   // фон: небо → земля
   for (let y = 0; y < H; y++) {
@@ -126,7 +145,9 @@ function render(tris, camYaw, zoom, bg) {
     return [W / 2 + (xr / zc) * f, H / 2 - (y / zc) * f, zc];
   };
 
-  for (const tri of tris) {
+  for (let ti = 0; ti < tris.length; ti++) {
+    const tri = tris[ti];
+    const tuv = tris.uv?.[ti];
     const p = tri.map(project);
     if (p.some(v => !v)) continue;
     // нормаль в мире для освещения
@@ -142,7 +163,8 @@ function render(tris, camYaw, zoom, bg) {
     // В игре работают ambient + солнце + env-карта: офлайн-рендер повторяет суммарную
     // освещённость (иначе всё выглядит темнее, чем в браузере)
     const shade = 0.72 + 0.55 * diff;
-    const col = bg.map((_1, i) => Math.min(255, Math.round(255 * tint[i] * factor[i] * shade)));
+    // цвет берём из текстуры по UV (камуфляж), иначе — средний цвет материала
+    const col = [0, 1, 2].map(i => Math.min(255, Math.round(255 * (tint?.[i] ?? 0.6) * factor[i] * shade)));
     const minX = Math.max(0, Math.floor(Math.min(p[0][0], p[1][0], p[2][0])));
     const maxX = Math.min(W - 1, Math.ceil(Math.max(p[0][0], p[1][0], p[2][0])));
     const minY = Math.max(0, Math.floor(Math.min(p[0][1], p[1][1], p[2][1])));
@@ -159,7 +181,14 @@ function render(tris, camYaw, zoom, bg) {
       if (z >= zbuf[zi]) continue;
       zbuf[zi] = z;
       const i = zi * 3;
-      px[i] = col[0]; px[i + 1] = col[1]; px[i + 2] = col[2];
+      let c = col;
+      if (tex && tuv) {
+        const u = w0 * tuv[0][0] + w1 * tuv[1][0] + w2 * tuv[2][0];
+        const v = w0 * tuv[0][1] + w1 * tuv[1][1] + w2 * tuv[2][1];
+        const s = sampleTex(tex, u, v);
+        if (s) c = [0, 1, 2].map(k => Math.min(255, Math.round(255 * s[k] * factor[k] * shade)));
+      }
+      px[i] = c[0]; px[i + 1] = c[1]; px[i + 2] = c[2];
     }
   }
   return px;
@@ -173,6 +202,7 @@ const anim = RAW ? null : new WalkAnim(rig.root, id);
 // текстура берётся та, что привязана к базовому цвету (а не первая попавшаяся)
 const texMat = doc.getRoot().listMaterials().find(m => m.getBaseColorTexture());
 const tint = await textureTint(doc, texMat?.getBaseColorTexture());
+const TEX = await decodeTexture(doc, texMat?.getBaseColorTexture());
 const factor = baseFactor(doc);
 if (anim) {
   const found = Object.entries(anim.joints).filter(([k, v]) => k !== 'base' && v).map(([k]) => k);
@@ -196,13 +226,13 @@ phases.forEach((ph, i) => {
   }
   const tris = worldTris(rig);
   for (const [yaw, tag] of [[0, 'front'], [Math.PI / 2, 'side']]) {
-    const px = render(tris, yaw, 1.0, tint.rgb);
+    const px = render(tris, yaw, 1.0, tint.rgb, TEX);
     const name = `tools/_render/bot-${id}-${tag}-${i}${RAW ? '-raw' : ''}.png`;
     fs.writeFileSync(name, png(W, H, px));
   }
   if (i === 1) {
     // крупный кадр головы/торса — чтобы проверить, что руки НЕ в T-позе
-    const px = render(tris, 0, 2.6, tint.rgb);
+    const px = render(tris, 0, 2.6, tint.rgb, TEX);
     fs.writeFileSync(`tools/_render/bot-${id}-closeup.png`, png(W, H, px));
   }
 });

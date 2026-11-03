@@ -84,6 +84,7 @@ export function buildRig(doc) {
 export function worldTris(rig) {
   rig.root.updateMatrixWorld(true);
   const out = [];
+  const uv = [];
   // getElement из gltf-transform пишет в ЧИСЛОВОЙ массив: с THREE.Vector3 он молча
   // теряет значения (получаются нули — модель «исчезала» из рендера)
   const v = [0, 0, 0];
@@ -100,6 +101,15 @@ export function worldTris(rig) {
     });
     skinCache.set(p, arr);
     return arr;
+  };
+
+  /** UV вершины примитива (если есть TEXCOORD_0) — для выборки текстуры в рендере. */
+  const uvAt = (p, i) => {
+    const uv = p.prim.getAttribute('TEXCOORD_0');
+    if (!uv) return [0, 0];
+    const j = p.idx ? p.idx.getScalar(i) : i;
+    const out = [0, 0]; uv.getElement(j, out);
+    return out;
   };
 
   const at = (p, i) => {
@@ -130,7 +140,11 @@ export function worldTris(rig) {
 
   for (const p of rig.prims) {
     const count = p.idx ? p.idx.getCount() : p.pos.getCount();
-    for (let i = 0; i + 2 < count; i += 3) out.push([at(p, i), at(p, i + 1), at(p, i + 2)]);
+    for (let i = 0; i + 2 < count; i += 3) {
+      out.push([at(p, i), at(p, i + 1), at(p, i + 2)]);
+      uv.push([uvAt(p, i), uvAt(p, i + 1), uvAt(p, i + 2)]);
+    }
   }
+  out.uv = uv;
   return out;
 }
