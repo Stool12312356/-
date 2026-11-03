@@ -784,7 +784,13 @@ function frame(now: number) {
       $('house').style.opacity = '1';
     } else if ($('house')) $('house').style.opacity = '0';
   }
+  // Погода живёт до старта матча: снег идёт и в меню, иначе первый кадр после
+  // «Играть» показывал бы пустое небо без частиц.
   weather.update(dt, camera);
+  // тень солнца должна ездить за игроком, иначе в 200 м от центра она обрезается
+  sun.position.set(camera.position.x + 60, 90, camera.position.z + 40);
+  sun.target.position.set(camera.position.x, 0, camera.position.z);
+  sun.target.updateMatrixWorld();
   renderer.render(scene, camera);
 }
 let lastHp = 100; let freecam: { pos: [number, number, number]; yaw: number; pitch: number } | null = null;
