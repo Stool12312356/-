@@ -14,7 +14,9 @@
 //   • обломки — один InstancedMesh с кольцевым буфером, без физического движка.
 import * as THREE from 'three';
 import type { PhysicsClient } from '../physics/client';
-import type { Surface } from '../shared/types';
+import type { VoxelMaterialGrid } from '../shared/types';
+import { VOXEL_MATERIAL } from '../shared/voxelMaterials.ts';
+export { VOXEL_MATERIAL } from '../shared/voxelMaterials.ts';
 import { tex } from '../render/tex.ts';
 
 export const PITCH = 0.5;
@@ -86,9 +88,6 @@ export type VoxelKind = 0 | 1 | 2 | 3 | 4 | 5;
 export const VOXEL_COLOR: Record<number, string> = {
   0: '#cfcabd', 1: '#b3aea2', 2: '#9c6a50', 3: '#8fb6cc', 4: '#7a4b28', 5: '#ada79b',
 };
-export const VOXEL_MATERIAL: Record<number, Surface> = {
-  0: 'concrete', 1: 'concrete', 2: 'concrete', 3: 'glass', 4: 'wood', 5: 'concrete',
-};
 /** запас прочности: сколько урона держит воксель */
 export const VOXEL_HP: Record<number, number> = { 0: 30, 1: 24, 2: 12, 3: 0.5, 4: 3, 5: 40 };
 
@@ -119,7 +118,7 @@ interface ChunkRender {
   mesh: THREE.Mesh;
 }
 
-interface ChunkPhys { id: number; verts: Float32Array; idx: Uint32Array }
+interface ChunkPhys { id: number; verts: Float32Array; idx: Uint32Array; voxelGrid: VoxelMaterialGrid }
 
 export class VoxelHouse {
   group = new THREE.Group();
@@ -558,16 +557,24 @@ export class VoxelHouse {
     const h = PITCH / 2;
     const verts: number[] = [];
     const idx: number[] = [];
+    const nx = Math.min(CHUNK, this.nx - i0), ny = Math.min(CHUNK, this.ny - j0), nz = Math.min(CHUNK, this.nz - k0);
+    const cells = new Int8Array(nx * ny * nz).fill(-1);
     for (let j = j0; j < Math.min(this.ny, j0 + CHUNK); j++)
       for (let k = k0; k < Math.min(this.nz, k0 + CHUNK); k++)
         for (let i = i0; i < Math.min(this.nx, i0 + CHUNK); i++) {
           const id = this.idAt(i, j, k);
           if (id < 0 || !this.alive[id]) continue;
+          cells[((j - j0) * nz + (k - k0)) * nx + (i - i0)] = this.kind[id];
           const cxp = this.ox + (i + 0.5) * PITCH, cyp = this.oy + (j + 0.5) * PITCH, czp = this.oz + (k + 0.5) * PITCH;
           for (let f = 0; f < 6; f++) {
             const [di, dj, dk] = VoxelHouse.FACES[f];
             const nid = this.idAt(i + di, j + dj, k + dk);
-            if (nid >= 0 && this.alive[nid]) continue;
+            if (nid >= 0 && this.alive[nid]) {
+              // Граница материалов нужна для баллистики; на стыке каждый чанк
+              // хранит грань, чтобы его сетка оставалась доступной при пересборке.
+              const sameChunk = Math.floor((i + di) / CHUNK) === cx && Math.floor((j + dj) / CHUNK) === cy && Math.floor((k + dk) / CHUNK) === cz;
+              if (VOXEL_MATERIAL[this.kind[nid]] === VOXEL_MATERIAL[this.kind[id]] || (sameChunk && id > nid)) continue;
+            }
             const start = verts.length / 3;
             for (const ci of VoxelHouse.QUAD[f]) {
               const c = VoxelHouse.CORNERS[ci];
@@ -577,7 +584,8 @@ export class VoxelHouse {
           }
         }
     if (!idx.length) return null;
-    return { id: -1, verts: new Float32Array(verts), idx: new Uint32Array(idx) };
+    return { id: -1, verts: new Float32Array(verts), idx: new Uint32Array(idx),
+      voxelGrid: { origin: [this.ox + i0 * PITCH, this.oy + j0 * PITCH, this.oz + k0 * PITCH], size: [nx, ny, nz], pitch: PITCH, cells } };
   }
 
   /** Пересобирает физику изменённых чанков (или всех). */
@@ -594,9 +602,9 @@ export class VoxelHouse {
         kind: 'static',
         shapes: [{ t: 'trimesh', verts: g.verts, idx: g.idx }],
         pos: [0, 0, 0], quat: [0, 0, 0, 1],
-        surface: 'concrete',
+        surface: 'concrete', voxelGrid: g.voxelGrid,
       } as never);
-      this.chunkP.set(key, { id, verts: g.verts, idx: g.idx });
+      this.chunkP.set(key, { ...g, id });
     }
   }
 
@@ -836,8 +844,8 @@ export class VoxelHouse {
         const [cx, cy, cz] = key.split(',').map(Number);
         const g = this.chunkGeom(cx, cy, cz);
         if (!g) continue;
-        const id = this.phys.add({ kind: 'static', shapes: [{ t: 'trimesh', verts: g.verts, idx: g.idx }], pos: [0, 0, 0], quat: [0, 0, 0, 1], surface: 'concrete' } as never);
-        this.chunkP.set(key, { id, verts: g.verts, idx: g.idx });
+        const id = this.phys.add({ kind: 'static', shapes: [{ t: 'trimesh', verts: g.verts, idx: g.idx }], pos: [0, 0, 0], quat: [0, 0, 0, 1], surface: 'concrete', voxelGrid: g.voxelGrid } as never);
+        this.chunkP.set(key, { ...g, id });
       }
     }
     // проверка опоры — раз в 0.5 с (BFS по 30k ячеек не бесплатен)

@@ -3,7 +3,7 @@
 // а стены кажутся дырявыми (пользователь: «здания вывернуты»).
 import * as THREE from 'three';
 import { buildVoxelHouse } from '../src/game/voxelgen.ts';
-import { VoxelHouse, PITCH } from '../src/game/voxelhouse.ts';
+import { VoxelHouse, PITCH, VOXEL_MATERIAL } from '../src/game/voxelhouse.ts';
 
 let ok = 0, bad = 0;
 const check = (n, c, i = '') => { if (c) { ok++; console.log(`  ok   ${n} ${i}`); } else { bad++; console.log(`  FAIL ${n} ${i}`); } };
@@ -45,7 +45,10 @@ const g = H['chunkGeom'](0, 0, 0);
 if (g) {
   const pos = g.verts, idx = g.idx;
   let inw = 0;
-  const isSolid = (x, y, z) => H['idAt'](Math.floor(x / PITCH), Math.floor(y / PITCH), Math.floor(z / PITCH)) >= 0;
+  const materialAt = (x, y, z) => {
+    const id = H['idAt'](Math.floor(x / PITCH), Math.floor(y / PITCH), Math.floor(z / PITCH));
+    return id < 0 || !H.alive[id] ? null : VOXEL_MATERIAL[H.kind[id]];
+  };
   for (let t = 0; t < idx.length; t += 3) {
     const a = idx[t] * 3, b = idx[t + 1] * 3, d = idx[t + 2] * 3;
     const e1 = [pos[b] - pos[a], pos[b + 1] - pos[a + 1], pos[b + 2] - pos[a + 2]];
@@ -56,11 +59,13 @@ if (g) {
     for (let c = 0; c < 3; c++) n[c] /= len;
     const cx = (pos[a] + pos[b] + pos[d]) / 3, cy = (pos[a + 1] + pos[b + 1] + pos[d + 1]) / 3, cz = (pos[a + 2] + pos[b + 2] + pos[d + 2]) / 3;
     const st = PITCH * 0.5;
-    const outside = isSolid(cx + n[0] * st, cy + n[1] * st, cz + n[2] * st);
-    const inside = isSolid(cx - n[0] * st, cy - n[1] * st, cz - n[2] * st);
-    if (outside || !inside) inw++;
+    const outside = materialAt(cx + n[0] * st, cy + n[1] * st, cz + n[2] * st);
+    const inside = materialAt(cx - n[0] * st, cy - n[1] * st, cz - n[2] * st);
+    // Внутренние грани разных материалов нужны для баллистики; вектор нормали
+    // по-прежнему направлен от породившего грань вокселя наружу.
+    if (!inside || outside === inside) inw++;
   }
-  check('в физике та же намотка', inw === 0, `вывернутых ${inw}`);
+  check('в физике нормали и границы материалов корректны', inw === 0, `ошибочных ${inw}`);
 }
 
 // наружная поверхность: у стены должен быть «лицом наружу» и материал не просвечивать

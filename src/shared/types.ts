@@ -42,9 +42,16 @@ export interface VehicleDesc {
   pivotRate?: number;
 }
 
+/** Локальная часть сетки воксельного дома в мировых координатах. -1 — пусто. */
+export interface VoxelMaterialGrid {
+  origin: [number, number, number]; size: [number, number, number]; pitch: number; cells: Int8Array;
+}
+
 export interface BodyDesc {
   id: number; kind: 'static' | 'dynamic'; pos: [number, number, number]; rotY?: number; quat?: [number, number, number, number];
   shapes: Shape[]; mass?: number; friction?: number; restitution?: number;
+  /** Для выстрелов по чанку: материал каждого живого вокселя. */
+  voxelGrid?: VoxelMaterialGrid;
   linDamp?: number; angDamp?: number; sleeping?: boolean;
   /** материал поверхности (по умолчанию concrete) */
   surface?: Surface;

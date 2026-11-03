@@ -1,7 +1,8 @@
 // Физический мир в Web Worker: Rapier3D, фиксированный шаг 60 Гц.
 import RAPIER from '@dimforge/rapier3d-compat';
-import type { ToWorker, FromWorker, BodyDesc, Shape, PlayerInput, PlayerState, Tracer, Impact, Surface, VehicleDesc } from '../shared/types';
+import type { ToWorker, FromWorker, BodyDesc, Shape, PlayerInput, PlayerState, Tracer, Impact, Surface, VehicleDesc, VoxelMaterialGrid } from '../shared/types';
 import { SURFACES, BALLISTICS, penetrationResult, ricochetChance } from '../game/weapons';
+import { VOXEL_MATERIAL } from '../shared/voxelMaterials';
 import { PHYS_HZ, GRAVITY, PLAYER } from '../shared/constants';
 import { stepVehicle as stepVehicleLocal } from '../game/vehicleRig';
 import { amphibiousAcceleration, boatWavePose, advanceTankFlood, tankFloodHeight, TANK_EVACUATION_TIME, type TankFlood } from '../game/vehicleWater';
@@ -13,8 +14,50 @@ const bodies = new Map<number, RAPIER.RigidBody>();
 const dynIds = new Set<number>();
 // Метаданные коллайдеров: материал, принадлежность к панели дома, толщина.
 // Без этого баллистика не знает, во что попала пуля.
-interface ColMeta { bodyId: number; panel: number; surface: Surface; building: boolean; thin: boolean; group: number }
+interface ColMeta { bodyId: number; panel: number; surface: Surface; building: boolean; thin: boolean; group: number; voxelGrid?: VoxelMaterialGrid; voxelKeys?: string[] }
 const colMeta = new Map<number, ColMeta>();
+// Пространственный индекс чанков нужен только при попадании точно на стык двух чанков.
+const voxelBins = new Map<string, Set<ColMeta>>();
+const VOXEL_BIN = 4;
+function registerVoxel(meta: ColMeta) {
+  const grid = meta.voxelGrid;
+  if (!grid) return;
+  const min = grid.origin.map(v => Math.floor(v / VOXEL_BIN));
+  const max = grid.origin.map((v, i) => Math.floor((v + grid.size[i] * grid.pitch - 1e-6) / VOXEL_BIN));
+  const keys: string[] = [];
+  for (let x = min[0]; x <= max[0]; x++) for (let y = min[1]; y <= max[1]; y++) for (let z = min[2]; z <= max[2]; z++) {
+    const key = `${x}:${y}:${z}`;
+    let bin = voxelBins.get(key);
+    if (!bin) { bin = new Set(); voxelBins.set(key, bin); }
+    bin.add(meta); keys.push(key);
+  }
+  meta.voxelKeys = keys;
+}
+function unregisterVoxel(meta: ColMeta) {
+  for (const key of meta.voxelKeys ?? []) {
+    const bin = voxelBins.get(key);
+    bin?.delete(meta);
+    if (!bin?.size) voxelBins.delete(key);
+  }
+}
+function sampleVoxel(meta: ColMeta, point: [number, number, number]): Surface | null {
+  const grid = meta.voxelGrid;
+  if (!grid) return null;
+  const [x, y, z] = point.map((v, i) => Math.floor((v - grid.origin[i]) / grid.pitch));
+  const [nx, ny, nz] = grid.size;
+  if (x < 0 || y < 0 || z < 0 || x >= nx || y >= ny || z >= nz) return null;
+  return VOXEL_MATERIAL[grid.cells[(y * nz + z) * nx + x]] ?? null;
+}
+function voxelAt(point: [number, number, number], preferred: ColMeta): { surface: Surface; meta: ColMeta } | null {
+  const surface = sampleVoxel(preferred, point);
+  if (surface) return { surface, meta: preferred };
+  const key = point.map(v => Math.floor(v / VOXEL_BIN)).join(':');
+  for (const meta of voxelBins.get(key) ?? []) {
+    const s = sampleVoxel(meta, point);
+    if (s) return { surface: s, meta };
+  }
+  return null;
+}
 const panelCols = new Map<string, RAPIER.Collider>(); // `${bodyId}:${panel}` → коллайдер
 let tracers: Tracer[] = [];
 let eventQueue: RAPIER.EventQueue;
@@ -457,10 +500,12 @@ function addBody(b: BodyDesc) {
     const col = world.createCollider(d, rb);
     // панель дома: каждая форма — отдельная панель, panel = индекс в спецификации
     const panel = b.building ? (b.panels?.[si] ?? si) : -1;
-    colMeta.set(col.handle, {
+    const meta: ColMeta = {
       bodyId: b.id, panel, surface: (b.surface ?? 'concrete') as Surface,
-      building: !!b.building, thin: !!b.thin, group: b.group ?? 0,
-    });
+      building: !!b.building, thin: !!b.thin, group: b.group ?? 0, voxelGrid: b.voxelGrid,
+    };
+    colMeta.set(col.handle, meta);
+    registerVoxel(meta);
     if (b.building && panel >= 0) panelCols.set(`${b.id}:${panel}`, col);
   });
   bodies.set(b.id, rb);
@@ -471,7 +516,7 @@ function addBody(b: BodyDesc) {
 function removePanel(bodyId: number, panel: number) {
   const key = `${bodyId}:${panel}`;
   const col = panelCols.get(key);
-  if (col) { colMeta.delete(col.handle); world.removeCollider(col, false); panelCols.delete(key); }
+  if (col) { const meta = colMeta.get(col.handle); if (meta) unregisterVoxel(meta); colMeta.delete(col.handle); world.removeCollider(col, false); panelCols.delete(key); }
 }
 function explosion(pos: [number, number, number], radius: number, impulse: number) {
   const blast = blastAt(water ?? undefined, pos, radius, impulse);
@@ -532,10 +577,25 @@ function stepProjectile(tr: Tracer, dt: number) {
       passing?.size ? collider => !passing!.has(collider.handle) : undefined);
     if (!hit) { tr.pos = [nx, ny, nz]; continue; }
 
-    const meta = colMeta.get(hit.collider.handle);
+    let meta = colMeta.get(hit.collider.handle);
     const point: [number, number, number] = [tr.pos[0] + dir.x * hit.timeOfImpact, tr.pos[1] + dir.y * hit.timeOfImpact, tr.pos[2] + dir.z * hit.timeOfImpact];
     const normal: [number, number, number] = [hit.normal.x, hit.normal.y, hit.normal.z];
-    const surface: Surface = meta?.surface ?? 'dirt';
+    let surface: Surface = meta?.surface ?? 'dirt';
+    if (meta?.voxelGrid) {
+      // Небольшой сдвиг за плоскость грани по нормали: при скользящем ударе
+      // один только шаг вдоль луча может не пересечь её из-за точности float32.
+      const next: [number, number, number] = [point[0] + dir.x * 0.001 - normal[0] * 0.001, point[1] + dir.y * 0.001 - normal[1] * 0.001, point[2] + dir.z * 0.001 - normal[2] * 0.001];
+      const target = voxelAt(next, meta);
+      if (target) { surface = target.surface; meta = target.meta; }
+      else if (!tr.explosive) {
+        // Выход из уже пробитого вокселя в воздух — не новое попадание.
+        tr.pos = next;
+        continue;
+      } else {
+        const before: [number, number, number] = [point[0] + normal[0] * 0.001, point[1] + normal[1] * 0.001, point[2] + normal[2] * 0.001];
+        surface = voxelAt(before, meta)?.surface ?? surface;
+      }
+    }
     // угол к нормали: 0 — в лоб
     const cosA = Math.abs(dir.x * normal[0] + dir.y * normal[1] + dir.z * normal[2]);
     const angleDeg = Math.acos(Math.min(1, cosA)) * 180 / Math.PI;
@@ -574,9 +634,14 @@ function stepProjectile(tr: Tracer, dt: number) {
     tr.vel = [tr.vel[0] / l * speed, tr.vel[1] / l * speed, tr.vel[2] / l * speed];
     // Не перепрыгиваем 35 см: внутри могут быть другие тонкие стены/предметы.
     // Малый сдвиг пересекает входную поверхность; дальше летим с обычной скоростью.
-    tr.pos = [point[0] + dir.x * 0.001, point[1] + dir.y * 0.001, point[2] + dir.z * 0.001];
-    if (!passing) { passing = new Set<number>(); passingColliders.set(tr, passing); }
-    passing.add(hit.collider.handle);
+    const bias = meta?.voxelGrid ? 0.001 : 0;
+    tr.pos = [point[0] + dir.x * 0.001 - normal[0] * bias, point[1] + dir.y * 0.001 - normal[1] * bias, point[2] + dir.z * 0.001 - normal[2] * bias];
+    // Тримеш чанка состоит из множества граней: его нельзя исключать целиком,
+    // иначе пуля пропустит другие воксели того же дома.
+    if (!meta?.voxelGrid) {
+      if (!passing) { passing = new Set<number>(); passingColliders.set(tr, passing); }
+      passing.add(hit.collider.handle);
+    }
     tr.penetration = remain;
   }
   return true;
@@ -626,7 +691,14 @@ function loop() {
     case 'init': break;
     case 'water': water = m.water as WaterDef | null; waterTime = 0; oxygen = OXYGEN_TIME; break;
     case 'addBodies': m.bodies.forEach(addBody); break;
-    case 'removeBody': { const rb = bodies.get(m.id); if (rb) { world.removeRigidBody(rb); bodies.delete(m.id); dynIds.delete(m.id); } break; }
+    case 'removeBody': { const rb = bodies.get(m.id); if (rb) {
+      for (let i = 0; i < rb.numColliders(); i++) {
+        const col = rb.collider(i); const meta = colMeta.get(col.handle);
+        if (meta) { unregisterVoxel(meta); if (meta.building && meta.panel >= 0) panelCols.delete(`${meta.bodyId}:${meta.panel}`); }
+        colMeta.delete(col.handle);
+      }
+      world.removeRigidBody(rb); bodies.delete(m.id); dynIds.delete(m.id);
+    } break; }
     case 'input': input = m.input; break;
     case 'spawnPlayer': spawnPlayer(m.pos, m.preserve); break;
     case 'impulse': { const rb = bodies.get(m.id); rb?.applyImpulse({ x: m.imp[0], y: m.imp[1], z: m.imp[2] }, true); break; }
