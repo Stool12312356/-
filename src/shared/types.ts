@@ -23,6 +23,24 @@ export type Shape =
   | { t: 'trimesh'; verts: Float32Array; idx: Uint32Array }
   | { t: 'heightfield'; nrows: number; ncols: number; heights: Float32Array; scale: [number, number, number] };
 
+/** Описание машины для физического воркера: данные из game/vehicles.ts (без импорта класса). */
+export interface VehicleDesc {
+  id: number;
+  specId: string;
+  pos: [number, number, number];
+  yaw: number;
+  /** масса, кг */
+  mass: number;
+  size: [number, number, number];
+  /** колёса: локальные позиции, радиус, подвеска, ведущее/рулевое */
+  wheels: { pos: [number, number, number]; radius: number; travel: number; stiffness: number; damping: number; drive: boolean; steer: boolean }[];
+  drive: 'wheeled' | 'tracked';
+  power: number;
+  maxSpeed: number;
+  steerMax: number;
+  pivotRate?: number;
+}
+
 export interface BodyDesc {
   id: number; kind: 'static' | 'dynamic'; pos: [number, number, number]; rotY?: number; quat?: [number, number, number, number];
   shapes: Shape[]; mass?: number; friction?: number; restitution?: number;
@@ -105,7 +123,16 @@ export type ToWorker =
   /** полечить игрока (аптечка класса), не выше предела */
   | { type: 'heal'; hp: number }
   /** предел здоровья класса (поддержка крепче): hpLimit, текущее HP не лечится вверх */
-  | { type: 'maxHp'; hp: number };
+  | { type: 'maxHp'; hp: number }
+  /** техника (ТЗ п.4.3): машина с ходовой СВОИМИ колёсами (без физических лучей в воркере) */
+  | { type: 'addVehicle'; v: VehicleDesc }
+  | { type: 'removeVehicle'; id: number }
+  /** управление техникой: газ (-1..1), руль (-1..1), ручник */
+  | { type: 'drive'; id: number; throttle: number; steer: number; handbrake: boolean }
+  /** игрок сел в машину (или вышел: id = -1) */
+  | { type: 'enterVehicle'; id: number }
+  /** повреждение узла машины: track | engine | turret */
+  | { type: 'damageVehicle'; id: number; part: 'track' | 'engine' | 'turret' };
 
 export interface PlayerState {
   pos: [number, number, number]; vel: [number, number, number]; grounded: boolean; stance: 0 | 1 | 2;
@@ -120,4 +147,9 @@ export type FromWorker =
   /** трассеры после шага физики (для отрисовки) */
   | { type: 'tracers'; tracers: Tracer[] }
   /** попадания за шаг: пуля/осколок/взрыв */
-  | { type: 'impacts'; impacts: Impact[] };
+  | { type: 'impacts'; impacts: Impact[] }
+  /** состояние машины игрока (позиция для камеры и HUD) */
+  | {
+      type: 'vehicle'; id: number; pos: [number, number, number]; yaw: number;
+      speed: number; /** км/ч */ wheelComp: number[]; slip: boolean; damaged: { track: boolean; engine: boolean; turret: boolean };
+    };

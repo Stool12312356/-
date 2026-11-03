@@ -18,6 +18,7 @@ import { Gadgets, gadgetForKey, type GadgetId } from './game/gadgets';
 import { spawnVoxelHouse, spawnSpecial, type PlacedBuilding } from './game/structure';
 import { BUILDINGS, SPAWN, CURRENT_MAP } from './game/world';
 import { SURFACES, pointBlankRange, EXPLOSION, EXPLOSION_SMALL } from './game/weapons';
+import { VEHICLE_SPAWNS, vehicleById } from './game/vehicles';
 import type { PlayerInput, Impact } from './shared/types';
 
 const $ = (id: string) => document.getElementById(id)!;
@@ -149,6 +150,7 @@ async function boot() {
   match = new Match(buildCapturePoints(CURRENT_MAP.id));
   buildPointMarkers();
   spawnWave();
+  spawnVehicles();
   squads = new Squads(bt, match, phys, fx);
   squads.onKill = (victim, killer) => {
     audio.hit('dirt', [victim.object.position.x, victim.object.position.y + 1, victim.object.position.z], listenerPos(camera));
@@ -169,6 +171,85 @@ async function boot() {
   selectClass(playerClass);
   ($('play') as HTMLButtonElement).disabled = false; ($('regbtn') as HTMLButtonElement).disabled = false;
   buildRegistry(); requestAnimationFrame(frame);
+}
+
+/**
+ * ТЕХНИКА НА КАРТЕ (ТЗ п.4.3). Машины ставятся у баз сторон; игрок подходит и садится
+ * (E), едет (W/S — газ, A/D — руль, Space — ручник), выходит (E).
+ * Модель берётся из манифеста; если её нет — машина всё равно существует физически,
+ * но показывается процедурная заглушка, а не чужая модель (правило проекта).
+ */
+const vehicleObjs = new Map<number, { obj: THREE.Object3D; specId: string; pos: [number, number, number]; yaw: number }>();
+function spawnVehicles() {
+  const list = VEHICLE_SPAWNS[CURRENT_MAP.id] ?? VEHICLE_SPAWNS.spalny;
+  for (const vs of list) {
+    const spec = vehicleById(vs.id);
+    // объект: настоящая модель или её процедурная заглушка (чужую не подставляем)
+    const inst = lib.has(spec.model) ? lib.make(spec.model) : null;
+    const obj = inst?.object ?? makeVehiclePlaceholder(spec);
+    obj.position.set(vs.pos[0], vs.pos[1], vs.pos[2]);
+    obj.rotation.y = vs.yaw;
+    scene.add(obj);
+    const id = phys.addVehicle({
+      specId: spec.id, pos: vs.pos, yaw: vs.yaw, mass: spec.mass, size: spec.size,
+      wheels: spec.wheels, drive: spec.drive, power: spec.power, maxSpeed: spec.maxSpeed,
+      steerMax: spec.steerMax, pivotRate: spec.pivotRate,
+    });
+    vehicleObjs.set(id, { obj, specId: spec.id, pos: vs.pos, yaw: vs.yaw });
+  }
+  addFeed(`Техника: ${list.length} машин у баз — подойди и нажми E`);
+}
+
+/** Простая коробка-заглушка по габаритам и колёсам: видно, где машина и куда она смотрит. */
+function makeVehiclePlaceholder(spec: { size: [number, number, number]; wheels: { pos: [number, number, number]; radius: number }[] }): THREE.Object3D {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(spec.size[0], spec.size[1] * 0.6, spec.size[2]),
+    new THREE.MeshStandardMaterial({ color: 0x4a5540, roughness: 0.85, metalness: 0.1 }));
+  body.position.y = spec.size[1] * 0.55;
+  g.add(body);
+  const wmat = new THREE.MeshStandardMaterial({ color: 0x181a18, roughness: 0.95 });
+  for (const w of spec.wheels) {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(w.radius, w.radius, 0.3, 10), wmat);
+    m.rotation.z = Math.PI / 2;
+    m.position.set(w.pos[0], w.pos[1], w.pos[2]);
+    g.add(m);
+  }
+  // «нос» — светлая полоса спереди, чтобы понять направление
+  const nose = new THREE.Mesh(new THREE.BoxGeometry(spec.size[0] * 0.8, 0.15, 0.25),
+    new THREE.MeshStandardMaterial({ color: 0xd8d2c0 }));
+  nose.position.set(0, spec.size[1] * 0.7, spec.size[2] / 2);
+  g.add(nose);
+  return g;
+}
+
+/** Ближайшая машина в радиусе (для подсказки «E — сесть»). */
+function nearestVehicle(maxDist = 3.2): number | null {
+  const p = phys.player?.pos; if (!p) return null;
+  let best: number | null = null, bd = maxDist;
+  for (const [id, v] of vehicleObjs) {
+    const d = Math.hypot(p[0] - v.pos[0], p[2] - v.pos[2]);
+    if (d < bd) { bd = d; best = id; }
+  }
+  return best;
+}
+
+/** В машине ли игрок (id) и какую машину ведём. */
+let drivingId: number | null = null;
+function toggleVehicle() {
+  if (drivingId != null) {
+    // выйти: рядом с машиной, чтобы не оказаться внутри корпуса
+    const v = phys.vehicles.get(drivingId);
+    if (v) phys.post({ type: 'spawnPlayer', pos: [v.pos[0] + Math.cos(v.yaw) * 3, v.pos[1] + 0.4, v.pos[2] - Math.sin(v.yaw) * 3] });
+    phys.enterVehicle(-1);
+    addFeed(`Вышел из машины: ${vehicleById(vehicleObjs.get(drivingId)?.specId ?? 'uaz469').name}`);
+    drivingId = null;
+    return;
+  }
+  const id = nearestVehicle();
+  if (id == null) { addFeed('Рядом нет техники (подойди ближе 3 м)'); return; }
+  drivingId = id;
+  phys.enterVehicle(id);
+  addFeed(`Сел в ${vehicleById(vehicleObjs.get(id)?.specId ?? 'uaz469').name}: W/S — газ, A/D — руль, E — выйти`);
 }
 
 /**
@@ -497,6 +578,7 @@ addEventListener('keydown', e => {
     const g = gadgetForKey(gadgets.list, e.code);
     if (g) { e.preventDefault(); gadgets.use(g); }
   }
+  if (e.code === 'KeyE') { toggleVehicle(); return; }
   if (e.code === 'KeyF') throwCrate();
   if (e.code === 'KeyG') blast();
   if (e.code === 'KeyB') phys.post({ type: 'spawnPlayer', pos: SPAWN });
@@ -549,7 +631,23 @@ function frame(now: number) {
     yaw, pitch, fwd: (keys.has('KeyW') ? 1 : 0) - (keys.has('KeyS') ? 1 : 0), right: (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0),
     jump: keys.has('Space'), sprint: keys.has('ShiftLeft') || keys.has('ShiftRight'), crouch: toggledCrouch || keys.has('ControlLeft'), prone: toggledProne,
   };
-  if (started) phys.sendInput(inp);
+  if (started) {
+    // За рулём пехотинцу управление не шлём: иначе игрок «выходит» из машины своим ходом
+    if (drivingId == null) phys.sendInput(inp);
+    else {
+      const th = (keys.has('KeyW') ? 1 : 0) - (keys.has('KeyS') ? 1 : 0);
+      const st = (keys.has('KeyA') ? 1 : 0) - (keys.has('KeyD') ? 1 : 0);
+      phys.drive(drivingId, th, st, keys.has('Space'));
+    }
+  }
+  // машины: позы приходят из воркера (ходовая считается там)
+  for (const [id, v] of vehicleObjs) {
+    const s2 = phys.vehicles.get(id);
+    if (!s2) continue;
+    v.pos = s2.pos; v.yaw = s2.yaw;
+    v.obj.position.set(s2.pos[0], s2.pos[1], s2.pos[2]);
+    v.obj.rotation.y = s2.yaw;
+  }
   combat?.update(dt, phys.player ? Math.hypot(phys.player.vel[0], phys.player.vel[2]) : 0);
   // звук: панорама по взгляду + шаги (снег/бетон) с шагом 0.55 м
   audio.listenerYaw = yaw;
@@ -576,6 +674,16 @@ function frame(now: number) {
     if ($('stance')) $('stance').title = CLASSES[playerClass].name; $('stance').textContent = ['Стоя', 'Присед', 'Лёжа'][p.stance] + (p.sliding ? ' · СПОЛЗАНИЕ' : '') + (p.grounded ? '' : ' · в воздухе') + (p.slope ? ` · склон ${p.slope.toFixed(0)}°` : '');
     const s = phys.stats;
     const w = combat?.weapon;
+    if (drivingId != null) {
+      const v = phys.vehicles.get(drivingId);
+      if (v) {
+        const nm = vehicleById(vehicleObjs.get(drivingId)?.specId ?? 'uaz469').name;
+        $('info').textContent = `${nm}: ${v.speed.toFixed(0)} км/ч${v.slip ? ' · БУКСУЕТ' : ''}` +
+          (v.damaged.track ? ' · ГУСЕНИЦА' : '') + (v.damaged.engine ? ' · ДВИГАТЕЛЬ' : '') + '\nE — выйти';
+      }
+    } else if (nearestVehicle() != null) {
+      $('veh') && ($('veh').textContent = 'E — сесть в машину');
+    } else if ($('veh')) $('veh').textContent = '';
     $('info').textContent = `FPS ${fps.toFixed(0)}\nФизика: ${s.stepMs.toFixed(2)} мс/шаг · тел ${s.awake}/${s.total}\nСкорость: ${spd.toFixed(1)} м/с\nPos: ${p.pos.map(v => v.toFixed(1)).join(', ')}` +
       (w ? `\n${w.name}: ${w.velocity} м/с, прямой выстрел ~${pointBlankRange(w.velocity, w.bc)} м` : '');
     if (p.hp < lastHp) { const f = $('flash'); f.style.transition = 'none'; f.style.opacity = '0.35'; requestAnimationFrame(() => { f.style.transition = 'opacity .5s'; f.style.opacity = '0'; }); }

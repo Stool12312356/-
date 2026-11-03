@@ -1,8 +1,9 @@
 // Физический мир в Web Worker: Rapier3D, фиксированный шаг 60 Гц.
 import RAPIER from '@dimforge/rapier3d-compat';
-import type { ToWorker, FromWorker, BodyDesc, Shape, PlayerInput, PlayerState, Tracer, Impact, Surface } from '../shared/types';
+import type { ToWorker, FromWorker, BodyDesc, Shape, PlayerInput, PlayerState, Tracer, Impact, Surface, VehicleDesc } from '../shared/types';
 import { SURFACES, BALLISTICS, penetrationResult } from '../game/weapons';
 import { PHYS_HZ, GRAVITY, PLAYER } from '../shared/constants';
+import { stepVehicle as stepVehicleLocal } from '../game/vehicleRig';
 
 const DT = 1 / PHYS_HZ;
 let world: RAPIER.World;
@@ -144,6 +145,142 @@ function stepPlayer() {
   } else ps.hurtAt = 0;
   // упал за карту / умер -> респавн
   if (ps.feet[1] < -60 || ps.hp <= 0) { spawnPlayer(ps.spawn); }
+}
+
+// ---------- техника (ТЗ п.4.3) ----------
+// Машина — кинематическое тело с СОБСТВЕННОЙ ходовой: шаг считается в game/vehicleRig.ts
+// по высотам земли под колёсами (castRay вниз), а в мир она отдаёт позицию. Так физика
+// не «воюет» с пружинами подвески, а поведение (букс, разворот гусениц, повреждения
+// узлов) остаётся предсказуемым и проверяемым тестом.
+interface VehicleRT {
+  desc: VehicleDesc;
+  pos: [number, number, number];
+  vel: [number, number, number];
+  yaw: number; yawRate: number; steer: number;
+  gear: -1 | 0 | 1;
+  throttle: number; steerIn: number; handbrake: boolean;
+  damaged: { track: boolean; engine: boolean; turret: boolean };
+  rb: RAPIER.RigidBody;
+}
+const vehicles = new Map<number, VehicleRT>();
+/** в какой машине игрок (−1 — пешком) */
+let playerVehicle = -1;
+
+function vehicleContacts(v: VehicleRT) {
+  const spec = v.desc;
+  const c = Math.cos(v.yaw), s2 = Math.sin(v.yaw);
+  return spec.wheels.map(w => {
+    const x = w.pos[0] * c + w.pos[2] * s2;
+    const z = -w.pos[0] * s2 + w.pos[2] * c;
+    const ox = v.pos[0] + x, oy = v.pos[1] + w.pos[1], oz = v.pos[2] + z;
+    const ray = new RAPIER.Ray({ x: ox, y: oy, z: oz }, { x: 0, y: -1, z: 0 });
+    const hit = world.castRayAndGetNormal(ray, w.radius + w.travel + 0.6, true);
+    if (!hit) return { ground: null as number | null, normal: [0, 1, 0] as [number, number, number], surface: 'dirt' };
+    const meta = colMeta.get(hit.collider.handle);
+    const gy = oy - hit.timeOfImpact;
+    return {
+      ground: gy,
+      normal: [hit.normal.x, hit.normal.y, hit.normal.z] as [number, number, number],
+      surface: (meta?.surface ?? 'dirt') as string,
+    };
+  });
+}
+
+function addVehicle(v: VehicleDesc) {
+  const rb = world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(v.pos[0], v.pos[1], v.pos[2]));
+  world.createCollider(RAPIER.ColliderDesc.cuboid(v.size[0] / 2, v.size[1] / 2, v.size[2] / 2)
+    .setFriction(0.6).setRestitution(0.05), rb);
+  vehicles.set(v.id, {
+    desc: v, pos: [...v.pos], vel: [0, 0, 0], yaw: v.yaw, yawRate: 0, steer: 0, gear: 1,
+    throttle: 0, steerIn: 0, handbrake: false,
+    damaged: { track: false, engine: false, turret: false }, rb,
+  });
+}
+
+function removeVehicle(id: number) {
+  const v = vehicles.get(id);
+  if (!v) return;
+  world.removeRigidBody(v.rb); vehicles.delete(id);
+  if (playerVehicle === id) { playerVehicle = -1; if (pBody) ps.feet = [...v.pos]; }
+}
+
+/** Шаг всех машин: ходовая, столкновения корпусом (таран) и высадка игрока. */
+function stepVehicles() {
+  for (const v of vehicles.values()) {
+    const contacts = vehicleContacts(v);
+    const st = {
+      spec: vehicleSpecOf(v.desc), pos: v.pos, vel: v.vel, yaw: v.yaw, yawRate: v.yawRate,
+      steer: v.steer, gear: v.gear, damaged: v.damaged,
+    } as any;
+    const r = stepVehicleLocal(st, DT, { throttle: v.throttle, steer: v.steerIn, handbrake: v.handbrake }, contacts);
+    v.vel[1] += (r.force[1] / v.desc.mass - 9.81) * DT;
+    v.vel[0] += (r.force[0] / v.desc.mass) * DT;
+    v.vel[2] += (r.force[2] / v.desc.mass) * DT;
+    v.vel[0] *= 0.995; v.vel[2] *= 0.995;
+    v.pos[0] += v.vel[0] * DT; v.pos[1] += v.vel[1] * DT; v.pos[2] += v.vel[2] * DT;
+    v.yawRate += r.torqueY * DT;
+    v.yaw += v.yawRate * DT;
+    v.steer = st.steer;
+    // корпус не проваливается сквозь землю и не улетает: держим на поверхности
+    const gy = contacts.find(c => c.ground != null)?.ground ?? null;
+    const minY = (gy ?? v.pos[1]) + v.desc.wheels[0].radius * 0.5;
+    if (v.pos[1] < minY) { v.pos[1] = minY; if (v.vel[1] < 0) v.vel[1] = 0; }
+    v.rb.setNextKinematicTranslation({ x: v.pos[0], y: v.pos[1], z: v.pos[2] });
+    v.rb.setNextKinematicRotation({ x: 0, y: Math.sin(v.yaw / 2), z: 0, w: Math.cos(v.yaw / 2) });
+
+    // игрок внутри: его положение = сиденье машины (камера едет вместе с ней)
+    if (playerVehicle === v.desc.id && pBody) {
+      const c = Math.cos(v.yaw), s2 = Math.sin(v.yaw);
+      const seatX = v.pos[0] + (-0.35 * c + 0.2 * s2), seatZ = v.pos[2] + (0.35 * s2 + 0.2 * c);
+      ps.feet = [seatX, v.pos[1] + 0.4, seatZ];
+      ps.vel = [...v.vel]; ps.grounded = true;
+      pBody.setNextKinematicTranslation({ x: seatX, y: ps.feet[1] + stanceH[ps.stance] / 2, z: seatZ });
+    }
+    // таран: если впереди препятствие и скорость высокая — импульс и урон (ТЗ 4.3)
+    const speed = Math.hypot(v.vel[0], v.vel[2]);
+    if (speed > 3) {
+      const ray = new RAPIER.Ray({ x: v.pos[0], y: v.pos[1] + 0.6, z: v.pos[2] },
+        { x: Math.sin(v.yaw), y: 0, z: Math.cos(v.yaw) });
+      const hit = world.castRay(ray, v.desc.size[2] / 2 + 0.4, true, undefined, undefined, vehicles.get(v.desc.id)!.rb as any);
+      if (hit) {
+        const meta = colMeta.get(hit.collider.handle);
+        const other = meta?.bodyId ?? -1;
+        const otherRb = bodies.get(other);
+        const mOther = otherRb ? Math.max(1, otherRb.mass()) : 5000;   // стена — «очень тяжёлая»
+        const mEff = (v.desc.mass * mOther) / (v.desc.mass + mOther);
+        const imp = mEff * speed;
+        otherRb?.wakeUp();
+        otherRb?.applyImpulse({ x: ray.dir.x * imp, y: imp * 0.06, z: ray.dir.z * imp }, true);
+        // встречный урон: чем «твёрже» цель, тем больнее машине
+        const hardness = meta?.building ? 1 : 0.25;
+        const dmg = Math.min(45, (imp / Math.max(1, v.desc.mass)) * 3.2 * hardness);
+        if (dmg > 0.5) {
+          v.vel[0] *= 0.35; v.vel[2] *= 0.35;
+          if (dmg > 12) {   // сильный удар ломает гусеницу/двигатель
+            if (v.desc.drive === 'tracked') v.damaged.track = true; else v.damaged.engine = true;
+          }
+        }
+      }
+    }
+    (self as any).postMessage({
+      type: 'vehicle', id: v.desc.id, pos: [...v.pos], yaw: v.yaw,
+      speed: speed * 3.6, wheelComp: r.wheels.map(w => w.compression), slip: r.wheels.some(w => w.slip),
+      damaged: { ...v.damaged },
+    } satisfies FromWorker);
+  }
+}
+
+/**
+ * Мост между описанием машины из воркера и функциями ходовой из game/vehicleRig.ts.
+ * Описание приходит из основного потока (VehicleDesc), поэтому здесь собираем
+ * VehicleSpec «на лету» — без импорта таблицы VEHICLES в воркер.
+ */
+function vehicleSpecOf(d: VehicleDesc) {
+  return {
+    id: d.specId, name: d.specId, model: d.specId, drive: d.drive, mass: d.mass,
+    maxSpeed: d.maxSpeed, power: d.power, steerMax: d.steerMax, pivotRate: d.pivotRate,
+    size: d.size, armor: 0, crew: 0, wheels: d.wheels,
+  } as any;
 }
 
 // ---------- тела ----------
@@ -313,7 +450,7 @@ function snapshot() {
 function loop() {
   const now = performance.now(); acc += Math.min(0.1, (now - last) / 1000); last = now;
   let n = 0;
-  while (acc >= DT && n < 5) { const t0 = performance.now(); stepPlayer(); stepTracers(DT); world.step(eventQueue); stepMs = stepMs * 0.9 + (performance.now() - t0) * 0.1; acc -= DT; n++; }
+  while (acc >= DT && n < 5) { const t0 = performance.now(); stepVehicles(); stepPlayer(); stepTracers(DT); world.step(eventQueue); stepMs = stepMs * 0.9 + (performance.now() - t0) * 0.1; acc -= DT; n++; }
   if (n) snapshot();
   setTimeout(loop, 3);
 }
@@ -339,6 +476,33 @@ function loop() {
     }
     case 'shoot': tracers.push({ ...m.tracer }); break;
     case 'removePanel': removePanel(m.bodyId, m.panel); break;
+    case 'addVehicle': addVehicle(m.v); break;
+    case 'removeVehicle': removeVehicle(m.id); break;
+    case 'drive': {
+      const v = vehicles.get(m.id); if (!v) break;
+      v.throttle = Math.max(-1, Math.min(1, m.throttle));
+      v.steerIn = Math.max(-1, Math.min(1, m.steer));
+      v.handbrake = m.handbrake;
+      v.gear = v.throttle < 0 ? -1 : 1;
+      if (playerVehicle === m.id && pBody) ps.grounded = true;
+      break;
+    }
+    case 'enterVehicle': {
+      // сесть можно только рядом с машиной (2.5 м), иначе игнорируем
+      const v = vehicles.get(m.id);
+      if (!v) { playerVehicle = -1; break; }
+      const d = Math.hypot(ps.feet[0] - v.pos[0], ps.feet[2] - v.pos[2]);
+      playerVehicle = d < 4 ? m.id : -1;
+      if (playerVehicle >= 0) { ps.stance = 0; }
+      break;
+    }
+    case 'damageVehicle': {
+      const v = vehicles.get(m.id); if (!v) break;
+      if (m.part === 'track') v.damaged.track = true;
+      if (m.part === 'engine') v.damaged.engine = true;
+      if (m.part === 'turret') v.damaged.turret = true;
+      break;
+    }
     case 'ray': {
       // Луч от камеры. Нужен, чтобы ствол смотрел РОВНО в перекрестие, а не «примерно».
       const ray = new RAPIER.Ray({ x: m.origin[0], y: m.origin[1], z: m.origin[2] }, { x: m.dir[0], y: m.dir[1], z: m.dir[2] });

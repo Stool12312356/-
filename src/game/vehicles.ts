@@ -157,6 +157,25 @@ export const VEHICLES: VehicleSpec[] = [
   },
 ];
 
+/**
+ * ГДЕ СТОИТ ТЕХНИКА НА КАРТЕ (ТЗ п.4.3: «игрок должен мочь сесть и поехать»).
+ * Позиции берутся от баз сторон: у своих — УАЗ и БТР, у противника — БМП.
+ * Угол — куда смотрит нос (0 — на +Z).
+ */
+export const VEHICLE_SPAWNS: Record<string, { id: string; pos: [number, number, number]; yaw: number }[]> = {
+  spalny: [
+    { id: 'uaz469', pos: [-66, 0.6, -74], yaw: 0.4 },
+    // БТР отодвинут от хрущёвки: раньше стоял в её габарите (поймал тест test-vehicle-scene)
+    { id: 'btr80', pos: [-76, 0.8, -62], yaw: 0.1 },
+    { id: 'bmp2', pos: [46, 0.6, -92], yaw: Math.PI },
+  ],
+  zavod: [
+    { id: 'uaz469', pos: [-34, 0.6, -18], yaw: 0.2 },
+    { id: 'btr80', pos: [-26, 0.8, -24], yaw: 1.0 },
+    { id: 'bmp2', pos: [44, 0.6, -104], yaw: Math.PI },
+  ],
+};
+
 export const vehicleById = (id: string) => VEHICLES.find(v => v.id === id) ?? VEHICLES[0];
 
 // ---------------------------------------------------------------------------
