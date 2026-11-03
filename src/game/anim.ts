@@ -51,6 +51,8 @@ export class WalkAnim {
   speed = 0;
   /** наклон корпуса в сторону цели, радианы */
   torsoYaw = 0;
+  /** последняя ошибка анимации (если что-то пошло не так) — для HUD/консоли */
+  lastError: string | null = null;
 
   /**
    * @param root модель бота
@@ -117,6 +119,7 @@ export class WalkAnim {
     };
     // ПЛЕЧИ: какая ось и какой знак опускают кисть — зависит от скелета, поэтому не
     // угадываем, а МЕРЯЕМ: перебираем оси и знаки, оставляем вариант с самой низкой кистью.
+    if (!j.armL || !j.armR) return;      // плеч нет (другой скелет/заглушка) — поза не нужна
     const hand = j.forearmL ?? j.armL;
     const handY = () => {
       if (!hand) return 0;
@@ -134,8 +137,8 @@ export class WalkAnim {
         this.resetJoints();
         const d = new THREE.Euler();
         setEulerAxis(d, axis, ARM_DOWN * sign);
-        this.setLocalDelta(j.armL!, d);
-        this.setLocalDelta(j.armR!, new THREE.Euler(-d.x, -d.y, -d.z));
+        this.setLocalDelta(j.armL, d);
+        this.setLocalDelta(j.armR, new THREE.Euler(-d.x, -d.y, -d.z));
         const y = handY();
         if (y < best.y - 1e-3) best = { axis, sign, y };
       }
@@ -163,7 +166,11 @@ export class WalkAnim {
    * модели шпагат и руки назад. Пересчёт мировой дельты в локальную делает анимацию
    * независимой от ориентации скелета.
    */
-  private setLocalDelta(o: THREE.Object3D, delta: THREE.Euler) {
+  private setLocalDelta(o: THREE.Object3D | undefined | null, delta: THREE.Euler) {
+    // Кость могла не найтись: у модели-заглушки скелета нет, у второй модели часть
+    // костей отсутствует (нет стоп и предплечий). Раньше здесь падало с
+    // «Cannot read properties of undefined (reading 'parent')» — и игра не грузилась.
+    if (!o) return;
     const parent = o.parent;
     const pq = new THREE.Quaternion();
     if (parent) parent.getWorldQuaternion(pq); else pq.identity();
@@ -248,11 +255,12 @@ export class WalkAnim {
     // КОРПУС: покачивание и лёгкий наклон, голова смотрит туда же, куда корпус
     if (j.chest) this.setLocalDelta(j.chest, new THREE.Euler(0.04 * amp, this.torsoYaw * 0.55, c * 0.035 * amp, 'XYZ'));
     if (j.head) this.setLocalDelta(j.head, new THREE.Euler(-0.03 * amp, this.torsoYaw * 0.35, 0, 'XYZ'));
+
   }
 
   /** Сброс в базовую позу (смерть/рэгдолл). */
   reset() {
-    for (const [o, e] of this.joints.base) o.rotation.copy(e);
+    for (const [o, e] of this.joints.base) { if (o) o.rotation.copy(e); }
   }
 }
 

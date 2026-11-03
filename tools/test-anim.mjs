@@ -153,5 +153,27 @@ check('голова и корпус найдены', found.includes('head') && f
   }
 }
 
+// --- РЕГРЕССИЯ: анимация не должна падать на моделях без части костей.
+// Реальная ошибка из игры: «Cannot read properties of undefined (reading 'parent')» —
+// setLocalDelta получал кость, которой у модели нет (заглушка или другой скелет),
+// и игра вообще не загружалась.
+{
+  const cases = [
+    ['пустая модель', () => new THREE.Group()],
+    ['без плеч', () => { const g = new THREE.Group(); for (const n of ['Grp_Dui_l_1', 'Grp_Dui_r_1']) { const o = new THREE.Object3D(); o.name = n; g.add(o); } return g; }],
+    ['только плечи', () => { const g = new THREE.Group(); for (const n of ['Grp_Baptay_l_1', 'Grp_Baptay_r_1']) { const o = new THREE.Object3D(); o.name = n; g.add(o); } return g; }],
+    ['меш-заглушка', () => { const g = new THREE.Group(); g.add(new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.8, 0.3))); return g; }],
+  ];
+  for (const [name, make] of cases) {
+    let err = null;
+    try {
+      const a = new WalkAnim(make(), 'soldier_opfor');
+      for (let i = 0; i < 30; i++) a.update(1 / 60, 3.1);
+      a.reset();
+    } catch (e) { err = e; }
+    check(`не падает на модели: ${name}`, !err, err ? err.message : '');
+  }
+}
+
 console.log(`\nИТОГ: ${bad === 0 ? 'OK' : 'ПРОВАЛ'} — анимация ходьбы (${ok} проверок, ${bad} ошибок)`);
 process.exit(bad === 0 ? 0 : 1);
