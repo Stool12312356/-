@@ -163,11 +163,12 @@ export const VEHICLES: VehicleSpec[] = [
  * Угол — куда смотрит нос (0 — на +Z).
  */
 export const VEHICLE_SPAWNS: Record<string, { id: string; pos: [number, number, number]; yaw: number }[]> = {
+  // Позиции — по плану квартала (maps.ts): у своей базы на Советской и у базы врага
+  // за Гагарина. Стоят на проезжей части улиц, не в домах и не на точках захвата.
   spalny: [
-    { id: 'uaz469', pos: [-66, 0.6, -74], yaw: 0.4 },
-    // БТР отодвинут от хрущёвки: раньше стоял в её габарите (поймал тест test-vehicle-scene)
-    { id: 'btr80', pos: [-76, 0.8, -62], yaw: 0.1 },
-    { id: 'bmp2', pos: [46, 0.6, -92], yaw: Math.PI },
+    { id: 'uaz469', pos: [-84, 0.6, 32], yaw: 0.0 },
+    { id: 'btr80', pos: [-84, 0.8, 40], yaw: 0.0 },
+    { id: 'bmp2', pos: [82, 0.6, -24], yaw: Math.PI / 2 },
   ],
   zavod: [
     { id: 'uaz469', pos: [-34, 0.6, -18], yaw: 0.2 },

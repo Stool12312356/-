@@ -98,9 +98,11 @@ for (const map of maps) {
     const m = buildSpecial(sp.kind, sp.sections);
     const q = Math.abs(Math.round(sp.rotY / (Math.PI / 2))) % 2 === 1;
     const sx = q ? m.size[2] : m.size[0], sz = q ? m.size[0] : m.size[2];
-    boxes.push({ x: sp.pos[0], z: sp.pos[2], w: sx, d: sz, name: sp.kind, kind: 'special' });
+    boxes.push({ x: sp.pos[0], z: sp.pos[2], w: sx, d: sz, name: sp.kind, label: sp.label, kind: 'special' });
     xs.push(sp.pos[0] - sx / 2, sp.pos[0] + sx / 2); zs.push(sp.pos[2] - sz / 2, sp.pos[2] + sz / 2);
   }
+  for (const st of map.streets ?? []) { xs.push(st.x0, st.x1); zs.push(st.z0, st.z1); }
+  for (const it of map.dressing ?? []) { xs.push(it.pos[0]); zs.push(it.pos[2]); }
   // в границы НЕ включаем радиусы точек: они «висят» на зданиях, и карта расползается
   for (const p of map.points) { xs.push(p.pos[0], p.pos[0]); zs.push(p.pos[2], p.pos[2]); }
   xs.push(map.spawns.own[0], map.spawns.foe[0]); zs.push(map.spawns.own[2], map.spawns.foe[2]);
@@ -109,7 +111,7 @@ for (const map of maps) {
   const minZ = Math.min(...zs) - MARGIN, maxZ = Math.max(...zs) + MARGIN;
 
   const SCALE = Math.min(4, 1500 / Math.max(maxX - minX, maxZ - minZ));
-  const PAD = 40, TOP = 74;
+  const PAD = 40, TOP = 96;
   const W = Math.round((maxX - minX) * SCALE + PAD * 2);
   const H = Math.round((maxZ - minZ) * SCALE + PAD * 2 + TOP);
   const px = Buffer.alloc(W * H * 3, 0);
@@ -173,6 +175,31 @@ for (const map of maps) {
   for (let gx = Math.ceil(minX / 20) * 20; gx <= maxX; gx += 20) line(X(gx), TOP + PAD, X(gx), H - PAD, GRID);
   for (let gz = Math.ceil(minZ / 20) * 20; gz <= maxZ; gz += 20) line(PAD, Y(gz), W - PAD, Y(gz), GRID);
 
+  // --- УЛИЦЫ (по карте): асфальт с бордюром; дворовые проезды — темнее и уже
+  const ROAD = [96, 104, 116], LANE = [74, 81, 91], CURB = [150, 158, 170], TREEC = [70, 122, 92];
+  for (const st of map.streets ?? []) {
+    const x0 = X(st.x0), x1 = X(st.x1), y0 = Y(st.z0), y1 = Y(st.z1);
+    rect(x0, y0, x1, y1, st.lane ? LANE : ROAD);
+    if (!st.lane) {
+      // бордюр тонкой линией по краям полотна
+      line(x0, y0, x1, y0, CURB, 0); line(x0, y1, x1, y1, CURB, 0);
+      line(x0, y0, x0, y1, CURB, 0); line(x1, y0, x1, y1, CURB, 0);
+      // осевая разметка пунктиром
+      if (Math.abs(x1 - x0) > Math.abs(y1 - y0)) {
+        const cz = (y0 + y1) / 2;
+        for (let x = x0 + 4; x < x1 - 4; x += 10) line(x, cz, x + 5, cz, [180, 176, 152], 0);
+      } else {
+        const cx = (x0 + x1) / 2;
+        for (let y = y0 + 4; y < y1 - 4; y += 10) line(cx, y, cx, y + 5, [180, 176, 152], 0);
+      }
+      // название улицы — вдоль полотна
+      if (st.name) {
+        const vert = Math.abs(y1 - y0) > Math.abs(x1 - x0);
+        place(st.name, (x0 + x1) / 2 + (vert ? 8 : 0), (y0 + y1) / 2 + (vert ? 0 : -6), [176, 186, 200], 1);
+      }
+    }
+  }
+
   const NAME = { barracks: 'КАЗАРМА', shop: 'ВОЕНТОРГ', workshop: 'ЦЕХ', checkpoint: 'ПРОХОДНАЯ', panel: 'ПАНЕЛЬКА', brick: 'ХРУЩЁВКА', brezhnevka: 'БРЕЖНЕВКА', khrushchevka: 'ХРУЩЁВКА' };
   const houseBoxes = [], labelBoxes = [];
 
@@ -193,7 +220,7 @@ for (const map of maps) {
   // Если точка захвата называется так же («Казарма», «Проходная»), вторую подпись не ставим.
   const pointNames = new Set(map.points.map(p => p.name.toUpperCase()));
   for (const b of boxes) {
-    const nm = NAME[b.name] ?? b.name.toUpperCase();
+    const nm = b.label ? b.label.toUpperCase() : (NAME[b.name] ?? b.name.toUpperCase());
     const x0 = X(b.x - b.w / 2), x1 = X(b.x + b.w / 2), y0 = Y(b.z - b.d / 2), y1 = Y(b.z + b.d / 2);
     // шрифт целочисленный: дробный масштаб рвёт глифы, поэтому только 1 или 2
     // масштаб 1 и 2 только: глифы целочисленные, дробь их рвёт
@@ -201,6 +228,23 @@ for (const map of maps) {
     const w2 = nm.length * 12 - 2, h2 = 14;
     if (x1 - x0 > w2 + 12 && y1 - y0 > h2 + 12) text(nm, (x0 + x1) / 2 - w2 / 2, (y0 + y1) / 2 - h2 / 2, [22, 24, 28], 2);
     else place(nm, (x0 + x1) / 2, y1 + 6, DIM, 1, []);
+  }
+
+  // --- ДВОР: деревья, машины, гаражи, забор, площадка (по dressing.ts)
+  const DCOL = {
+    tree: TREEC, tree_snow: [96, 148, 118], car: [184, 118, 96], bus: [196, 168, 92],
+    garage: [138, 146, 158], fence: [148, 154, 162], playground: [226, 168, 96],
+    kiosk: [128, 150, 168], bench: [160, 128, 88], bin: [110, 132, 110], lamp: [176, 182, 190],
+  };
+  for (const it of map.dressing ?? []) {
+    const c = DCOL[it.kind] ?? [150, 150, 150];
+    const cx = X(it.pos[0]), cy = Y(it.pos[2]);
+    if (it.kind.startsWith('tree')) { circle(cx, cy, 2.5, c, 2); set(cx, cy, [30, 40, 34]); }
+    else if (it.kind === 'playground') { rect(cx - 6, cy - 6, cx + 6, cy + 6, c); rect(cx - 3, cy - 3, cx + 3, cy + 3, BG); }
+    else if (it.kind === 'garage') rect(cx - 4, cy - 6, cx + 4, cy + 6, c);
+    else if (it.kind === 'fence') line(cx - 3, cy, cx + 3, cy, c, 0);
+    else if (it.kind === 'lamp') set(cx, cy, c);
+    else rect(cx - 3, cy - 4, cx + 3, cy + 4, c);
   }
 
   // путь между базами (пунктир) и сами базы
@@ -225,12 +269,19 @@ for (const map of maps) {
   // шапка и легенда
   rect(0, 0, W, TOP - 10, [18, 20, 24]);
   text(map.name, PAD, 14, INK, 3);
-  let lx = PAD;
-  const swatch = (c, name) => { rect(lx, 50, lx + 14, 62, c); text(name, lx + 20, 50, DIM, 2); lx += 34 + name.length * 12; };
+  let lx = PAD, ly = 46;
+  const swatch = (c, name) => {
+    // легенда переносится на вторую строку — иначе последний пункт уезжает за край
+    if (lx + 34 + name.length * 12 > W - PAD) { lx = PAD; ly += 22; }
+    rect(lx, ly, lx + 14, ly + 12, c); text(name, lx + 20, ly, DIM, 2); lx += 34 + name.length * 12;
+  };
   swatch(HOUSE, 'ДОМА');
   swatch(SPECIAL, 'ОСОБЫЕ');
   swatch(POINT, 'ТОЧКИ');
   swatch(BASE, 'БАЗЫ');
+  swatch(ROAD, 'УЛИЦЫ');
+  swatch(TREEC, 'ДЕРЕВЬЯ');
+  swatch(DCOL.playground, 'ДВОР');
   // масштабная линейка: 50 м
   const barLen = 50 * SCALE;
   line(W - PAD - barLen, H - 22, W - PAD, H - 22, INK, 1);

@@ -146,5 +146,46 @@ check('getMap с мусором даёт первую карту', getMap('не�
   }
 }
 
+// --- УЛИЦЫ И ДВОР (по плану квартала): дороги не идут сквозь дома, предметы двора
+// не стоят в стенах и не загораживают точки захвата.
+{
+  const boxOf = (d, kind, isSpecial) => {
+    const m = isSpecial ? buildSpecial(kind, d.sections) : buildVoxelHouse({ kind, sections: d.sections });
+    const q = Math.abs(Math.round(d.rotY / (Math.PI / 2))) % 2 === 1;
+    const sx = q ? m.size[2] : m.size[0], sz = q ? m.size[0] : m.size[2];
+    return { x0: d.pos[0] - sx / 2, z0: d.pos[2] - sz / 2, x1: d.pos[0] + sx / 2, z1: d.pos[2] + sz / 2, name: kind };
+  };
+  const { streetHitsBox } = await import('../src/game/streets.ts');
+  for (const map of MAPS) {
+    const streets = map.streets ?? [];
+    if (!streets.length) continue;
+    const boxes = [
+      ...map.houses.map(h => boxOf(h, h.kind, false)),
+      ...map.specials.map(s => boxOf(s, s.kind, true)),
+    ];
+    // дворовые проезды внутри квартала дома пересекать не должны (улицы по периметру — тоже)
+    const badHits = streets.flatMap(st => boxes.filter(b => streetHitsBox(st, b)).map(b => `${st.name ?? 'проезд'}×${b.name}`));
+    check(`${map.id}: улицы не проходят сквозь дома`, badHits.length === 0, badHits.slice(0, 3).join(', '));
+    check(`${map.id}: есть улицы по периметру`, streets.filter(st => !st.lane).length >= 4, `${streets.filter(st => !st.lane).length}`);
+
+    const items = map.dressing ?? [];
+    if (items.length) {
+      // предметы двора не в стенах домов
+      const inside = items.filter(it => boxes.some(b => it.pos[0] > b.x0 && it.pos[0] < b.x1 && it.pos[2] > b.z0 && it.pos[2] < b.z1));
+      check(`${map.id}: деревья/машины не в стенах`, inside.length === 0, inside.slice(0, 3).map(i => i.kind).join(', '));
+      // на точках захвата — свободно (радиус 3 м), иначе бойцы застревают
+      const onPoint = items.filter(it => map.points.some(p => Math.hypot(p.pos[0] - it.pos[0], p.pos[2] - it.pos[2]) < 3 && p.radius > 0));
+      check(`${map.id}: точки захвата не загорожены`, onPoint.length === 0, onPoint.map(i => i.kind).join(', '));
+      check(`${map.id}: во дворе есть площадка, гаражи и машины`,
+        ['playground', 'garage', 'car'].every(k => items.some(i => i.kind === k)),
+        `${items.length} предметов`);
+      // деревья не растут на дорогах
+      const onStreet = items.filter(it => streets.some(st => it.pos[0] > st.x0 && it.pos[0] < st.x1 && it.pos[2] > st.z0 && it.pos[2] < st.z1));
+      check(`${map.id}: деревья не стоят на асфальте`, onStreet.length === 0,
+        onStreet.slice(0, 3).map(i => `${i.kind}@${i.pos[0]},${i.pos[2]}`).join(' '));
+    }
+  }
+}
+
 console.log(`\nИТОГ: ${bad === 0 ? 'OK' : 'ПРОВАЛ'} — карты (${ok} проверок, ${bad} ошибок)`);
 process.exit(bad === 0 ? 0 : 1);

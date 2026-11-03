@@ -19,6 +19,8 @@ import { spawnVoxelHouse, spawnSpecial, type PlacedBuilding } from './game/struc
 import { BUILDINGS, SPAWN, CURRENT_MAP } from './game/world';
 import { SURFACES, pointBlankRange, EXPLOSION, EXPLOSION_SMALL } from './game/weapons';
 import { VEHICLE_SPAWNS, vehicleById } from './game/vehicles';
+import { spawnDressing } from './game/dressing';
+import { spawnStreets } from './game/streets';
 import type { PlayerInput, Impact } from './shared/types';
 
 const $ = (id: string) => document.getElementById(id)!;
@@ -96,6 +98,17 @@ async function boot() {
     if (pct < 80) console.warn('много моделей без карты цвета — возможны чёрные силуэты');
   }
   buildPolygon(scene, lib, phys);
+  // УЛИЦЫ И ДВОР (по плану квартала): асфальт, бордюры, проезды, деревья, площадка,
+  // гаражи, машины, забор. Раньше на их месте был чистый снег — район читался как
+  // «дома в поле» (видно на скриншотах пользователя).
+  if (CURRENT_MAP.streets?.length) {
+    const st = spawnStreets(scene, phys, CURRENT_MAP.streets);
+    console.log(`улицы: ${st.count}`);
+  }
+  if (CURRENT_MAP.dressing?.length) {
+    const dr = spawnDressing(scene, phys, CURRENT_MAP.dressing as never[]);
+    console.log(`двор: ${dr.count} предметов`);
+  }
   spawnBuildings();
   const fx = effects = new Effects(scene);
   const cmb = combat = new PlayerCombat(lib, phys, fx, camera);
