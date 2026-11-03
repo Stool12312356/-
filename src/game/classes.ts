@@ -45,7 +45,14 @@ export interface ClassSpec {
 export const CLASSES: Record<ClassId, ClassSpec> = {
   assault: {
     id: 'assault', name: 'Штурмовик', role: 'Пехота ближнего боя: продавливает точки',
-    weapons: [{ id: 'ak74', reserve: 180 }, { id: 'akm', reserve: 90 }, { id: 'pm', reserve: 48 }],
+    // слот 1 — ОСНОВНОЕ (АК-74), слот 2 — ВТОРОЕ. Раньше здесь стоял второй автомат (АКМ),
+    // и игрок видел «два калаша» вместо гранатомёта. По ТЗ у штурмовика второе оружие —
+    // РПГ-7 (как и было в стартовом наборе до появления классов).
+    weapons: [
+      { id: 'ak74', reserve: 180 },
+      { id: 'rpg7', reserve: 6 },
+      { id: 'pm', reserve: 48 },
+    ],
     gadgets: [
       { id: 'grenade', name: 'Граната РГД-5', uses: 2 },
       { id: 'medkit', name: 'Аптечка', uses: 1 },

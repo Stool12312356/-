@@ -89,5 +89,69 @@ check('голова и корпус найдены', found.includes('head') && f
   check('reset возвращает позу', !anyMoved);
 }
 
+// --- ПРОВЕРКА НА РЕАЛЬНЫХ МОДЕЛЯХ (обеих): руки НЕ в T-позе, шаг видим, масштаб адекватен.
+// Раньше тест проверял только имена узлов первой модели — и «зеленел», пока боты
+// на экране стояли в T-позе. Теперь меряем геометрию: положение кистей и размах ног.
+{
+  const { buildRig, worldTris } = await import('./lib/rig.mjs');
+  const { NodeIO } = await import('@gltf-transform/core');
+  const { ALL_EXTENSIONS } = await import('@gltf-transform/extensions');
+  const draco3d = (await import('draco3dgltf')).default;
+  const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({
+    'draco3d.decoder': await draco3d.createDecoderModule(),
+    'draco3d.encoder': await draco3d.createEncoderModule(),
+  });
+  const models = [
+    { id: 'soldier_ussr', file: 'public/assets/game/soldier.glb' },
+    { id: 'soldier_opfor', file: 'public/assets/game/forest_soldier_outdated.glb' },
+  ];
+  for (const m of models) {
+    const doc = await io.read(m.file);
+    const rig = buildRig(doc);
+    const a = new WalkAnim(rig.root, m.id);
+    check(`${m.id}: кости найдены`, a.jointNames().length >= 8, a.jointNames().join(','));
+    // руки опущены: кисть ниже плеча, а размах по X меньше полутора ростов
+    const handP = () => { rig.root.updateMatrixWorld(true); const p = new THREE.Vector3(); (a.joints.forearmL ?? a.joints.armL).getWorldPosition(p); return p; };
+    const box = () => {
+      const wt = worldTris(rig); let mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
+      for (const t of wt) for (const v of t) for (let i = 0; i < 3; i++) { mn[i] = Math.min(mn[i], v[i]); mx[i] = Math.max(mx[i], v[i]); }
+      return { w: mx[0] - mn[0], h: mx[1] - mn[1] };
+    };
+    const shoulderY = a.joints.armL.getWorldPosition(new THREE.Vector3()).y;
+    const b0 = box(), h0 = handP();
+    // фиксируем ссылки: позже a.joints может обновиться, а тут нужны те же кости
+    const thighL = a.joints.thighL, shinL = a.joints.shinL;
+    check(`${m.id}: руки опущены (не T-поза)`, h0.y < shoulderY && b0.w < b0.h * 1.1,
+      `кисть ${h0.y.toFixed(2)} < плечо ${shoulderY.toFixed(2)}, ширина ${b0.w.toFixed(2)} при росте ${b0.h.toFixed(2)}`);
+    // шаг: размах бёдер и сгиб колена (по мировым координатам, не по осям костей)
+    a.speed = 1;
+    let spread = 0, knee = 0;
+    a.phase = Math.PI / 2; a.update(1 / 60, 3.1);
+    const footX = () => { rig.root.updateMatrixWorld(true); const p = new THREE.Vector3(); a.joints.shinL.getWorldPosition(p); return p; };
+    const fx0 = footX();
+    for (let i = 0; i < 60; i++) {
+      a.update(1 / 60, 3.1);
+      const f = footX();
+      spread = Math.max(spread, Math.hypot(f.x - fx0.x, f.z - fx0.z));
+    }
+    rot: {
+      // колено: угол между бедром и голенью меняется в цикле
+      let minA = 9, maxA = -9;
+      for (let i = 0; i < 60; i++) {
+        a.update(1 / 60, 3.1);
+        rig.root.updateMatrixWorld(true);
+        const th = new THREE.Vector3().setFromMatrixPosition(thighL.matrixWorld);
+        const sh = new THREE.Vector3().setFromMatrixPosition(shinL.matrixWorld);
+        const ang = Math.atan2(sh.z - th.z, sh.y - th.y);
+        minA = Math.min(minA, ang); maxA = Math.max(maxA, ang);
+      }
+      knee = maxA - minA;
+    }
+    const modelH = b0.h;
+    check(`${m.id}: голень ходит при шаге`, spread > modelH * 0.05, `размах ${spread.toFixed(2)} м при росте ${modelH.toFixed(2)}`);
+    check(`${m.id}: колено сгибается`, knee > 0.2, `ход угла ${knee.toFixed(2)} рад`);
+  }
+}
+
 console.log(`\nИТОГ: ${bad === 0 ? 'OK' : 'ПРОВАЛ'} — анимация ходьбы (${ok} проверок, ${bad} ошибок)`);
 process.exit(bad === 0 ? 0 : 1);

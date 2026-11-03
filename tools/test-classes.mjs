@@ -25,6 +25,13 @@ check('разведчик со СВД', classWeapons(CLASSES.recon).some(w => w.
 check('поддержка с ПКМ или РПК', classWeapons(CLASSES.support).some(w => w.id === 'pkm' || w.id === 'rpk'));
 check('штурмовик с АК-74 или АКМ', classWeapons(CLASSES.assault).some(w => w.id === 'ak74' || w.id === 'akm'));
 
+// у штурмовика вторым номером — РПГ (жалоба: «пропала РПГ, вместо неё ещё один калаш»)
+check('у штурмовика есть РПГ', classWeapons(CLASSES.assault).some(w => w.id === 'rpg7'),
+  classWeapons(CLASSES.assault).map(w => w.id).join(', '));
+check('второй слот штурмовика — не второй автомат',
+  classWeapons(CLASSES.assault).filter(w => ['ak74', 'akm', 'ak74m'].includes(w.id)).length === 1,
+  classWeapons(CLASSES.assault).map(w => w.id).join(', '));
+
 // пассивки: классы должны различаться, иначе выбор бессмысленный
 {
   const speeds = CLASS_ORDER.map(id => CLASSES[id].perk.speedMul);

@@ -18,6 +18,29 @@ export class AssetLibrary {
   constructor() {
     const d = new DRACOLoader(); d.setDecoderPath(this.base + 'draco/'); this.loader.setDRACOLoader(d);
   }
+  /**
+   * ДИАГНОСТИКА ЧЁРНЫХ МОДЕЛЕЙ. Причина №1 — убитые боты затемняли ОБЩИЙ материал
+   * (исправлено в bots.ts). Причина №2 — GLTFLoader молча не декодирует текстуру
+   * (например формат/расширение не поддержаны), и материал рисуется чёрным.
+   * Поэтому здесь ведём счётчик: сколько мешей реально получили карту цвета.
+   */
+  textureStats = { meshes: 0, withMap: 0, withoutMap: 0 };
+
+  /** Считает, у скольких мешей есть карта цвета — для проверки после загрузки. */
+  inspectTextures(root: THREE.Object3D) {
+    root.traverse(o => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      const mats = Array.isArray(m.material) ? m.material : [m.material];
+      for (const mat of mats) {
+        const sm = mat as THREE.MeshStandardMaterial;
+        if (!sm || !sm.isMeshStandardMaterial) continue;
+        this.textureStats.meshes++;
+        if (sm.map) this.textureStats.withMap++; else this.textureStats.withoutMap++;
+      }
+    });
+  }
+
   async init(onProgress?: (done: number, total: number, name: string) => void) {
     // cache-bust: если в assets/models появились файлы и manifest пересобран — подхватится сразу
     this.manifest = await (await fetch(this.base + 'assets/manifest.json?' + Date.now())).json();
@@ -36,6 +59,9 @@ export class AssetLibrary {
       }
       catch (e) { console.error('Не загрузилась модель', it.id, e); it.placeholder = true; it.placeholderSpec = it.placeholderSpec ?? { builder: 'crate', p: { color: '#ff00ff', size: [1, 1, 1] } }; }
       if (it.collider) { try { const c = await (await fetch(this.base + it.collider)).json(); this.colliders.set(it.id, { t: 'hull', points: c.points }); } catch { /* fallback to bbox */ } }
+      // проверка «модель не чёрная»: у материала должна быть карта цвета
+      const g = this.gltfs.get(it.id);
+      if (g) this.inspectTextures(g.scene);
       onProgress?.(++done, real.length, it.name);
     }));
   }

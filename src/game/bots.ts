@@ -39,6 +39,14 @@ export class Bots {
     obj.position.set(...pos); obj.rotation.y = rotY;
     this.scene.add(obj);
     const h = inst.item.size ? inst.item.size[1] : 1.8;
+    // Свои материалы на бота: иначе затемнение при смерти и любые правки цвета
+    // «протекают» на всех остальных ботов (общий кэш модели).
+    obj.traverse(o => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      const mat = m.material as THREE.Material | THREE.Material[];
+      m.material = Array.isArray(mat) ? mat.map(x => x.clone()) : mat.clone();
+    });
     // физика: капсула по высоте модели. Пока живой — кинематический (стоит), после смерти — падает.
     const bodyId = this.phys.add({
       kind: 'dynamic', pos: [pos[0], pos[1] + h / 2, pos[2]], mass: 80, friction: 0.9,
@@ -47,7 +55,8 @@ export class Bots {
     }, obj);
     // Ходьба: в soldier.glb нет клипов, но есть скелет → анимируем костями.
     // Если кости не нашлись (другая модель) — WalkAnim.ok === false, и бот просто едет.
-    const anim = new WalkAnim(obj);
+    // id модели нужен, чтобы взять готовую карту костей (у моделей разные скелеты)
+    const anim = new WalkAnim(obj, id);
     const bot: Bot = { id: this.list.length, hp: 100, maxHp: 100, object: obj, bodyId, height: h, dead: false, side, anim, moveSpeed: 0 };
     this.list.push(bot);
     return bot;
@@ -79,7 +88,23 @@ export class Bots {
     bot.anim?.reset();
     // «мягкое» падение: гасим вращение и роняем на бок импульсом
     this.phys.post({ type: 'impulse', id: bot.bodyId, imp: [(Math.random() - 0.5) * 40, -30, (Math.random() - 0.5) * 40] });
-    bot.object.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) (m.material as THREE.MeshStandardMaterial).color?.multiplyScalar(0.7); });
+    // ВАЖНО: материалы у копий модели ОБЩИЕ (SkeletonUtils.clone не клонирует материалы).
+    // Раньше здесь множился цвет материала — и каждый убитый бот затемнял ВСЕХ, включая
+    // живых: к третьей волне солдаты становились чёрными силуэтами (скриншот пользователя).
+    // Теперь гасим только этот экземпляр — свой клон материала на меш.
+    bot.object.traverse(o => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      const src = m.material as THREE.MeshStandardMaterial | THREE.MeshStandardMaterial[];
+      const arr = Array.isArray(src) ? src : [src];
+      const dimmed = arr.map(mat => {
+        if (!mat || !(mat as THREE.MeshStandardMaterial).isMeshStandardMaterial) return mat;
+        const c = mat.clone();
+        c.color.multiplyScalar(0.55);
+        return c;
+      });
+      m.material = Array.isArray(src) ? dimmed : dimmed[0];
+    });
     this.onDeath?.(bot);
   }
 

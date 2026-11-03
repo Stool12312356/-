@@ -86,6 +86,14 @@ async function boot() {
   await loadTextures((d, t, n) => { load.textContent = `Загрузка текстур ${d}/${t}: ${n}`; });
   await lib.init((d, t, n) => { load.textContent = `Загрузка моделей ${d}/${t}: ${n}`; });
   await phys.ready;
+  // Диагностика «чёрных моделей»: если у материалов нет карты цвета, GLTFLoader
+  // не декодировал текстуру (частая причина — формат webp в нестандартной упаковке).
+  const ts = lib.textureStats;
+  if (ts.meshes) {
+    const pct = Math.round((ts.withMap / ts.meshes) * 100);
+    console.log(`текстуры: ${ts.withMap}/${ts.meshes} мешей с картой цвета (${pct}%)`);
+    if (pct < 80) console.warn('много моделей без карты цвета — возможны чёрные силуэты');
+  }
   buildPolygon(scene, lib, phys);
   spawnBuildings();
   const fx = effects = new Effects(scene);
