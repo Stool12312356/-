@@ -118,7 +118,7 @@ async function boot() {
   // размер мира — из карты (ТЗ п.9: 400 м у города/завода, 800 м у «Пригорода»)
   const WORLD = CURRENT_MAP.size ?? 400;
   if (TRAINING) buildPolygon(scene, lib, phys, WORLD);
-  else buildGround(scene, phys, WORLD, CURRENT_MAP.id === 'port' ? CURRENT_MAP.water : undefined);
+  else buildGround(scene, phys, WORLD, CURRENT_MAP.water);
   // УЛИЦЫ И ДВОР (по плану квартала): асфальт, бордюры, проезды, деревья, площадка,
   // гаражи, машины, забор. Раньше на их месте был чистый снег — район читался как
   // «дома в поле» (видно на скриншотах пользователя).

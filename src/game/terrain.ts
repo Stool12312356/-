@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { tex } from '../render/tex.ts';
-import type { WaterDef } from './water.ts';
+import { depthAt, type WaterDef } from './water.ts';
 
 /**
  * РАЗМЕР МИРА. По ТЗ п.9 у карт разный масштаб: «Спальный район» и «Заводская
@@ -51,7 +51,7 @@ export function heightAt(x: number, z: number): number {
   // Мягкий берег шириной 10 м: поверхность и физический trimesh используют одно дно.
   const edge = Math.min(x - basin.x0, basin.x1 - x, z - basin.z0, basin.z1 - z);
   const blend = THREE.MathUtils.smoothstep(edge, 0, 10);
-  return THREE.MathUtils.lerp(ground, basin.level - (basin.depth ?? 3), blend);
+  return THREE.MathUtils.lerp(ground, basin.level - depthAt(basin, x, z), blend);
 }
 export function buildTerrain(size = MAP_SIZE) {
   setWorldSize(size);

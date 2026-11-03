@@ -149,14 +149,19 @@ function build(kind: DressingKind, color?: string): THREE.Group {
       break;
     }
     case 'bridge': {
-      // мост 40 × 12: настил, перила, опоры. Нужен, чтобы техника перешла реку (ТЗ п.9.3).
-      box(40, 0.5, 12, '#6b6257', 0.3);
+      // Настил перекрывает реку шириной 44 м и опирается на оба берега.
+      box(50, 0.35, 12, '#6b6257', 0);
       for (const zs of [-1, 1]) {
-        box(40, 0.12, 0.2, '#3c3a36', 1.3).position.z = zs * 5.8;
-        for (let i = -4; i <= 4; i++) box(0.2, 1.2, 0.2, '#3c3a36', 0.8).position.set(i * 4.4, 0, zs * 5.8);
+        box(50, 0.12, 0.2, '#3c3a36', 1.25).position.z = zs * 5.8;
+        for (let i = -5; i <= 5; i++) {
+          const post = box(0.2, 0.9, 0.2, '#3c3a36', 0.35);
+          post.position.x = i * 4.4; post.position.z = zs * 5.8;
+        }
       }
-      // опоры в воде
-      for (const xs of [-14, 0, 14]) for (const zs of [-4, 4]) box(1.2, 3.4, 1.2, '#8a8478', -3.2).position.set(xs, 0, zs);
+      for (const xs of [-14, 0, 14]) for (const zs of [-4, 4]) {
+        const support = box(1.2, 3.5, 1.2, '#8a8478', -3.2);
+        support.position.x = xs; support.position.z = zs;
+      }
       break;
     }
     case 'haystack': {
@@ -204,6 +209,11 @@ export function spawnDressing(
     obj.rotation.y = it.rotY ?? 0;
     obj.traverse(o => { const mm = o as THREE.Mesh; if (mm.isMesh) { mm.castShadow = true; mm.receiveShadow = true; } });
     group.add(obj);
+    if (collider && it.kind === 'bridge') {
+      // Коллайдер только настила, а не общий AABB с опорами: под мостом есть вода.
+      phys.add({ kind: 'static', pos: [it.pos[0], y + it.pos[1] + 0.175, it.pos[2]],
+        shapes: [{ t: 'box', he: [25, 0.175, 6], rotY: it.rotY ?? 0 }], surface: 'concrete' });
+    }
     if (collider && it.kind === 'crane') {
       // Только колонны: один AABB на весь кран закрыл бы проезд под ним.
       for (const x of [-5, 5]) {
@@ -212,7 +222,7 @@ export function spawnDressing(
           shapes: [{ t: 'box', he: [0.6, 10, 0.6], rotY: a }], surface: 'metal' });
       }
     }
-    if (collider && ['garage', 'car', 'bus', 'kiosk', 'fence', 'bridge', 'well', 'haystack', 'container'].includes(it.kind)) {
+    if (collider && ['garage', 'car', 'bus', 'kiosk', 'fence', 'well', 'haystack', 'container'].includes(it.kind)) {
       const b = new THREE.Box3().setFromObject(obj);
       const s = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3());
       phys.add({

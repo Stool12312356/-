@@ -6,6 +6,7 @@
 // не пересекаются со зданиями, спавны не внутри стен.
 import type { CapturePoint } from './match.ts';
 import type { SpecialKind } from './barracks.ts';
+import type { WaterDef } from './water.ts';
 
 export interface MapPointDef {
   name: string;
@@ -56,7 +57,7 @@ export interface MapDef {
    */
   size?: number;
   /** Физика воды (ТЗ п.4.5): река/залив с уровнем и течением. */
-  water?: { level: number; x0: number; z0: number; x1: number; z1: number; flow?: [number, number]; depth?: number };
+  water?: WaterDef;
   houses: HouseDef[];
   specials: SpecialDef[];
   points: MapPointDef[];
@@ -345,10 +346,10 @@ const PRIGOROD: MapDef = {
    * РЕКА (ТЗ п.4.5): уровень 0, глубина 3.2 м, течение на юг. Мост стоит поперёк
    * (x −62…−24, z −6…6), поэтому переправа есть, но она одна — как в ТЗ.
    */
-  water: { level: 0, x0: -70, z0: -300, x1: -26, z1: 300, flow: [0, 0.9], depth: 3.2 },
+  water: { level: 0, x0: -70, z0: -300, x1: -26, z1: 300, flow: [0, 0.9], depth: 3.2, ford: { z: 130, halfLength: 10, depth: 0.5 } },
   dressing: [
     // --- мост: настил и перила (переправа для техники)
-    { kind: 'bridge', pos: [-48, 0, 0], rotY: 0 },
+    { kind: 'bridge', pos: [-48, 3.2, 0], rotY: 0 },
     // --- колхоз: плетни, скирды (зимой — снежные бугры), техника
     { kind: 'car', pos: [-260, 0, -2], rotY: 0, color: '#4a5a3a' },
     { kind: 'bus', pos: [-230, 0, 40], rotY: Math.PI / 2 },
@@ -373,7 +374,7 @@ const PRIGOROD: MapDef = {
     { kind: 'fence', pos: [-167.6, 0, 195], rotY: 0 },
     // --- поля: редкие деревья по межам (аллеи вдоль шоссе)
     ...Array.from({ length: 12 }, (_, i) => ({ kind: 'tree_snow', pos: [-2, 0, -280 + i * 48] as [number, number, number], rotY: 0 })),
-    ...Array.from({ length: 10 }, (_, i) => ({ kind: 'tree_snow', pos: [-34, 0, -260 + i * 55] as [number, number, number], rotY: 0 })),
+    ...Array.from({ length: 10 }, (_, i) => ({ kind: 'tree_snow', pos: [-76, 0, -260 + i * 55] as [number, number, number], rotY: 0 })),
     ...Array.from({ length: 8 }, (_, i) => ({ kind: 'tree', pos: [100 + i * 20, 0, 40] as [number, number, number], rotY: 0 })),
     ...[-150, -130, -110, -90, -70, -50, -30, -10].filter(x => x < -56 || x > -40).map(x => ({ kind: 'tree' as const, pos: [x, 0, 178] as [number, number, number], rotY: 0 })),
     ...Array.from({ length: 6 }, (_, i) => ({ kind: 'tree_snow', pos: [-270, 0, -80 + i * 40] as [number, number, number], rotY: 0 })),

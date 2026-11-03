@@ -4,7 +4,7 @@ import type { ToWorker, FromWorker, BodyDesc, Shape, PlayerInput, PlayerState, T
 import { SURFACES, BALLISTICS, penetrationResult } from '../game/weapons';
 import { PHYS_HZ, GRAVITY, PLAYER } from '../shared/constants';
 import { stepVehicle as stepVehicleLocal } from '../game/vehicleRig';
-import { oxygenStep, OXYGEN_TIME, type WaterDef } from '../game/water';
+import { oxygenStep, OXYGEN_TIME, blastAt, type WaterDef } from '../game/water';
 
 const DT = 1 / PHYS_HZ;
 let world: RAPIER.World;
@@ -40,6 +40,7 @@ function downhill(n: { x: number; y: number; z: number }): [number, number] {
 
 function spawnPlayer(pos: [number, number, number]) {
   if (pBody) { world.removeRigidBody(pBody); pBody = null; }
+  oxygen = OXYGEN_TIME; psWater.swimming = false; psWater.submerged = false;
   ps.spawn = pos; ps.feet = [...pos]; ps.vel = [0, 0, 0]; ps.stance = 0; ps.hp = PLAYER.hp; ps.hurtAt = 0; ps.stamina = PLAYER.staminaMax;
   const h = stanceH[0];
   pBody = world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(pos[0], pos[1] + h / 2, pos[2]));
@@ -359,6 +360,9 @@ function removePanel(bodyId: number, panel: number) {
   if (col) { colMeta.delete(col.handle); world.removeCollider(col, false); panelCols.delete(key); }
 }
 function explosion(pos: [number, number, number], radius: number, impulse: number) {
+  const blast = blastAt(water ?? undefined, pos, radius, impulse);
+  const powerScale = impulse > 0 ? blast.power / impulse : 1;
+  radius = blast.radius; impulse = blast.power;
   for (const id of dynIds) {
     const rb = bodies.get(id)!; const t = rb.translation();
     const dx = t.x - pos[0], dy = t.y - pos[1] + 0.3, dz = t.z - pos[2]; const d = Math.hypot(dx, dy, dz);
@@ -371,7 +375,7 @@ function explosion(pos: [number, number, number], radius: number, impulse: numbe
   }
   if (pBody) { // ударная волна отбрасывает игрока
     const dx = ps.feet[0] - pos[0], dy = ps.feet[1] + 1 - pos[1], dz = ps.feet[2] - pos[2]; const d = Math.hypot(dx, dy, dz);
-    if (d < radius) { const f = (1 - d / radius) * 22; const inv = 1 / Math.max(d, 0.5); ps.vel[0] += dx * inv * f; ps.vel[1] += (dy * inv + 0.5) * f * 0.7; ps.vel[2] += dz * inv * f; ps.grounded = false; ps.hp -= (1 - d / radius) * 35; ps.hurtAt = PLAYER.hpRegenDelay; }
+    if (d < radius) { const f = (1 - d / radius) * 22 * powerScale; const inv = 1 / Math.max(d, 0.5); ps.vel[0] += dx * inv * f; ps.vel[1] += (dy * inv + 0.5) * f * 0.7; ps.vel[2] += dz * inv * f; ps.grounded = false; ps.hp -= (1 - d / radius) * 35 * powerScale; ps.hurtAt = PLAYER.hpRegenDelay; }
   }
 }
 

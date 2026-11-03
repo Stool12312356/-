@@ -1,3 +1,4 @@
+import type { WaterDef } from '../game/water.ts';
 import type { ToWorker, FromWorker, BodyDesc, PlayerInput, PlayerState, Tracer, Impact, VehicleDesc } from '../shared/types';
 import * as THREE from 'three';
 
@@ -7,8 +8,8 @@ export class PhysicsClient {
    * ВОДА (ТЗ п.4.5). Воркер не знает про карту, поэтому водоём передаётся ему
    * данными один раз при старте: уровень, прямоугольник, течение, глубина.
    */
-  setWater(w: { level: number; x0: number; z0: number; x1: number; z1: number; flow?: [number, number]; depth?: number } | null) {
-    this.post({ type: 'water', water: w } as never);
+  setWater(w: WaterDef | null) {
+    this.post({ type: 'water', water: w });
   }
 
   worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });

@@ -24,6 +24,8 @@ export interface WaterDef {
   flow?: [number, number];
   /** максимальная глубина, м (для визуала и звука) */
   depth?: number;
+  /** Брод: ширина мелкой части и плавные подъёмы дна по течению. */
+  ford?: { z: number; halfLength: number; depth: number };
 }
 
 /** Состояние плавания одной сущности (игрок, машина, ящик). */
@@ -57,7 +59,11 @@ export function inWater(w: WaterDef | undefined, x: number, z: number): boolean 
  */
 export function depthAt(w: WaterDef | undefined, x: number, z: number): number {
   if (!w || !inWater(w, x, z)) return 0;
-  return w.depth ?? 3;
+  const depth = w.depth ?? 3;
+  if (!w.ford) return depth;
+  const distance = Math.abs(z - w.ford.z);
+  const blend = 1 - THREE.MathUtils.smoothstep(distance, w.ford.halfLength, w.ford.halfLength + 15);
+  return THREE.MathUtils.lerp(depth, Math.min(depth, w.ford.depth), blend);
 }
 
 /**
@@ -101,6 +107,12 @@ export function oxygenStep(o2: number, dt: number, underWater: boolean): { o2: n
 /** Подводный взрыв: гидроудар бьёт дальше и сильнее (ТЗ п.4.5). */
 export function underwaterBlast(radius: number, power: number): { radius: number; power: number } {
   return { radius: radius * 1.6, power: power * 1.8 };
+}
+
+/** Параметры ударной волны в зависимости от реального положения взрыва. */
+export function blastAt(w: WaterDef | undefined, pos: [number, number, number], radius: number, power: number) {
+  const submerged = !!w && inWater(w, pos[0], pos[2]) && pos[1] < w.level;
+  return submerged ? underwaterBlast(radius, power) : { radius, power };
 }
 
 /** Волна Герстнера: высота в точке (та же формула, что в шейдере — для теста и звука). */

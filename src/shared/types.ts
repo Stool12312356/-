@@ -1,3 +1,4 @@
+import type { WaterDef } from '../game/water.ts';
 export interface ManifestItem {
   id: string; name: string; category: string; faction: string;
   placeholder: boolean; placeholderSpec?: { builder: string; p: Record<string, any> };
@@ -107,7 +108,7 @@ export interface Impact {
 export type ToWorker =
   | { type: 'init' }
   /** вода карты (ТЗ п.4.5): уровень, прямоугольник, течение, глубина */
-  | { type: 'water'; water: { level: number; x0: number; z0: number; x1: number; z1: number; flow?: [number, number]; depth?: number } | null }
+  | { type: 'water'; water: WaterDef | null }
   | { type: 'addBodies'; bodies: BodyDesc[] }
   | { type: 'removeBody'; id: number }
   | { type: 'input'; input: PlayerInput }
