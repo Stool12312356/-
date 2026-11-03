@@ -13,7 +13,7 @@ import { heightAt } from './terrain.ts';
 
 export type DressingKind =
   | 'tree' | 'tree_snow' | 'bench' | 'playground' | 'garage' | 'car' | 'bus' | 'kiosk' | 'fence' | 'bin' | 'lamp'
-  | 'bridge' | 'haystack' | 'well';
+  | 'bridge' | 'haystack' | 'well' | 'crane' | 'container' | 'quay';
 
 export interface DressingItem {
   kind: DressingKind;
@@ -126,6 +126,28 @@ function build(kind: DressingKind, color?: string): THREE.Group {
       cyl(0.32, 0.9, '#3f5a3a', 0);
       break;
     }
+    case 'quay': {
+      box(460, 0.4, 10, '#777e7f', 0);
+      for (let x = -210; x <= 210; x += 30) box(0.5, 0.6, 0.5, '#414950', 0.4).position.set(x, 0.7, 4);
+      break;
+    }
+    case 'crane': {
+      // Портальный кран: две опоры оставляют свободный проезд под стрелой.
+      for (const x of [-5, 5]) {
+        box(1.2, 20, 1.2, '#b78c37').position.x = x;
+        box(2, 0.6, 4, '#414951').position.x = x;
+      }
+      box(12, 1, 1.5, '#b78c37', 20);
+      box(2, 1, 18, '#b78c37', 21).position.z = 5;
+      box(0.12, 10, 0.12, '#292d31', 11).position.z = 12;
+      box(1.4, 0.8, 1.4, '#434950', 10.2).position.z = 12;
+      break;
+    }
+    case 'container': {
+      box(6, 2.6, 2.5, color ?? '#627581');
+      box(6.1, 0.1, 2.6, '#dce7ed', 2.6);
+      break;
+    }
     case 'bridge': {
       // мост 40 × 12: настил, перила, опоры. Нужен, чтобы техника перешла реку (ТЗ п.9.3).
       box(40, 0.5, 12, '#6b6257', 0.3);
@@ -182,7 +204,15 @@ export function spawnDressing(
     obj.rotation.y = it.rotY ?? 0;
     obj.traverse(o => { const mm = o as THREE.Mesh; if (mm.isMesh) { mm.castShadow = true; mm.receiveShadow = true; } });
     group.add(obj);
-    if (collider && ['garage', 'car', 'bus', 'kiosk', 'fence', 'bridge', 'well', 'haystack'].includes(it.kind)) {
+    if (collider && it.kind === 'crane') {
+      // Только колонны: один AABB на весь кран закрыл бы проезд под ним.
+      for (const x of [-5, 5]) {
+        const a = it.rotY ?? 0;
+        phys.add({ kind: 'static', pos: [it.pos[0] + x * Math.cos(a), y + 10, it.pos[2] - x * Math.sin(a)],
+          shapes: [{ t: 'box', he: [0.6, 10, 0.6], rotY: a }], surface: 'metal' });
+      }
+    }
+    if (collider && ['garage', 'car', 'bus', 'kiosk', 'fence', 'bridge', 'well', 'haystack', 'container'].includes(it.kind)) {
       const b = new THREE.Box3().setFromObject(obj);
       const s = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3());
       phys.add({

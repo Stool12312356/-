@@ -172,6 +172,12 @@ export const VEHICLE_SPAWNS: Record<string, { id: string; pos: [number, number, 
   ],
   // «Пригород»: 4×4 км, техника — главное (ТЗ п.9.3). Свои машины у колхоза, враг —
   // на военной базе. Река между ними: переправа по мосту (x −62…−24) или вброд.
+  port: [
+    { id: 'uaz469', pos: [-245, 0.6, -135], yaw: 0 },
+    { id: 'gaz66', pos: [-245, 0.8, -145], yaw: 0 },
+    { id: 'btr80', pos: [245, 0.8, -135], yaw: Math.PI },
+    { id: 'bmp2', pos: [245, 0.6, -145], yaw: Math.PI },
+  ],
   prigorod: [
     { id: 'uaz469', pos: [-310, 0.6, 16], yaw: 0 },
     { id: 'gaz66', pos: [-310, 0.8, 26], yaw: 0 },

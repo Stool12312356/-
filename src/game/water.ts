@@ -130,7 +130,7 @@ export class WaterSurface {
   constructor(scene: THREE.Scene, def: WaterDef) {
     this.def = def;
     const w = def.x1 - def.x0, d = def.z1 - def.z0;
-    const geo = new THREE.PlaneGeometry(w, d, 1, 1);
+    const geo = new THREE.PlaneGeometry(w, d, Math.ceil(w / 3), Math.ceil(d / 3));
     this.mat = new THREE.ShaderMaterial({
       transparent: true,
       uniforms: {
@@ -158,8 +158,7 @@ export class WaterSurface {
           y += 0.05 * sin((world.x * 0.2 + world.z * 1.0) * 3.696 + t * 11.5);
           p.z += y;                     // плоскость повёрнута: локальная Z — это мировой Y
           vH = y; vXZ = world.xz + uFlow * t;
-          gl_Position = projectionMatrix * viewMatrix * world;
-          gl_Position.y += 0.0;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
         }`,
       fragmentShader: /* glsl */`
         uniform vec3 uDeep, uShallow;

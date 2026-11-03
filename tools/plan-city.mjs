@@ -101,6 +101,7 @@ for (const map of maps) {
     boxes.push({ x: sp.pos[0], z: sp.pos[2], w: sx, d: sz, name: sp.kind, label: sp.label, kind: 'special' });
     xs.push(sp.pos[0] - sx / 2, sp.pos[0] + sx / 2); zs.push(sp.pos[2] - sz / 2, sp.pos[2] + sz / 2);
   }
+  if (map.water) { xs.push(map.water.x0, map.water.x1); zs.push(map.water.z0, map.water.z1); }
   for (const st of map.streets ?? []) { xs.push(st.x0, st.x1); zs.push(st.z0, st.z1); }
   for (const it of map.dressing ?? []) { xs.push(it.pos[0]); zs.push(it.pos[2]); }
   for (const t of map.targets ?? []) { xs.push(t.pos[0]); zs.push(t.pos[2]); }
@@ -183,7 +184,7 @@ for (const map of maps) {
     rect(X(w.x0), Y(w.z0), X(w.x1), Y(w.z1), WATER);
     // рябь: короткие горизонтальные штрихи, чтобы вода читалась не как «бетон»
     for (let z = w.z0 + 6; z < w.z1; z += 14) line(X(w.x0) + 2, Y(z), X(w.x1) - 2, Y(z), [56, 110, 146], 0);
-    place('РЕКА', X((w.x0 + w.x1) / 2), Y(w.z0) + 20, [120, 180, 220], 1);
+    place(map.id === 'port' ? 'ЗАЛИВ' : 'РЕКА', X((w.x0 + w.x1) / 2), Y(w.z0) + 20, [120, 180, 220], 1);
   }
 
   // --- УЛИЦЫ (по карте): асфальт с бордюром; дворовые проезды — темнее и уже
@@ -263,6 +264,7 @@ for (const map of maps) {
   const DCOL = {
     tree: TREEC, tree_snow: [96, 148, 118], car: [184, 118, 96], bus: [196, 168, 92],
     garage: [138, 146, 158], fence: [148, 154, 162], playground: [226, 168, 96],
+    crane: [220, 174, 72], container: [158, 110, 88],
     kiosk: [128, 150, 168], bench: [160, 128, 88], bin: [110, 132, 110], lamp: [176, 182, 190],
   };
   for (const it of map.dressing ?? []) {
@@ -270,6 +272,9 @@ for (const map of maps) {
     const cx = X(it.pos[0]), cy = Y(it.pos[2]);
     if (it.kind.startsWith('tree')) { circle(cx, cy, 2.5, c, 2); set(cx, cy, [30, 40, 34]); }
     else if (it.kind === 'playground') { rect(cx - 6, cy - 6, cx + 6, cy + 6, c); rect(cx - 3, cy - 3, cx + 3, cy + 3, BG); }
+    else if (it.kind === 'quay') rect(cx - 230 * SCALE, cy - 5 * SCALE, cx + 230 * SCALE, cy + 5 * SCALE, [135, 145, 150]);
+    else if (it.kind === 'crane') { rect(cx - 5, cy - 5, cx + 5, cy + 5, c); place('КРАН', cx, cy, c, 1); }
+    else if (it.kind === 'container') rect(cx - 3 * SCALE, cy - SCALE, cx + 3 * SCALE, cy + SCALE, c);
     else if (it.kind === 'garage') rect(cx - 4, cy - 6, cx + 4, cy + 6, c);
     else if (it.kind === 'fence') line(cx - 3, cy, cx + 3, cy, c, 0);
     else if (it.kind === 'lamp') set(cx, cy, c);
@@ -312,6 +317,7 @@ for (const map of maps) {
   swatch(TREEC, 'ДЕРЕВЬЯ');
   swatch(DCOL.playground, 'ДВОР');
   if (map.water) swatch(WATER, 'ВОДА');
+  if (map.id === 'port') swatch(DCOL.crane, 'КРАН');
   // масштабная линейка: 50 м
   const barLen = 50 * SCALE;
   line(W - PAD - barLen, H - 22, W - PAD, H - 22, INK, 1);

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { tex } from '../render/tex.ts';
+import type { WaterDef } from './water.ts';
 
 /**
  * РАЗМЕР МИРА. По ТЗ п.9 у карт разный масштаб: «Спальный район» и «Заводская
@@ -31,19 +32,12 @@ const SNOW_ICE = '#a8b6c4';     // наледь и проталины в низ�
 /** Яркость зимнего света: снег не должен быть серым бетоном. */
 export const WINTER = { snow: SNOW_SUN, shade: SNOW_SHADE, ice: SNOW_ICE } as const;
 /** Высота рельефа. Центральная зона 260x260 м плоская (полигон), дальше холмы. */
-const mapSizes: number[] = [MAP_SIZE];
-/**
- * Размер мира задаёт карта (ТЗ п.9). `heightAt` вызывается из десятков мест без
- * знания о карте, поэтому размер регистрируется один раз при сборке мира:
- * плоскость в игровой зоне должна быть плоской для ЛЮБОЙ карты, а холмы — за краем.
- */
-export function setWorldSize(size: number) {
-  if (!mapSizes.includes(size)) mapSizes.push(size);
-  mapSizes.sort((a, b) => b - a);
-  return size;
-}
-/** Размер текущего мира (наибольший зарегистрированный). */
-export const worldSize = () => mapSizes[0];
+let currentSize = MAP_SIZE;
+let basin: WaterDef | undefined;
+/** Настройки только текущей карты: при смене карты прежний размер не сохраняется. */
+export function setWorldSize(size: number) { currentSize = size; return size; }
+export const worldSize = () => currentSize;
+export function setTerrainWater(w?: WaterDef) { basin = w; }
 export function heightAt(x: number, z: number): number {
   const d = Math.max(Math.abs(x), Math.abs(z));
   // Плоская игровая зона — 85% от половины мира: у 400 м это 170 м, у 800 м — 340 м.
@@ -52,7 +46,12 @@ export function heightAt(x: number, z: number): number {
   const flat = (worldSize() / 2) * 0.85;
   const k = THREE.MathUtils.smoothstep(d, flat, flat + 60);
   const n = Math.sin(x * 0.021) * Math.cos(z * 0.017) * 7 + Math.sin(x * 0.047 + 1.3) * Math.sin(z * 0.043) * 3 + Math.sin(x * 0.11) * Math.cos(z * 0.09) * 0.8;
-  return (n + 8) * k;
+  const ground = (n + 8) * k;
+  if (!basin || x < basin.x0 || x > basin.x1 || z < basin.z0 || z > basin.z1) return ground;
+  // Мягкий берег шириной 10 м: поверхность и физический trimesh используют одно дно.
+  const edge = Math.min(x - basin.x0, basin.x1 - x, z - basin.z0, basin.z1 - z);
+  const blend = THREE.MathUtils.smoothstep(edge, 0, 10);
+  return THREE.MathUtils.lerp(ground, basin.level - (basin.depth ?? 3), blend);
 }
 export function buildTerrain(size = MAP_SIZE) {
   setWorldSize(size);

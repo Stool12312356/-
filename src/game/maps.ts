@@ -383,7 +383,54 @@ const PRIGOROD: MapDef = {
   playerSpawn: [-300, 0.05, 0],
 };
 
-export const MAPS: MapDef[] = [SPALNY, ZAVOD, PRIGOROD, POLIGON];
+/** План порта: набережная на юге, склады в центре, жилые кварталы на севере. */
+const PORT: MapDef = {
+  id: 'port', name: 'Портовый город',
+  subtitle: 'зимняя набережная, краны, склады и жилые кварталы', size: 600,
+  water: { level: 0, x0: -280, x1: 280, z0: 110, z1: 300, depth: 5 },
+  houses: [
+    { kind: 'khrushchevka', pos: [-170, 0, -160], rotY: 0, sections: 3 },
+    { kind: 'brezhnevka', pos: [-90, 0, -160], rotY: 0, sections: 3 },
+    { kind: 'khrushchevka', pos: [80, 0, -160], rotY: 0, sections: 3 },
+    { kind: 'brezhnevka', pos: [160, 0, -160], rotY: 0, sections: 3 },
+  ],
+  specials: [
+    { kind: 'workshop', pos: [-130, 0, -30], rotY: 0, sections: 2, label: 'Склад запад' },
+    { kind: 'workshop', pos: [120, 0, -30], rotY: 0, sections: 2, label: 'Склад восток' },
+    { kind: 'checkpoint', pos: [0, 0, -100], rotY: 0, sections: 1, label: 'Проходная' },
+    { kind: 'barracks', pos: [-175, 0, 35], rotY: 0, sections: 2, label: 'Портовый склад' },
+    { kind: 'shop', pos: [160, 0, -110], rotY: 0, sections: 1, label: 'Магазин' },
+  ],
+  streets: [
+    { name: 'Набережная', x0: -240, x1: 240, z0: 60, z1: 74 },
+    { name: 'Портовая', x0: -220, x1: 220, z0: -76, z1: -64 },
+    { name: 'Западный проезд', x0: -220, x1: -208, z0: -200, z1: 60 },
+    { name: 'Восточный проезд', x0: 208, x1: 220, z0: -200, z1: 60 },
+    { name: 'Жилая улица', x0: -200, x1: 200, z0: -205, z1: -193 },
+  ],
+  points: [
+    { name: 'Западный склад', pos: [-150, 0, -55], radius: 12 },
+    { name: 'Проходная', pos: [0, 0, -75], radius: 12 },
+    { name: 'Восточный склад', pos: [140, 0, -55], radius: 12 },
+    { name: 'Набережная', pos: [0, 0, 67], radius: 14 },
+    { name: 'Жилой квартал', pos: [0, 0, -160], radius: 12 },
+  ],
+  dressing: [
+    { kind: 'quay', pos: [0, 0, 100] },
+    { kind: 'crane', pos: [-120, 0, 90] },
+    { kind: 'crane', pos: [100, 0, 90] },
+    ...[-70, -62, -54, 45, 53, 61].map(x => ({ kind: 'container', pos: [x, 0, 25] as [number, number, number], color: x < 0 ? '#6b7061' : '#83594d' })),
+    { kind: 'garage', pos: [-190, 0, -110] },
+    { kind: 'car', pos: [-130, 0, -120], color: '#555c60' },
+    { kind: 'playground', pos: [-35, 0, -135] },
+    ...[-180, -120, -60, 60, 120, 180].map(x => ({ kind: 'lamp', pos: [x, 0, 80] as [number, number, number] })),
+    ...[-150, -115, -80, 80, 115, 150].map(x => ({ kind: 'tree_snow', pos: [x, 0, -180] as [number, number, number] })),
+  ],
+  spawns: { own: [-245, 0.05, -120], foe: [245, 0.05, -120] },
+  playerSpawn: [-245, 0.05, -120],
+};
+
+export const MAPS: MapDef[] = [SPALNY, ZAVOD, PRIGOROD, PORT, POLIGON];
 
 /** Играбельные (боевые) карты: только они попадают в выбор режима. */
 export const COMBAT_MAPS = MAPS.filter(m => (m.mode ?? 'combat') === 'combat');

@@ -93,8 +93,8 @@ const wetBuildings = [...pg.houses, ...pg.specials].filter(d => pg.water
   && d.pos[0] > pg.water.x0 - 6 && d.pos[0] < pg.water.x1 + 6);
 check('дома не в реке', wetBuildings.length === 0, wetBuildings.map(d => d.kind).join(', '));
 // на остальных боевых картах сухо — вода не должна «протекать» из карты в карту
-const others = MAPS.filter(m => m.id !== 'prigorod');
-check('на других картах воды нет', others.every(m => !m.water), others.map(m => m.id).join(', '));
+const others = MAPS.filter(m => m.id !== 'prigorod' && m.id !== 'port');
+check('на остальных картах воды нет', others.every(m => !m.water), others.map(m => m.id).join(', '));
 // карта в 4 раза больше города по площади
 check('«Пригород» крупнее городской карты', (pg.size ?? 400) >= 800, `${pg.size} м`);
 

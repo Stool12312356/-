@@ -86,7 +86,7 @@ function stepPlayer() {
   if (airStep.damage > 0) { ps.hp -= airStep.damage; ps.hurtAt = PLAYER.hpRegenDelay; }
   let speed = inWaterNow ? PLAYER.walk * 0.55 : stanceSpeed[st];
   const moving = len > 0.01;
-  if (st === 0 && input.sprint && input.fwd > 0 && moving && !ps.exhausted && ps.stamina > 0) {
+  if (!inWaterNow && st === 0 && input.sprint && input.fwd > 0 && moving && !ps.exhausted && ps.stamina > 0) {
     speed = PLAYER.sprint; ps.stamina = Math.max(0, ps.stamina - PLAYER.staminaDrain * DT); if (ps.stamina <= 0) ps.exhausted = true;
   } else { ps.stamina = Math.min(PLAYER.staminaMax, ps.stamina + PLAYER.staminaRegen * DT * (moving ? 0.6 : 1.4)); if (ps.exhausted && ps.stamina > 25) ps.exhausted = false; }
   const accel = ps.grounded ? 45 : 7;
@@ -98,10 +98,10 @@ function stepPlayer() {
   // вертикаль
   ps.vel[1] += GRAVITY * DT;
   if (inWaterNow) {
-    // Архимед для человека: объём ~0.075 м³, погружение считаем по груди.
+    // Архимед для человека: объём ~0.09 м³, погружение считаем по груди.
     // Плюс вязкое сопротивление воды — иначе прыжок в реку «пробивал» её насквозь.
     const sub = Math.max(0, Math.min(1, ((wdef?.level ?? 0) - ps.feet[1]) / 1.8));
-    const buoy = 1000 * GRAVITY * 0.075 * sub;   // Н, вверх
+    const buoy = 1000 * -GRAVITY * 0.09 * sub;   // Н, вверх
     ps.vel[1] += (buoy / 75) * DT;                // масса тела 75 кг
     ps.vel[1] *= Math.exp(-2.4 * DT);
     ps.vel[0] *= Math.exp(-1.1 * DT);
