@@ -1,6 +1,6 @@
 // Плавучесть амфибии в кинематической модели техники. Вызывается из worker.ts
 // каждый физический шаг; отдельно от силы колёс, которые работают только на опоре.
-import { inWater, type WaterDef } from './water.ts';
+import { inWater, depthAt, type WaterDef } from './water.ts';
 
 export interface AmphibiousState {
   specId: string;
@@ -38,4 +38,32 @@ export function amphibiousAcceleration(
     ],
     yawAcceleration: -Math.max(-1, Math.min(1, controls.steer)) * 0.6 * submerged - v.yawRate * 2 * submerged,
   };
+}
+
+/** Танк не является амфибией: после попадания в глубокую воду у экипажа 10 с. */
+export const TANK_EVACUATION_TIME = 10;
+export interface TankFlood {
+  elapsed: number;
+  startY: number;
+  bottomY: number;
+  sunk: boolean;
+}
+
+/** null — танк сухой, иначе состояние затопления сохраняется даже при касании дна. */
+export function advanceTankFlood(
+  w: WaterDef | undefined, specId: string, pos: [number, number, number], height: number,
+  wheelRadius: number, drySupport: boolean, previous: TankFlood | null, dt: number,
+): TankFlood | null {
+  if (previous?.sunk) return previous; // затонувшую машину нельзя «починить» выходом из воды
+  if (!w || specId !== 't72' || !inWater(w, pos[0], pos[2]) || drySupport) return null;
+  // Начало только в глубокой воде: вброд и по мосту таймер не включается.
+  if (!previous && (pos[1] - height / 2 >= w.level || depthAt(w, pos[0], pos[2]) < 1.5)) return null;
+  const flood = previous ?? { elapsed: 0, startY: pos[1], bottomY: w.level - depthAt(w, pos[0], pos[2]) + wheelRadius / 2, sunk: false };
+  const elapsed = Math.min(TANK_EVACUATION_TIME, flood.elapsed + Math.max(0, dt));
+  return { ...flood, elapsed, sunk: elapsed >= TANK_EVACUATION_TIME };
+}
+
+export function tankFloodHeight(flood: TankFlood): number {
+  const t = Math.min(1, flood.elapsed / TANK_EVACUATION_TIME);
+  return flood.startY + (Math.min(flood.startY, flood.bottomY) - flood.startY) * t;
 }

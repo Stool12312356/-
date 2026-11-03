@@ -112,7 +112,7 @@ export type ToWorker =
   | { type: 'addBodies'; bodies: BodyDesc[] }
   | { type: 'removeBody'; id: number }
   | { type: 'input'; input: PlayerInput }
-  | { type: 'spawnPlayer'; pos: [number, number, number] }
+  | { type: 'spawnPlayer'; pos: [number, number, number]; preserve?: boolean }
   | { type: 'impulse'; id: number; imp: [number, number, number] }
   | { type: 'explosion'; pos: [number, number, number]; radius: number; impulse: number }
   /** добавить снаряд (пуля или ракета). direction нормализован, speed в м/с */
@@ -149,6 +149,7 @@ export interface PlayerState {
 }
 export type FromWorker =
   | { type: 'ready' }
+  | { type: 'vehicleSunk'; id: number; passengerLost: boolean }
   | { type: 'ray'; id: number; dist: number | null; point?: [number, number, number] }
   | { type: 'snapshot'; t: number; ids: Int32Array; tf: Float32Array; player: PlayerState | null; awake: number; total: number; stepMs: number }
   /** трассеры после шага физики (для отрисовки) */
@@ -158,5 +159,5 @@ export type FromWorker =
   /** состояние машины игрока (позиция для камеры и HUD) */
   | {
       type: 'vehicle'; id: number; pos: [number, number, number]; yaw: number;
-      speed: number; /** км/ч */ wheelComp: number[]; slip: boolean; damaged: { track: boolean; engine: boolean; turret: boolean };
+      speed: number; /** км/ч */ wheelComp: number[]; slip: boolean; sinkRemaining?: number | null; sunk?: boolean; damaged: { track: boolean; engine: boolean; turret: boolean };
     };

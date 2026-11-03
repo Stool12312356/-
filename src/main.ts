@@ -207,6 +207,13 @@ async function boot() {
     match?.casualty(b.side ? 1 : 0);
   };
   phys.onImpact(onImpact);
+  phys.onVehicleSunk = (id, passengerLost) => {
+    if (passengerLost && drivingId === id) {
+      drivingId = null;
+      $('veh').textContent = '';
+      addFeed('Танк затонул: вы не успели эвакуироваться');
+    }
+  };
   phys.post({ type: 'spawnPlayer', pos: CURRENT_MAP.playerSpawn ?? SPAWN });
   const real = lib.all().filter(i => !i.placeholder && !i.procedural).length;
   load.innerHTML = `Готово. Реальных моделей: <b class="ok">${real}</b> · заглушек: <b class="ph">${lib.all().filter(i => i.placeholder).length}</b> · процедурных домов: <b class="ok">${buildings.length}</b>`;
@@ -305,6 +312,7 @@ function nearestVehicle(maxDist = 3.2): number | null {
   const p = phys.player?.pos; if (!p) return null;
   let best: number | null = null, bd = maxDist;
   for (const [id, v] of vehicleObjs) {
+    if (phys.vehicles.get(id)?.sunk) continue;
     const d = Math.hypot(p[0] - v.pos[0], p[2] - v.pos[2]);
     if (d < bd) { bd = d; best = id; }
   }
@@ -319,7 +327,7 @@ function toggleVehicle() {
   if (drivingId != null) {
     // выйти: рядом с машиной, чтобы не оказаться внутри корпуса
     const v = phys.vehicles.get(drivingId);
-    if (v) phys.post({ type: 'spawnPlayer', pos: [v.pos[0] + Math.cos(v.yaw) * 3, v.pos[1] + 0.4, v.pos[2] - Math.sin(v.yaw) * 3] });
+    if (v) phys.post({ type: 'spawnPlayer', pos: [v.pos[0] + Math.cos(v.yaw) * 3, v.pos[1] + 0.4, v.pos[2] - Math.sin(v.yaw) * 3], preserve: true });
     phys.enterVehicle(-1);
     addFeed(`Вышел из машины: ${vehicleById(vehicleObjs.get(drivingId)?.specId ?? 'uaz469').name}`);
     drivingId = null;
@@ -787,6 +795,8 @@ function frame(now: number) {
       const v = phys.vehicles.get(drivingId);
       if (v) {
         const nm = vehicleById(vehicleObjs.get(drivingId)?.specId ?? 'uaz469').name;
+        $('veh').textContent = v.sinkRemaining != null
+          ? `ТАНК ТОНЕТ: ${Math.ceil(v.sinkRemaining)} с · E — выйти` : 'E — выйти';
         $('info').textContent = `${nm}: ${v.speed.toFixed(0)} км/ч${v.slip ? ' · БУКСУЕТ' : ''}` +
           (v.damaged.track ? ' · ГУСЕНИЦА' : '') + (v.damaged.engine ? ' · ДВИГАТЕЛЬ' : '') + '\nE — выйти';
       }

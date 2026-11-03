@@ -27,6 +27,7 @@ export class PhysicsClient {
   private impactQueue: Impact[] = [];
   private impactCb: ((i: Impact) => void) | null = null;
   onImpact(cb: (i: Impact) => void) { this.impactCb = cb; }
+  onVehicleSunk: ((id: number, passengerLost: boolean) => void) | null = null;
   takeImpacts(): Impact[] { const q = this.impactQueue; this.impactQueue = []; return q; }
   private q = new THREE.Quaternion(); private q2 = new THREE.Quaternion();
 
@@ -35,11 +36,12 @@ export class PhysicsClient {
       this.worker.onmessage = (e: MessageEvent<FromWorker>) => {
         const m = e.data;
         if (m.type === 'ready') res();
+        else if (m.type === 'vehicleSunk') this.onVehicleSunk?.(m.id, m.passengerLost);
         else if (m.type === 'snapshot') this.onSnap(m);
         else if (m.type === 'tracers') this.tracers = m.tracers;
         else if (m.type === 'ray') { if (m.id === this.raySeq) { this.rayDist = m.dist; this.rayPoint = m.point ?? null; } }
         else if (m.type === 'vehicle') {
-          this.vehicles.set(m.id, { pos: m.pos, yaw: m.yaw, speed: m.speed, slip: m.slip, damaged: m.damaged });
+          this.vehicles.set(m.id, { pos: m.pos, yaw: m.yaw, speed: m.speed, slip: m.slip, damaged: m.damaged, sinkRemaining: m.sinkRemaining ?? null, sunk: m.sunk ?? false });
         }
         else if (m.type === 'impacts') { for (const i of m.impacts) { this.impactQueue.push(i); this.impactCb?.(i); } if (this.impactQueue.length > 512) this.impactQueue.splice(0, 256); }
       };
@@ -68,7 +70,7 @@ export class PhysicsClient {
   enterVehicle(id: number) { this.post({ type: 'enterVehicle', id }); }
   damageVehicle(id: number, part: 'track' | 'engine' | 'turret') { this.post({ type: 'damageVehicle', id, part }); }
   /** последнее состояние машин (обновляется воркером каждый шаг) */
-  vehicles = new Map<number, { pos: [number, number, number]; yaw: number; speed: number; slip: boolean; damaged: { track: boolean; engine: boolean; turret: boolean } }>();
+  vehicles = new Map<number, { pos: [number, number, number]; yaw: number; speed: number; slip: boolean; damaged: { track: boolean; engine: boolean; turret: boolean }; sinkRemaining: number | null; sunk: boolean }>();
 
   newId() { return this.nextId++; }
   post(m: ToWorker, transfer: Transferable[] = []) { this.worker.postMessage(m, transfer); }

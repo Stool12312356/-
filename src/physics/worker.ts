@@ -4,7 +4,7 @@ import type { ToWorker, FromWorker, BodyDesc, Shape, PlayerInput, PlayerState, T
 import { SURFACES, BALLISTICS, penetrationResult } from '../game/weapons';
 import { PHYS_HZ, GRAVITY, PLAYER } from '../shared/constants';
 import { stepVehicle as stepVehicleLocal } from '../game/vehicleRig';
-import { amphibiousAcceleration } from '../game/vehicleWater';
+import { amphibiousAcceleration, advanceTankFlood, tankFloodHeight, TANK_EVACUATION_TIME, type TankFlood } from '../game/vehicleWater';
 import { oxygenStep, OXYGEN_TIME, blastAt, type WaterDef } from '../game/water';
 
 const DT = 1 / PHYS_HZ;
@@ -39,10 +39,14 @@ function downhill(n: { x: number; y: number; z: number }): [number, number] {
   return [n.x / l, n.z / l];
 }
 
-function spawnPlayer(pos: [number, number, number]) {
+function spawnPlayer(pos: [number, number, number], preserve = false) {
   if (pBody) { world.removeRigidBody(pBody); pBody = null; }
-  oxygen = OXYGEN_TIME; psWater.swimming = false; psWater.submerged = false;
-  ps.spawn = pos; ps.feet = [...pos]; ps.vel = [0, 0, 0]; ps.stance = 0; ps.hp = PLAYER.hp; ps.hurtAt = 0; ps.stamina = PLAYER.staminaMax;
+  if (!preserve) {
+    oxygen = OXYGEN_TIME;
+    ps.spawn = pos; ps.hp = ps.hpLimit; ps.hurtAt = 0; ps.stamina = PLAYER.staminaMax;
+  }
+  psWater.swimming = false; psWater.submerged = false;
+  ps.feet = [...pos]; ps.vel = [0, 0, 0]; ps.stance = 0;
   const h = stanceH[0];
   pBody = world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(pos[0], pos[1] + h / 2, pos[2]));
   pCol = world.createCollider(RAPIER.ColliderDesc.capsule((h - 2 * PR) / 2, PR).setFriction(0), pBody);
@@ -207,6 +211,7 @@ interface VehicleRT {
   throttle: number; steerIn: number; handbrake: boolean;
   damaged: { track: boolean; engine: boolean; turret: boolean };
   rb: RAPIER.RigidBody;
+  flood: TankFlood | null;
 }
 const vehicles = new Map<number, VehicleRT>();
 /** в какой машине игрок (−1 — пешком) */
@@ -239,7 +244,7 @@ function addVehicle(v: VehicleDesc) {
   vehicles.set(v.id, {
     desc: v, pos: [...v.pos], vel: [0, 0, 0], yaw: v.yaw, yawRate: 0, steer: 0, gear: 1,
     throttle: 0, steerIn: 0, handbrake: false,
-    damaged: { track: false, engine: false, turret: false }, rb,
+    damaged: { track: false, engine: false, turret: false }, flood: null, rb,
   });
 }
 
@@ -263,6 +268,17 @@ function stepVehicles() {
     // На дне и на мосту сначала работает колёсная подвеска: она уже удерживает
     // полный вес, поэтому нельзя добавлять к ней ещё полный вес Архимеда.
     const supported = contacts.some(c => c.ground != null);
+    const drySupport = !!water && contacts.some(c => c.ground != null && c.ground >= water!.level - 0.05);
+    const wasSunk = v.flood?.sunk ?? false;
+    v.flood = advanceTankFlood(water ?? undefined, v.desc.specId, v.pos, v.desc.size[1],
+      v.desc.wheels[0]?.radius ?? 0, drySupport, v.flood, DT);
+    if (v.flood && !wasSunk && v.flood.sunk) {
+      v.damaged.engine = true;
+      v.throttle = 0;
+      const passengerLost = playerVehicle === v.desc.id && !!pBody;
+      if (passengerLost) { playerVehicle = -1; spawnPlayer(ps.spawn); }
+      (self as any).postMessage({ type: 'vehicleSunk', id: v.desc.id, passengerLost } satisfies FromWorker);
+    }
     const waterStep = amphibiousAcceleration(water ?? undefined, {
       specId: v.desc.specId, size: v.desc.size, pos: v.pos, vel: v.vel, yaw: v.yaw, yawRate: v.yawRate,
     }, { ...controls, throttle: v.damaged.engine ? controls.throttle * 0.35 : controls.throttle }, supported);
@@ -274,6 +290,12 @@ function stepVehicles() {
     v.vel[2] += (r.force[2] / v.desc.mass) * DT;
     v.vel[0] *= 0.995; v.vel[2] *= 0.995;
     v.pos[0] += v.vel[0] * DT; v.pos[1] += v.vel[1] * DT; v.pos[2] += v.vel[2] * DT;
+    if (v.flood) {
+      // Предсказуемое погружение на дно за время эвакуации; без двигателя в воде.
+      v.pos[1] = tankFloodHeight(v.flood);
+      v.vel[1] = 0;
+      v.vel[0] *= Math.exp(-2 * DT); v.vel[2] *= Math.exp(-2 * DT);
+    }
     v.yawRate += (waterStep.submerged > 0 && !supported ? waterStep.yawAcceleration : r.torqueY) * DT;
     v.yaw += v.yawRate * DT;
     v.steer = st.steer;
@@ -325,6 +347,8 @@ function stepVehicles() {
       type: 'vehicle', id: v.desc.id, pos: [...v.pos], yaw: v.yaw,
       speed: speed * 3.6, wheelComp: r.wheels.map(w => w.compression), slip: r.wheels.some(w => w.slip),
       damaged: { ...v.damaged },
+      sinkRemaining: v.flood && !v.flood.sunk ? Math.max(0, TANK_EVACUATION_TIME - v.flood.elapsed) : null,
+      sunk: v.flood?.sunk ?? false,
     } satisfies FromWorker);
   }
 }
@@ -525,7 +549,7 @@ function loop() {
     case 'addBodies': m.bodies.forEach(addBody); break;
     case 'removeBody': { const rb = bodies.get(m.id); if (rb) { world.removeRigidBody(rb); bodies.delete(m.id); dynIds.delete(m.id); } break; }
     case 'input': input = m.input; break;
-    case 'spawnPlayer': spawnPlayer(m.pos); break;
+    case 'spawnPlayer': spawnPlayer(m.pos, m.preserve); break;
     case 'impulse': { const rb = bodies.get(m.id); rb?.applyImpulse({ x: m.imp[0], y: m.imp[1], z: m.imp[2] }, true); break; }
     case 'explosion': explosion(m.pos, m.radius, m.impulse); break;
     case 'heal': ps.hp = Math.min(ps.hpLimit, ps.hp + Math.max(0, m.hp)); break;
@@ -554,6 +578,7 @@ function loop() {
       // сесть можно только рядом с машиной (2.5 м), иначе игнорируем
       const v = vehicles.get(m.id);
       if (!v) { playerVehicle = -1; break; }
+      if (v.flood?.sunk) break;
       const d = Math.hypot(ps.feet[0] - v.pos[0], ps.feet[2] - v.pos[2]);
       playerVehicle = d < 4 ? m.id : -1;
       if (playerVehicle >= 0) { ps.stance = 0; }
