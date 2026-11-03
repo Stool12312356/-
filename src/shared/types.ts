@@ -96,6 +96,8 @@ export interface Tracer {
   penetration: number;                  // сколько «бронепробития» осталось
   owner: number;                        // чей выстрел (0 = игрок)
   explosive?: { radius: number; damage: number }; // РПГ/ВОГ: взрыв при попадании
+  /** Физический осколок, рождаемый воркером при детонации снаряда. */
+  fragment?: { damage: number };
 }
 
 export interface Impact {
@@ -110,6 +112,9 @@ export interface Impact {
   damage: number;
   /** Радиус взрыва исходного снаряда (без усиления водой). */
   blastRadius?: number;
+  /** Попадание в капсулу игрока либо в коллайдер воксельного чанка. */
+  targetPlayer?: boolean;
+  voxel?: boolean;
   /** id тела в физике (-1 = статика) */
   bodyId: number;
   /** id панели дома (-1 если не дом) */

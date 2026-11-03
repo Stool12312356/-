@@ -3,6 +3,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import type { ToWorker, FromWorker, BodyDesc, Shape, PlayerInput, PlayerState, Tracer, Impact, Surface, VehicleDesc, VoxelMaterialGrid } from '../shared/types';
 import { SURFACES, BALLISTICS, penetrationResult, ricochetChance } from '../game/weapons';
 import { VOXEL_MATERIAL } from '../shared/voxelMaterials';
+import { FRAGMENTS_PER_BLAST, MAX_ACTIVE_FRAGMENTS, FRAGMENT_SPEED, FRAGMENT_LIFE, FRAGMENT_DAMAGE, fragmentPlayerDamage } from '../game/fragments';
 import { PHYS_HZ, GRAVITY, PLAYER } from '../shared/constants';
 import { stepVehicle as stepVehicleLocal } from '../game/vehicleRig';
 import { amphibiousAcceleration, boatWavePose, advanceTankFlood, tankFloodHeight, TANK_EVACUATION_TIME, type TankFlood } from '../game/vehicleWater';
@@ -547,6 +548,28 @@ const impactsOut: Impact[] = [];
 // исключаем из запроса, но соседние препятствия продолжаем проверять.
 const passingColliders = new WeakMap<Tracer, Set<number>>();
 
+// Осколки — ограниченные баллистические снаряды, а не визуальные искры.
+let nextFragmentId = -1;
+let pendingFragments: Tracer[] = [];
+const fragmentGroups = new WeakMap<Tracer, { playerDamage: number }>();
+function spawnFragments(point: [number, number, number], normal: [number, number, number], owner: number) {
+  const active = tracers.reduce((n, t) => n + (t.fragment ? 1 : 0), 0) + pendingFragments.length;
+  const count = Math.min(FRAGMENTS_PER_BLAST, Math.max(0, MAX_ACTIVE_FRAGMENTS - active));
+  const group = { playerDamage: 0 };
+  // Равномерная сфера: не оставляет больших пустот и не зависит от частоты кадров.
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < count; i++) {
+    const y = 1 - 2 * (i + 0.5) / FRAGMENTS_PER_BLAST;
+    const r = Math.sqrt(Math.max(0, 1 - y * y)), angle = i * golden;
+    const dir: [number, number, number] = [Math.cos(angle) * r, y, Math.sin(angle) * r];
+    const pos: [number, number, number] = [point[0] + normal[0] * 0.025, point[1] + normal[1] * 0.025, point[2] + normal[2] * 0.025];
+    const tr: Tracer = { id: nextFragmentId--, pos, prev: [...pos], vel: dir.map(x => x * FRAGMENT_SPEED) as [number, number, number],
+      life: FRAGMENT_LIFE, penetration: 0, owner, bc: 0.3, fragment: { damage: FRAGMENT_DAMAGE } };
+    fragmentGroups.set(tr, group); pendingFragments.push(tr);
+  }
+}
+
+
 function stepProjectile(tr: Tracer, dt: number) {
   const n = Math.max(1, Math.min(40, Math.ceil(dt / BALLISTICS.substep)));
   const h = dt / n;
@@ -573,7 +596,7 @@ function stepProjectile(tr: Tracer, dt: number) {
         if (!collider || !collider.containsPoint(ray.origin)) passing.delete(handle);
       }
     }
-    const hit = world.castRayAndGetNormal(ray, seg, true, undefined, undefined, pCol ?? undefined, undefined,
+    const hit = world.castRayAndGetNormal(ray, seg, true, undefined, undefined, tr.fragment ? undefined : pCol ?? undefined, undefined,
       passing?.size ? collider => !passing!.has(collider.handle) : undefined);
     if (!hit) { tr.pos = [nx, ny, nz]; continue; }
 
@@ -604,6 +627,24 @@ function stepProjectile(tr: Tracer, dt: number) {
       // РПГ/ВОГ: взрыв в точке попадания, дальше снаряд не летит
       impactsOut.push({ kind: 'explosive', tracer: tr.id, pos: point, normal, surface, penetrated: false, damage: tr.explosive.damage, blastRadius: tr.explosive.radius, bodyId: meta?.bodyId ?? -1, panel: meta?.panel ?? -1 });
       explosion(point, tr.explosive.radius, 260);
+      spawnFragments(point, normal, tr.owner);
+      return false;
+    }
+
+    if (tr.fragment) {
+      const targetPlayer = !!pCol && hit.collider.handle === pCol.handle;
+      let damage = tr.fragment.damage;
+      if (targetPlayer) {
+        const group = fragmentGroups.get(tr);
+        if (group) { damage = fragmentPlayerDamage(group.playerDamage, damage); group.playerDamage += damage; }
+        ps.hp -= damage;
+        if (damage > 0) ps.hurtAt = PLAYER.hpRegenDelay;
+      } else if (meta) {
+        const body = bodies.get(meta.bodyId);
+        if (body?.isDynamic()) { body.wakeUp(); body.applyImpulse({ x: dir.x * 2, y: dir.y * 2, z: dir.z * 2 }, true); }
+      }
+      impactsOut.push({ kind: 'fragment', tracer: tr.id, pos: point, normal, surface, penetrated: false,
+        damage, targetPlayer, voxel: !!meta?.voxelGrid, bodyId: meta?.bodyId ?? -1, panel: meta?.panel ?? -1 });
       return false;
     }
 
@@ -657,7 +698,8 @@ function stepTracers(dt: number) {
     if (tr.life <= 0) continue;
     if (stepProjectile(tr, dt)) alive.push(tr);
   }
-  tracers = alive;
+  tracers = alive.concat(pendingFragments);
+  pendingFragments = [];
   if (impactsOut.length) (self as any).postMessage({ type: 'impacts', impacts: impactsOut.slice() } satisfies FromWorker);
   const nowMs = performance.now();
   if (tracers.length && nowMs - lastTracerSend > 33) { // 30 Гц достаточно для отрисовки трассеров

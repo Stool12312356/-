@@ -83,6 +83,15 @@ export class Bots {
     return false;
   }
 
+  /** Осколок наносит урон только тому телу, в которое действительно попал. */
+  hitFragment(bodyId: number, damage: number): boolean {
+    const bot = this.list.find(b => b.bodyId === bodyId && !b.dead);
+    if (!bot || damage <= 0) return false;
+    bot.hp -= damage;
+    if (bot.hp <= 0) this.kill(bot);
+    return true;
+  }
+
   /** Урон от ударной волны всем живым бойцам в радиусе, с плавным затуханием. */
   blast(pos: [number, number, number], radius: number, damage: number): number {
     let killed = 0;

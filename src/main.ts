@@ -567,6 +567,22 @@ function applyBlastScene(pos: [number, number, number], profile: BlastProfile, f
 function onImpact(i: Impact) {
   if (!effects || !bots) return;
   effects.impact(i);
+  if (i.kind === 'fragment') {
+    // Только реальное тело попадания, без поиска ближайшего бойца за стеной.
+    if (!i.targetPlayer) bots.hitFragment(i.bodyId, i.damage);
+    if (i.voxel) {
+      const b = findHouseNear(i.pos);
+      b?.house.damageAt(i.pos, 0.3, 0.6, { max: 1 });
+    } else if (i.bodyId >= 0) {
+      for (const b of buildings) {
+        if (!b.propSet.ownsBody(i.bodyId)) continue;
+        const target = b.propSet.nearest(i.pos, 0.6);
+        if (target) b.propSet.damage(target, 6, scene);
+        break;
+      }
+    }
+    return; // не забиваем HUD и звук серией из десятков осколков
+  }
   const lp = listenerPos(camera);
   audio.hit(i.surface, i.pos, lp);
   if (i.kind === 'explosive') {

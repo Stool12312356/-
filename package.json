@@ -54,7 +54,8 @@
     "test:boats": "node tools/test-boats.mjs",
     "test:boats-worker": "vite build && node tools/test-boats-worker.mjs && node tools/test-boat-collision-worker.mjs",
     "test:blast-worker": "vite build && node tools/test-blast-worker.mjs",
-    "test:ballistics-worker": "vite build && node tools/test-ballistics-worker.mjs && node tools/test-voxel-ballistics-worker.mjs"
+    "test:ballistics-worker": "vite build && node tools/test-ballistics-worker.mjs && node tools/test-voxel-ballistics-worker.mjs",
+    "test:fragments-worker": "vite build && node tools/test-fragments-worker.mjs"
   },
   "keywords": [],
   "author": "",
