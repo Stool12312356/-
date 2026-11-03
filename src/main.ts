@@ -677,7 +677,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyE') { toggleVehicle(); return; }
   if (e.code === 'KeyF') throwCrate();
   if (e.code === 'KeyG') blast();
-  if (e.code === 'KeyB') phys.post({ type: 'spawnPlayer', pos: SPAWN });
+  if (e.code === 'KeyB') phys.post({ type: 'spawnPlayer', pos: CURRENT_MAP.playerSpawn ?? SPAWN });
   // 1..4 — оружие
   if (e.code.startsWith('Digit')) { const n = +e.code.slice(5) - 1; if (n >= 0 && n < 4) combat?.equip(n); }
   if (e.code === 'KeyQ' && combat) combat.equip((combat.current + 1) % combat.inventory.length);

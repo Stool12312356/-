@@ -40,7 +40,9 @@ export const SPAWN_AWAY = 4.5;
  * Точка появления игрока — перед входом в первый дом, лицом к двери.
  * Считается из плана: центр первой секции + координата двери из plan.entrance.
  */
-export function spawnPoint(def: BuildingDef = BUILDINGS[0]): [number, number, number] {
+export function spawnPoint(def: BuildingDef | undefined = BUILDINGS[0]): [number, number, number] {
+  // На полигоне нет домов: используем заданный картой спавн, а не читаем поля undefined.
+  if (!def) return [...(CURRENT_MAP.playerSpawn ?? CURRENT_MAP.spawns.own)];
   const model = buildVoxelHouse({ kind: def.kind, sections: def.sections });
   // центр первой секции: дом центрирован, секция шириной plan.w
   const secCx = def.pos[0] - (model.size[0] / 2) + model.plan.w / 2;
