@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { AssetLibrary } from './render/assets';
 import { PhysicsClient } from './physics/client';
 import { buildPolygon } from './game/polygon';
+import { buildGround } from './game/ground';
+import { isTraining } from './game/maps';
 import { heightAt } from './game/terrain';
 import { setupEnvironment } from './render/env';
 import { Effects } from './game/effects';
@@ -25,6 +27,8 @@ import { spawnStreets } from './game/streets';
 import type { PlayerInput, Impact } from './shared/types';
 
 const $ = (id: string) => document.getElementById(id)!;
+/** Текущая карта — полигон/стрельбище? Тогда нет боя, техники и выставки на картах. */
+const TRAINING = isTraining(CURRENT_MAP.id);
 /** Исходная строка подсказок: её возвращаем после временных сообщений (погода и т.п.). */
 const HINT_DEFAULT = document.getElementById('hint')?.textContent ?? '';
 const Q0 = new URLSearchParams(location.search);
@@ -104,7 +108,14 @@ async function boot() {
     console.log(`текстуры: ${ts.withMap}/${ts.meshes} мешей с картой цвета (${pct}%)`);
     if (pct < 80) console.warn('много моделей без карты цвета — возможны чёрные силуэты');
   }
-  buildPolygon(scene, lib, phys);
+  // ВЫСТАВКА АССЕТОВ — ТОЛЬКО ПОЛИГОН.
+  // Раньше `buildPolygon()` вызывался на любой карте, и на спальном районе/заводе
+  // стояли ряды техники, стол с оружием, рампы и башня — то есть на игровой карте
+  // торчал музей. Пользователь: «убери технику и стенды с предметами из спального
+  // района и если также на заводском тоже оттуда убери — это уже играбельные карты.
+  // И добавь отдельную карту полигона». Теперь выставка живёт только здесь.
+  if (TRAINING) buildPolygon(scene, lib, phys);
+  else buildGround(scene, phys);
   // УЛИЦЫ И ДВОР (по плану квартала): асфальт, бордюры, проезды, деревья, площадка,
   // гаражи, машины, забор. Раньше на их месте был чистый снег — район читался как
   // «дома в поле» (видно на скриншотах пользователя).
@@ -116,6 +127,8 @@ async function boot() {
     const dr = spawnDressing(scene, phys, CURRENT_MAP.dressing as never[]);
     console.log(`двор: ${dr.count} предметов`);
   }
+  // мишени стрельбища (только полигон): данными, не хардкодом — см. maps.ts
+  if (TRAINING) spawnTargets();
   spawnBuildings();
   const fx = effects = new Effects(scene);
   const cmb = combat = new PlayerCombat(lib, phys, fx, camera);
@@ -169,8 +182,9 @@ async function boot() {
   // РЕЖИМ «ШТУРМ» (ТЗ п.7): точки захвата + волны бойцов обеих сторон.
   match = new Match(buildCapturePoints(CURRENT_MAP.id));
   buildPointMarkers();
-  spawnWave();
-  spawnVehicles();
+  // БОЙ только на боевых картах. На полигоне нет ни волн, ни техники, ни билетов:
+  // это стрельбище, а не режим «Штурм».
+  if (!TRAINING) { spawnWave(); spawnVehicles(); }
   squads = new Squads(bt, match, phys, fx);
   squads.onKill = (victim, killer) => {
     audio.hit('dirt', [victim.object.position.x, victim.object.position.y + 1, victim.object.position.z], listenerPos(camera));
@@ -201,7 +215,10 @@ async function boot() {
  */
 const vehicleObjs = new Map<number, { obj: THREE.Object3D; specId: string; pos: [number, number, number]; yaw: number }>();
 function spawnVehicles() {
-  const list = VEHICLE_SPAWNS[CURRENT_MAP.id] ?? VEHICLE_SPAWNS.spalny;
+  // ВАЖНО: fallback на spalny убран. Иначе карта без техники (полигон) получала бы
+  // машины спального района — «техника из другой карты» на стрельбище.
+  const list = VEHICLE_SPAWNS[CURRENT_MAP.id] ?? [];
+  if (!list.length) return;
   for (const vs of list) {
     const spec = vehicleById(vs.id);
     // объект: настоящая модель или её процедурная заглушка (чужую не подставляем)
@@ -218,6 +235,37 @@ function spawnVehicles() {
     vehicleObjs.set(id, { obj, specId: spec.id, pos: vs.pos, yaw: vs.yaw });
   }
   addFeed(`Техника: ${list.length} машин у баз — подойди и нажми E`);
+}
+
+/**
+ * МИШЕНИ СТРЕЛЬБИЩА (только полигон). Данные — `map.targets`, поэтому расстановку
+ * можно править в maps.ts, а не в коде. Мишени статичные (не падают от пули — иначе
+ * после первого Magazine стрелять было бы некуда), но их можно снести взрывом.
+ */
+function spawnTargets() {
+  const list = CURRENT_MAP.targets ?? [];
+  for (const t of list) {
+    const inst = lib.has(t.kind) ? lib.make(t.kind) : null;
+    if (inst) {
+      inst.object.position.set(t.pos[0], t.pos[1] + 0.05, t.pos[2]);
+      inst.object.rotation.y = t.rotY ?? 0;
+      scene.add(inst.object);
+      // щит под мишенью: видно, что это стенд, а не живой боец
+      const shield = new THREE.Mesh(
+        new THREE.BoxGeometry(1.2, 0.12, 0.6),
+        new THREE.MeshStandardMaterial({ color: '#8a7040', roughness: 0.9 }),
+      );
+      shield.position.set(t.pos[0], t.pos[1] + 0.06, t.pos[2]);
+      shield.receiveShadow = true;
+      scene.add(shield);
+    } else {
+      // нет модели — не подменяем чужой: обычный ящик-мишень
+      const box = lib.make('crate');
+      box.object.position.set(t.pos[0], t.pos[1] + 0.3, t.pos[2]);
+      scene.add(box.object);
+    }
+  }
+  addFeed(`Полигон: мишеней ${list.length} · дистанции 25/50/100/200 м`);
 }
 
 /** Простая коробка-заглушка по габаритам и колёсам: видно, где машина и куда она смотрит. */
@@ -278,6 +326,7 @@ function toggleVehicle() {
  * расстановка уже «по режиму», а не в две шеренги посреди карты.
  */
 function spawnWave() {
+  if (TRAINING) return;   // на полигоне бойцов-противников не выставляем
   if (!bots || !match) return;
   const my = spawnFor(0, CURRENT_MAP.id), foe = spawnFor(1, CURRENT_MAP.id);
   for (let i = 0; i < WAVE; i++) {
@@ -290,6 +339,7 @@ function spawnWave() {
 
 /** Раз в несколько секунд добиваем стороны до размера волны — «подкрепления» режима. */
 function reinforcements(dt: number) {
+  if (TRAINING) return;
   if (!bots || !match || match.state !== 'running') return;
   waveT += dt;
   if (waveT < 6) return;
@@ -392,7 +442,11 @@ function buildMapMenu() {
   for (const m of MAPS) {
     const el = document.createElement('div');
     el.className = 'map' + (m.id === CURRENT_MAP.id ? ' sel' : '');
-    el.innerHTML = `<b>${m.name}</b><i>${m.subtitle}</i><br><i>точек: ${m.points.length} · домов: ${m.houses.length + m.specials.length}</i>`;
+    // на полигоне нет «точек захвата» — писать «точек: 5» было бы враньём
+    const info = m.mode === 'training'
+      ? `мишеней: ${m.targets?.length ?? 0} · секторов: ${m.points.length}`
+      : `точек: ${m.points.length} · домов: ${m.houses.length + m.specials.length}`;
+    el.innerHTML = `<b>${m.name}</b><i>${m.subtitle}</i><br><i>${info}</i>`;
     el.onclick = () => {
       if (started) { addFeed('Карта меняется до боя'); return; }
       const u = new URL(location.href);
@@ -566,6 +620,8 @@ function buildRegistry() {
 function toggleReg(force?: boolean) { const r = $('reg'); const show = force ?? r.style.display !== 'block'; r.style.display = show ? 'block' : 'none'; if (show && document.pointerLockElement) document.exitPointerLock(); }
 $('regbtn').onclick = () => toggleReg(true);
 $('play').onclick = () => { $('menu').style.display = 'none'; $('hud').style.display = 'block'; started = true; canvas.requestPointerLock(); };
+// На полигоне кнопка называется по-другому: «В БОЙ» на стрельбище — враньё.
+if (TRAINING) { const b = $('play'); if (b) b.textContent = 'НА СТРЕЛЬБИЩЕ'; }
 canvas.addEventListener('click', () => { if (started && !document.pointerLockElement && $('reg').style.display !== 'block') canvas.requestPointerLock(); });
 document.addEventListener('mousemove', e => {
   if (!document.pointerLockElement) return;
@@ -642,6 +698,19 @@ let matchEnded = false, scoreT = 0;
 function updateScoreHud() {
   const el = $('score');
   if (!el || !match) return;
+  // ПОЛИГОН: боя нет, поэтому билеты и точки не показываем. Вместо них — дистанция
+  // до ближайшей мишени: на стрельбище это и есть «счёт».
+  if (TRAINING) {
+    const c = camera.position;
+    let best = Infinity, bestName = '—';
+    for (const t of CURRENT_MAP.targets ?? []) {
+      const d = Math.hypot(t.pos[0] - c.x, t.pos[2] - c.z);
+      if (d < best) { best = d; bestName = `${Math.round(d)} м`; }
+    }
+    el.innerHTML = `ПОЛИГОН · мишеней ${CURRENT_MAP.targets?.length ?? 0} · ближайшая ${bestName}<br>`
+      + `дистанции: 25 / 50 / 100 / 200 м · N — погода`;
+    return;
+  }
   const own = match.points.filter(p => p.owner === 0).length;
   const foe = match.points.filter(p => p.owner === 1).length;
   const dots = match.points.map(p => {
@@ -731,7 +800,9 @@ function frame(now: number) {
       const pOnPoint = !!match.pointAt(pp);
       refs.push({ side: 0, alive: phys.player.hp > 0, pos: [pp[0], pp[1], pp[2]], holding: pOnPoint && spd2 < 1.2 });
     }
-    for (const msg of match.update(dt, refs)) addFeed(msg);
+    // НА ПОЛИГОНЕ МАТЧ НЕ ИДЁТ: без этого «мир» на стрельбище заканчивался ничьей
+    // через 15 минут, а билеты капали в HUD, которого там нет.
+    if (!TRAINING) for (const msg of match.update(dt, refs)) addFeed(msg);
     // БОЙ: боты ходят к точкам, видят цель через свободную линию огня и стреляют.
     // Урон по игроку идёт в физику (то же тело, что получает урон от взрывов).
     if (squads && phys.player) {
@@ -750,7 +821,7 @@ function frame(now: number) {
     }
     updateScoreHud();
     updatePointMarkers();
-    if (match.state !== 'running' && !matchEnded) {
+    if (!TRAINING && match.state !== 'running' && !matchEnded) {
       matchEnded = true;
       addFeed(match.state === 'win' ? `ПОБЕДА: ${match.reason}` : match.state === 'lose' ? `ПОРАЖЕНИЕ: ${match.reason}` : `НИЧЬЯ: ${match.reason}`);
     }

@@ -11,6 +11,13 @@ const check = (n, c, i = '') => { if (c) { ok++; console.log(`  ok   ${n} ${i}`)
 
 for (const map of MAPS) {
   const list = VEHICLE_SPAWNS[map.id] ?? [];
+  // Боевые карты обязаны иметь технику (ТЗ п.4.3). На полигоне её нет специально:
+  // пользователь просил убрать выставку техники с играбельных карт, а полигон —
+  // стрельбище, где кататься негде.
+  if (map.mode === 'training') {
+    check(`${map.id}: полигон без техники`, list.length === 0, `${list.length} машин`);
+    continue;
+  }
   check(`${map.id}: на карте есть техника`, list.length >= 2, `${list.length} машин`);
   // габариты зданий — машина не должна стоять внутри
   const bxs = [];

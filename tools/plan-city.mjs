@@ -103,6 +103,7 @@ for (const map of maps) {
   }
   for (const st of map.streets ?? []) { xs.push(st.x0, st.x1); zs.push(st.z0, st.z1); }
   for (const it of map.dressing ?? []) { xs.push(it.pos[0]); zs.push(it.pos[2]); }
+  for (const t of map.targets ?? []) { xs.push(t.pos[0]); zs.push(t.pos[2]); }
   // в границы НЕ включаем радиусы точек: они «висят» на зданиях, и карта расползается
   for (const p of map.points) { xs.push(p.pos[0], p.pos[0]); zs.push(p.pos[2], p.pos[2]); }
   xs.push(map.spawns.own[0], map.spawns.foe[0]); zs.push(map.spawns.own[2], map.spawns.foe[2]);
@@ -228,6 +229,24 @@ for (const map of maps) {
     const w2 = nm.length * 12 - 2, h2 = 14;
     if (x1 - x0 > w2 + 12 && y1 - y0 > h2 + 12) text(nm, (x0 + x1) / 2 - w2 / 2, (y0 + y1) / 2 - h2 / 2, [22, 24, 28], 2);
     else place(nm, (x0 + x1) / 2, y1 + 6, DIM, 1, []);
+  }
+
+  // --- МИШЕНИ СТРЕЛЬБИЩА (полигон): крестик + подпись дистанции
+  if (map.targets?.length) {
+    for (const t of map.targets) {
+      const cx = X(t.pos[0]), cy = Y(t.pos[2]);
+      line(cx - 4, cy - 4, cx + 4, cy + 4, POINT, 1);
+      line(cx - 4, cy + 4, cx + 4, cy - 4, POINT, 1);
+    }
+    // подпись дистанции у каждого ряда мишеней
+    const rows = [...new Set(map.targets.map(t => Math.round(Math.abs(t.pos[0] + 66))))];
+    void rows;
+    const lineX = X(-66);
+    for (const d of [25, 50, 100, 200]) {
+      const tx = X(-66 + d);
+      if (tx > 0 && tx < W) place(`${d} М`, tx, Y(6), [230, 140, 110], 1);
+    }
+    void lineX;
   }
 
   // --- ДВОР: деревья, машины, гаражи, забор, площадка (по dressing.ts)

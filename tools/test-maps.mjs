@@ -3,6 +3,7 @@
 //
 // Тест строит НАСТОЯЩИЕ воксельные модели домов и цехов (как в игре) и валидирует
 // расстановку — без three-рендера, только сетки.
+import fs from 'fs';
 import { MAPS, getMap, buildCapturePoints, spawnFor } from '../src/game/maps.ts';
 import { buildVoxelHouse } from '../src/game/voxelgen.ts';
 import { buildSpecial } from '../src/game/barracks.ts';
@@ -35,7 +36,50 @@ check('карт минимум две', MAPS.length >= 2, MAPS.map(m => m.name).
 check('id карт уникальны', new Set(MAPS.map(m => m.id)).size === MAPS.length);
 
 for (const map of MAPS) {
+  const training = map.mode === 'training';
   console.log(`\n${map.name} (${map.id})`);
+  if (training) {
+    // ПОЛИГОН: боя нет, поэтому проверяем не точки и мебель, а мишени и секторы
+    check(`${map.id}: это не боевая карта`, training === true, 'mode: training');
+    check(`${map.id}: мишени расставлены`, (map.targets?.length ?? 0) >= 8, `${map.targets?.length ?? 0} мишеней`);
+    check(`${map.id}: нет домов — это стрельбище, а не город`, map.houses.length === 0);
+    check(`${map.id}: нет техники в данных карты`, map.houses.length === 0 && map.specials.length === 0);
+    check(`${map.id}: секторы подписаны дистанциями`,
+      map.points.every(p => p.radius === 0) && map.points.some(p => p.name.includes('25')) && map.points.some(p => p.name.includes('200')),
+      map.points.map(p => p.name).join(', '));
+    // мишени не стоят в куче: между ними хотя бы 2 м
+    const tg = map.targets ?? [];
+    let minT = Infinity;
+    for (let i = 0; i < tg.length; i++) for (let j = i + 1; j < tg.length; j++)
+      minT = Math.min(minT, Math.hypot(tg[i].pos[0] - tg[j].pos[0], tg[i].pos[2] - tg[j].pos[2]));
+    check(`${map.id}: мишени не слиплись`, minT > 2, `минимум ${minT.toFixed(1)} м`);
+
+    // ВЫСТАВКА (polygon.ts) не должна стоять на линии огня. polygon.ts тянет three/terrain,
+    // который в Node не резолвится без расширения, поэтому раскладку проверяем по
+    // исходнику: тест должен ловить «стенд перед мишенью», а не зависеть от импортов.
+    const src = fs.readFileSync(new URL('../src/game/polygon.ts', import.meta.url), 'utf8');
+    const L = {
+      rowRealZ: +src.match(/rowRealZ:\s*(-?[\d.]+)/)[1],
+      weaponTableZ: +src.match(/weaponTableZ:\s*(-?[\d.]+)/)[1],
+      rampZ: +src.match(/rampZ:\s*(-?[\d.]+)/)[1],
+      tower: src.match(/tower:\s*\[(-?[\d.]+),\s*(-?[\d.]+)\]/).slice(1, 3).map(Number),
+      cratesZ: +src.match(/cratesZ:\s*(-?[\d.]+)/)[1],
+      keepClear: src.match(/keepClear:\s*\{\s*x0:\s*(-?[\d.]+),\s*z0:\s*(-?[\d.]+),\s*x1:\s*(-?[\d.]+),\s*z1:\s*(-?[\d.]+)/).slice(1, 5).map(Number),
+    };
+    const line = map.streets?.find(st => st.name === 'Линия огня');
+    check(`${map.id}: зона «не ставить выставку» совпадает с улицей линии огня`,
+      !!line && line.x0 === L.keepClear[0] && line.z0 === L.keepClear[1] && line.x1 === L.keepClear[2] && line.z1 === L.keepClear[3],
+      line ? `${line.x0},${line.z0}…${line.x1},${line.z1}` : 'нет улицы');
+    const spots = [
+      ['ряд техники', -45, L.rowRealZ], ['стол с оружием', 0, L.weaponTableZ],
+      ['рампы', 60, L.rampZ], ['башня', L.tower[0], L.tower[1]], ['ящики', -100, L.cratesZ],
+    ];
+    const onLine = spots.filter(([, x, z]) => x > L.keepClear[0] && x < L.keepClear[2] && z > L.keepClear[1] && z < L.keepClear[3]);
+    check(`${map.id}: выставка не на линии огня`, onLine.length === 0, onLine.map(s => s[0]).join(', '));
+    const hitTarget = spots.filter(([, x, z]) => tg.some(t => Math.hypot(t.pos[0] - x, t.pos[2] - z) < 6));
+    check(`${map.id}: выставка не загораживает мишени`, hitTarget.length === 0, hitTarget.map(s => s[0]).join(', '));
+    continue;
+  }
   // 1. все модели карты собираются без ошибок
   let built = 0, fail = '';
   const boxes = [], solids = [];
@@ -141,8 +185,10 @@ check('getMap с мусором даёт первую карту', getMap('не�
     const ms = performance.now() - t0;
     check(`${map.name}: мир собирается целиком`, !err && placed === map.houses.length + map.specials.length,
       err || `${placed} зданий, ${props} предметов, ${ms.toFixed(0)} мс`);
-    // мебель не должна висеть в воздухе: предметы есть у каждого здания с комнатами
-    check(`${map.name}: мебель расставлена`, props > 100, `${props} предметов`);
+    // мебель не должна висеть в воздухе: предметы есть у каждого здания с комнатами.
+    // У полигона зданий нет вовсе — там проверять нечего.
+    if (map.houses.length + map.specials.length > 0)
+      check(`${map.name}: мебель расставлена`, props > 100, `${props} предметов`);
   }
 }
 
@@ -166,7 +212,7 @@ check('getMap с мусором даёт первую карту', getMap('не�
     // дворовые проезды внутри квартала дома пересекать не должны (улицы по периметру — тоже)
     const badHits = streets.flatMap(st => boxes.filter(b => streetHitsBox(st, b)).map(b => `${st.name ?? 'проезд'}×${b.name}`));
     check(`${map.id}: улицы не проходят сквозь дома`, badHits.length === 0, badHits.slice(0, 3).join(', '));
-    check(`${map.id}: есть улицы по периметру`, streets.filter(st => !st.lane).length >= 4, `${streets.filter(st => !st.lane).length}`);
+    if (map.houses.length) check(`${map.id}: есть улицы по периметру`, streets.filter(st => !st.lane).length >= 4, `${streets.filter(st => !st.lane).length}`);
 
     const items = map.dressing ?? [];
     if (items.length) {

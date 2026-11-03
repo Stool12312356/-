@@ -30,11 +30,26 @@ export interface SpecialDef {
   label?: string;
 }
 
+/** Мишень на стрельбище: стенд полигона (не боевая карта). */
+export interface TargetDef {
+  kind: 'soldier_ussr' | 'soldier_opfor' | 'crate' | 'barrel';
+  pos: [number, number, number];
+  rotY?: number;
+}
+
 export interface MapDef {
   id: string;
   name: string;
   /** подпись карты в меню */
   subtitle: string;
+  /**
+   * Тип карты:
+   *  - `combat`   — играбельная боевая карта (режим «Штурм», базы, точки, техника);
+   *  - `training` — полигон/стрельбище: ни режима, ни баз, ни техники, зато есть
+   *                 стенды и мишени. Пользователь: «убери технику и стенды с предметами
+   *                 из спального района... и добавь отдельную карту полигона».
+   */
+  mode?: 'combat' | 'training';
   houses: HouseDef[];
   specials: SpecialDef[];
   points: MapPointDef[];
@@ -44,6 +59,8 @@ export interface MapDef {
   dressing?: { kind: string; pos: [number, number, number]; rotY?: number; color?: string }[];
   /** где появляется игрок (если не задано — считается из первого дома, как раньше) */
   playerSpawn?: [number, number, number];
+  /** мишени стрельбища (только training) */
+  targets?: TargetDef[];
   /** базы сторон для ботов */
   spawns: { own: [number, number, number]; foe: [number, number, number] };
 }
@@ -207,7 +224,66 @@ const ZAVOD: MapDef = {
   spawns: { own: [-30, 0.05, -12], foe: [40, 0.05, -110] },
 };
 
-export const MAPS: MapDef[] = [SPALNY, ZAVOD];
+/**
+ * «ПОЛИГОН» — отдельная НЕБОЕВАЯ карта (mode: 'training').
+ *
+ * Зачем отдельно: раньше выставка всех ассетов (ряды техники, стол с оружием, рампы,
+ * башня, мишени) жила ПРЯМО В спальном районе и на заводе — `buildPolygon()` вызывался
+ * на каждой карте. Пользователь попросил это убрать: «это уже играбельные карты».
+ * Теперь выставка принадлежит полигону, а данные карты описывают стрельбище:
+ * секторы, валы, мишени.
+ *
+ * Раскладка (X — восток, Z — юг, ноль — центр):
+ *   • своя база и точка старта — запад (−80…−60);
+ *   • сектор пистолета/автомата — 25/50/100 м от линии огня (x от −40);
+ *   • сектор снайперки — 300 м на восток (только СВД/РПГ);
+ *   • рампы и склоны, башня для урона от падения — центр;
+ *   • выставка техники и оружия — север (z < −10), стенды.
+ */
+const POLIGON: MapDef = {
+  id: 'poligon',
+  name: 'Полигон',
+  subtitle: 'стрельбище и выставка техники · не боевая карта',
+  mode: 'training',
+  houses: [],
+  specials: [],
+  // «точки» здесь не захватываются: это подписи секторов, radius 0 — не цель.
+  points: [
+    { name: 'Огонь 25 м', pos: [-31, 0, 0], radius: 0 },
+    { name: 'Огонь 50 м', pos: [-6, 0, 0], radius: 0 },
+    { name: 'Огонь 100 м', pos: [44, 0, 0], radius: 0 },
+    { name: 'Вал 200 м', pos: [144, 0, 0], radius: 0 },
+    { name: 'Выставка техники', pos: [-40, 0, -48], radius: 0 },
+  ],
+  streets: [
+    // бетонка вдоль линии огня (x −60…40) и подъезд к выставке (север)
+    { name: 'Линия огня', x0: -60, z0: -6, x1: 40, z1: 2 },
+    { name: 'Проезд к выставке', x0: -46, z0: -46, x1: -34, z1: -6, lane: true },
+  ],
+  /**
+   * МИШЕНИ ПО ДИСТАНЦИЯМ. Линия огня — западный край бетонки, x = −56 (там игрок
+   * стоит и стреляет). Тогда 25 м → x = −31, 50 м → −6, 100 м → 44, 200 м → 144.
+   * Стрельбище смотрит на восток.
+   */
+  targets: [
+    ...[-16, -2, 12].map((z, i) => ({ kind: (i % 2 ? 'soldier_opfor' : 'soldier_ussr') as TargetDef['kind'], pos: [-31, 0, z] as [number, number, number], rotY: -Math.PI / 2 })),
+    ...[-16, -2, 12].map((z, i) => ({ kind: (i % 2 ? 'soldier_ussr' : 'soldier_opfor') as TargetDef['kind'], pos: [-6, 0, z] as [number, number, number], rotY: -Math.PI / 2 })),
+    ...[-16, -2, 12].map((z, i) => ({ kind: (i % 2 ? 'soldier_opfor' : 'soldier_ussr') as TargetDef['kind'], pos: [44, 0, z] as [number, number, number], rotY: -Math.PI / 2 })),
+    // дальний вал 200 м: ящики (их видно, попасть трудно)
+    ...[-10, 0, 10].map(z => ({ kind: 'crate' as TargetDef['kind'], pos: [144, 0, z] as [number, number, number] })),
+  ],
+    // баз на полигоне нет: бой не идёт, спавны — только чтобы интерфейсу было что взять
+  spawns: { own: [-56, 0.05, -2], foe: [144, 0.05, 0] },
+  playerSpawn: [-56, 0.05, -2],
+};
+
+export const MAPS: MapDef[] = [SPALNY, ZAVOD, POLIGON];
+
+/** Играбельные (боевые) карты: только они попадают в выбор режима. */
+export const COMBAT_MAPS = MAPS.filter(m => (m.mode ?? 'combat') === 'combat');
+
+/** Это полигон/стрельбище, а не бой? */
+export const isTraining = (mapId?: string) => getMap(mapId).mode === 'training';
 
 export const MAP_POINTS: Record<string, MapPointDef[]> = Object.fromEntries(MAPS.map(m => [m.id, m.points]));
 
